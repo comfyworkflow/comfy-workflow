@@ -507,14 +507,17 @@ REM ==========================================================
 echo.
 echo [Step 11/12] Installing custom node requirements...
 
-if exist "ComfyUI\custom_nodes\ComfyUI-Manager\requirements.txt" ^
-    python_embeded\python.exe -s -m pip install -r ComfyUI\custom_nodes\ComfyUI-Manager\requirements.txt
+REM Note: each "if exist" + pip install is on a single long line on
+REM purpose -- line-continuation with ^ is unreliable in batch when
+REM followed by an indented next line; cmd interprets the leading
+REM whitespace as a literal "' '" command and errors out. Same
+REM workaround used elsewhere in this script (e.g. archive size check).
 
-if exist "ComfyUI\custom_nodes\rgthree-comfy\requirements.txt" ^
-    python_embeded\python.exe -s -m pip install -r ComfyUI\custom_nodes\rgthree-comfy\requirements.txt
+if exist "ComfyUI\custom_nodes\ComfyUI-Manager\requirements.txt" python_embeded\python.exe -s -m pip install -r ComfyUI\custom_nodes\ComfyUI-Manager\requirements.txt
 
-if exist "ComfyUI\custom_nodes\ComfyUI-Crystools\requirements.txt" ^
-    python_embeded\python.exe -s -m pip install -r ComfyUI\custom_nodes\ComfyUI-Crystools\requirements.txt
+if exist "ComfyUI\custom_nodes\rgthree-comfy\requirements.txt" python_embeded\python.exe -s -m pip install -r ComfyUI\custom_nodes\rgthree-comfy\requirements.txt
+
+if exist "ComfyUI\custom_nodes\ComfyUI-Crystools\requirements.txt" python_embeded\python.exe -s -m pip install -r ComfyUI\custom_nodes\ComfyUI-Crystools\requirements.txt
 
 REM ==========================================================
 REM Step 12/12 - Install requests + pillow in global Python 3.13

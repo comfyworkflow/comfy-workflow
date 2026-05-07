@@ -1,0 +1,87 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# === Virtual environments ===
+.venv/
+venv/
+ENV/
+env/
+
+# === Tooling ===
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Específico do projeto: outputs do viewer ===
+
+# Quando viewer roda --benchmark, JSONs ficam em ./results/ por default
+# Repo público NÃO commita resultados (cada viewer tem o dele)
+results/
+
+# Imagens geradas
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+
+# Mas mantém imagens em workflows/ (são só JSON de workflow ComfyUI)
+!workflows/**/*.png
+!docs/images/*.png
+
+# Arquivos parciais de download
+**/*.part
+
+# Logs do installer
+installer.log
+installation_report*.txt
+
+# === Modelos baixados (NUNCA commitar — manifesto define onde baixar) ===
+models/
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+*.gguf
+
+# === ComfyUI Portable (instalado pelo viewer separadamente) ===
+ComfyUI_windows_portable/
+
+# === Credenciais ===
+.env
+.env.*
+!.env.example
+*.token
+hf_token.txt

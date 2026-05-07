@@ -1,0 +1,31 @@
+# Defaults: let Git decide based on content
+* text=auto
+
+# Source code and configs: force LF (Unix-friendly, modern standard)
+*.py text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Windows-native scripts: force CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary: never normalize, mark explicitly to avoid corruption
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.safetensors binary
+*.ckpt binary
+*.pt binary
+*.bin binary
+*.gguf binary
+*.7z binary
+*.zip binary

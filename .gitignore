@@ -45,30 +45,30 @@ htmlcov/
 Thumbs.db
 desktop.ini
 
-# === Específico do projeto: outputs do viewer ===
+# === Project-specific: viewer outputs ===
 
-# Quando viewer roda --benchmark, JSONs ficam em ./results/ por default
-# Repo público NÃO commita resultados (cada viewer tem o dele)
+# When viewer runs --benchmark, JSONs are written to ./results/ by default
+# Public repo does NOT commit results (each viewer has their own)
 results/
 
-# Imagens geradas
+# Generated images
 **/*.png
 **/*.jpg
 **/*.jpeg
 **/*.webp
 
-# Mas mantém imagens em workflows/ (são só JSON de workflow ComfyUI)
+# But keep images in workflows/ (those are just ComfyUI workflow JSONs)
 !workflows/**/*.png
 !docs/images/*.png
 
-# Arquivos parciais de download
+# Partial download files
 **/*.part
 
-# Logs do installer
+# Installer logs
 installer.log
 installation_report*.txt
 
-# === Modelos baixados (NUNCA commitar — manifesto define onde baixar) ===
+# === Downloaded models (NEVER commit — manifest defines where to download) ===
 models/
 *.safetensors
 *.ckpt
@@ -76,10 +76,10 @@ models/
 *.bin
 *.gguf
 
-# === ComfyUI Portable (instalado pelo viewer separadamente) ===
+# === ComfyUI Portable (installed by viewer separately) ===
 ComfyUI_windows_portable/
 
-# === Credenciais ===
+# === Credentials ===
 .env
 .env.*
 !.env.example

@@ -27,7 +27,7 @@ dependencies = [
     # HTTP requests (ComfyUI API + downloads)
     "requests>=2.32.0",
 
-    # Imagens pra smoke + verify
+    # Images for smoke + verify
     "pillow>=10.4.0",
 ]
 

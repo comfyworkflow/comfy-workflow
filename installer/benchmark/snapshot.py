@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +72,50 @@ def _safe_nvml[T](
         errors.append(f"{err_msg}: {exc}")
         logger.debug("Suppressed exception in _safe_nvml (%s): %r", err_msg, exc)
         return None
+
+
+@dataclass(frozen=True, slots=True)
+class Sample:
+    """Single point-in-time hardware reading.
+
+    Attributes:
+        timestamp_monotonic: ``time.monotonic()`` value when the sample was
+            captured. Suitable for measuring intervals; not wall-clock time.
+        vram_used_mb: VRAM bytes in use, converted to MiB
+            (``bytes // 1024**2``). Field name uses MB by convention but the
+            unit is binary MiB to align with NVML output.
+        ram_used_gb: System RAM bytes in use, converted to GiB
+            (``bytes / 1024**3``). Same MB/MiB caveat.
+        gpu_utilization_pct: GPU SM utilization, integer percent (0-100).
+        gpu_temp_c: GPU temperature in degrees Celsius (integer).
+        gpu_power_w: GPU instantaneous power draw in Watts. NVML reports
+            milliwatts; this field is already converted.
+    """
+
+    timestamp_monotonic: float
+    vram_used_mb: int
+    ram_used_gb: float
+    gpu_utilization_pct: int
+    gpu_temp_c: int
+    gpu_power_w: float
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotResult:
+    """Aggregated hardware metrics over a collection window.
+
+    Returned by :meth:`SnapshotCollector.aggregate`. The 5 metric fields
+    correspond to the 5 metrics covered by snapshot.py per DA-008
+    (peak VRAM, peak RAM, average GPU utilization / temperature / power).
+    ``errors_during_collection`` aggregates per-sample NVML failures
+    captured by :func:`_safe_nvml`; an empty list indicates a clean run.
+    """
+
+    peak_vram_mb: int
+    peak_ram_gb: float
+    gpu_avg_utilization_pct: float
+    gpu_avg_temp_c: float
+    gpu_avg_power_w: float
+    samples_collected: int
+    duration_seconds: float
+    errors_during_collection: list[str]

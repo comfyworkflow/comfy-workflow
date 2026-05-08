@@ -31,12 +31,14 @@ Metrics NOT covered (handled elsewhere)::
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import logging
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 import psutil
 import pynvml
@@ -313,3 +315,124 @@ class SnapshotCollector:
         self._thread.join(timeout=2 * self._poll_interval_s + 1.0)
         self._stopped_at = time.monotonic()
         self._shutdown_nvml()
+
+    def aggregate(self) -> SnapshotResult:
+        """Compute peak / average statistics over the collected samples.
+
+        Must be called after :meth:`stop`. Calling earlier raises
+        :class:`SnapshotStateError`. If no samples were collected (e.g.
+        ``stop`` was called before the first interval elapsed), the result
+        contains zeros and an entry "no samples collected" is added to
+        ``errors_during_collection``.
+
+        Returns:
+            A frozen :class:`SnapshotResult` summarizing the collection
+            window. ``errors_during_collection`` is a defensive copy of
+            the collector's internal list.
+
+        Raises:
+            SnapshotStateError: :meth:`stop` has not yet been called.
+        """
+        if self._stopped_at is None:
+            raise SnapshotStateError("aggregate() called before stop()")
+
+        started_at = self._started_at if self._started_at is not None else self._stopped_at
+        duration_seconds = self._stopped_at - started_at
+        errors = list(self._errors)
+
+        if not self._samples:
+            errors.append("no samples collected")
+            return SnapshotResult(
+                peak_vram_mb=0,
+                peak_ram_gb=0.0,
+                gpu_avg_utilization_pct=0.0,
+                gpu_avg_temp_c=0.0,
+                gpu_avg_power_w=0.0,
+                samples_collected=0,
+                duration_seconds=duration_seconds,
+                errors_during_collection=errors,
+            )
+
+        n = len(self._samples)
+        return SnapshotResult(
+            peak_vram_mb=max(s.vram_used_mb for s in self._samples),
+            peak_ram_gb=max(s.ram_used_gb for s in self._samples),
+            gpu_avg_utilization_pct=sum(s.gpu_utilization_pct for s in self._samples) / n,
+            gpu_avg_temp_c=sum(s.gpu_temp_c for s in self._samples) / n,
+            gpu_avg_power_w=sum(s.gpu_power_w for s in self._samples) / n,
+            samples_collected=n,
+            duration_seconds=duration_seconds,
+            errors_during_collection=errors,
+        )
+
+
+def main() -> None:
+    """Self-test CLI for :class:`SnapshotCollector`.
+
+    Spawns a collector, samples for ``--duration`` seconds, then prints the
+    aggregated :class:`SnapshotResult` fields. Runs locally on the machine
+    where snapshot.py is invoked — for a CG executor, this would be via SSH
+    dispatch by ``runner.py`` (future block); for the Bloco 12 self-test,
+    on the Itapoá's local RTX 3060.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Self-test for SnapshotCollector: samples GPU + RAM for the "
+            "given duration and prints aggregated metrics."
+        ),
+    )
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=3.0,
+        help="Collection duration in seconds (default: 3.0).",
+    )
+    parser.add_argument(
+        "--device",
+        type=int,
+        default=0,
+        help="NVML device index (default: 0).",
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=100,
+        help="Poll interval in milliseconds (default: 100).",
+    )
+    args = parser.parse_args()
+    duration = cast(float, args.duration)
+    device = cast(int, args.device)
+    interval = cast(int, args.interval)
+
+    print(f"device index: {device}")
+    print(f"poll interval: {interval} ms")
+
+    collector = SnapshotCollector(device_index=device, poll_interval_ms=interval)
+    collector.start()
+    print(f"collecting for {duration:.1f}s...")
+    time.sleep(duration)
+    collector.stop()
+
+    result = collector.aggregate()
+    print(f"samples_collected: {result.samples_collected}")
+    print(f"duration_seconds: {result.duration_seconds:.2f}")
+    print(f"peak_vram_mb: {result.peak_vram_mb}")
+    print(f"peak_ram_gb: {result.peak_ram_gb:.2f}")
+    print(f"gpu_avg_utilization_pct: {result.gpu_avg_utilization_pct:.1f}")
+    print(f"gpu_avg_temp_c: {result.gpu_avg_temp_c:.1f}")
+    print(f"gpu_avg_power_w: {result.gpu_avg_power_w:.1f}")
+    if result.errors_during_collection:
+        print(f"errors_during_collection: {len(result.errors_during_collection)}")
+        for err in result.errors_during_collection:
+            print(f"  - {err}")
+    else:
+        print("errors_during_collection: 0")
+
+
+if __name__ == "__main__":
+    main()

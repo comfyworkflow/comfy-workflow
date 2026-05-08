@@ -364,3 +364,82 @@ class ComfyUIClient:
                     f"Prompt {prompt_id} did not complete within {timeout}s"
                 )
             time.sleep(min(poll_interval, deadline - now))
+
+    def get_image(self, filename: str, subfolder: str, image_type: str) -> bytes:
+        """Fetch a generated image's bytes from the ComfyUI server.
+
+        GETs ``/view`` with ``filename``, ``subfolder``, and ``type`` as query
+        parameters. The response body is the raw image bytes (PNG/JPEG/etc).
+
+        Args:
+            filename: Image filename, e.g. ``"ComfyUI_00001_.png"``. Must be
+                non-empty.
+            subfolder: Subfolder under the output / input / temp directory,
+                or empty string for the root.
+            image_type: One of ``"output"``, ``"input"``, ``"temp"``. Must be
+                non-empty.
+
+        Returns:
+            Raw image bytes.
+
+        Raises:
+            ValueError: ``filename`` or ``image_type`` is empty.
+            ComfyUIConnectionError: Network failure.
+            ComfyUITimeoutError: Request exceeded the timeout.
+            ComfyUIAPIError: Server returned a 4xx/5xx response.
+            ComfyUIError: Any other ``requests`` failure.
+        """
+        if not filename:
+            raise ValueError("filename must be a non-empty string")
+        if not image_type:
+            raise ValueError("image_type must be a non-empty string")
+
+        url = f"{self.base_url}/view"
+        params = {"filename": filename, "subfolder": subfolder, "type": image_type}
+        try:
+            response = self._session.get(url, params=params, timeout=self.timeout)
+        except requests.Timeout as exc:
+            raise ComfyUITimeoutError(
+                f"GET {url} timed out after {self.timeout}s"
+            ) from exc
+        except requests.ConnectionError as exc:
+            raise ComfyUIConnectionError(f"GET {url} failed to connect: {exc}") from exc
+        except requests.RequestException as exc:
+            raise ComfyUIError(f"GET {url} failed: {exc}") from exc
+
+        if not response.ok:
+            raise ComfyUIAPIError(
+                f"GET /view ({filename!r}/{subfolder!r}/{image_type!r}) "
+                f"returned HTTP {response.status_code}: {response.text[:200]}"
+            )
+        return response.content
+
+    def interrupt(self) -> None:
+        """Cancel the prompt currently being executed by the ComfyUI server.
+
+        POSTs to ``/interrupt`` with an empty body. The server cancels the
+        in-flight prompt and proceeds with the next item in the queue. No
+        return value; success is signaled by the absence of an exception.
+
+        Raises:
+            ComfyUIConnectionError: Network failure.
+            ComfyUITimeoutError: Request exceeded the timeout.
+            ComfyUIAPIError: Server returned a 4xx/5xx response.
+            ComfyUIError: Any other ``requests`` failure.
+        """
+        url = f"{self.base_url}/interrupt"
+        try:
+            response = self._session.post(url, timeout=self.timeout)
+        except requests.Timeout as exc:
+            raise ComfyUITimeoutError(
+                f"POST {url} timed out after {self.timeout}s"
+            ) from exc
+        except requests.ConnectionError as exc:
+            raise ComfyUIConnectionError(f"POST {url} failed to connect: {exc}") from exc
+        except requests.RequestException as exc:
+            raise ComfyUIError(f"POST {url} failed: {exc}") from exc
+
+        if not response.ok:
+            raise ComfyUIAPIError(
+                f"POST {url} returned HTTP {response.status_code}: {response.text[:200]}"
+            )

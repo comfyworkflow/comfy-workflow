@@ -16,6 +16,7 @@ Each ``ComfyUIClient`` instance is single-client and NOT thread-safe.
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -303,3 +304,63 @@ class ComfyUIClient:
                 f"/prompt response missing or invalid prompt_id: {prompt_id!r}"
             )
         return prompt_id
+
+    def poll_history(
+        self,
+        prompt_id: str,
+        timeout: int,
+        poll_interval: float = 1.0,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> dict[str, Any]:
+        """Poll ``/history/<prompt_id>`` until the prompt completes or timeout expires.
+
+        ComfyUI's ``/history/<prompt_id>`` returns an empty dict while the
+        prompt is queued or executing, and a single-key dict
+        ``{prompt_id: <entry>}`` once it finishes. This method polls at a
+        fixed interval and returns the entry as soon as it appears.
+
+        Args:
+            prompt_id: UUID returned by :meth:`queue_prompt`. Must be
+                non-empty.
+            timeout: Maximum seconds to wait for completion. Must be > 0.
+            poll_interval: Seconds to sleep between polls. The final sleep
+                is clamped so the method does not exceed ``timeout``.
+            progress_callback: Optional callable invoked once per poll
+                iteration with the elapsed seconds so far. Use to drive
+                progress UI or periodic logging.
+
+        Returns:
+            The history entry dict for ``prompt_id`` (server side
+            ``data[prompt_id]``), with keys such as ``prompt``, ``outputs``,
+            ``status``, and ``meta``.
+
+        Raises:
+            ValueError: ``prompt_id`` is empty or ``timeout`` is not positive.
+            ComfyUITimeoutError: Prompt did not complete within ``timeout``.
+            ComfyUIConnectionError, ComfyUIAPIError, ComfyUIError:
+                See :meth:`_get`.
+        """
+        if not prompt_id:
+            raise ValueError("prompt_id must be a non-empty string")
+        if timeout <= 0:
+            raise ValueError("timeout must be positive")
+
+        start = time.monotonic()
+        deadline = start + timeout
+
+        while True:
+            elapsed = time.monotonic() - start
+            if progress_callback is not None:
+                progress_callback(elapsed)
+
+            data = self._get(f"/history/{prompt_id}")
+            entry = data.get(prompt_id)
+            if isinstance(entry, dict) and entry:
+                return cast(dict[str, Any], entry)
+
+            now = time.monotonic()
+            if now >= deadline:
+                raise ComfyUITimeoutError(
+                    f"Prompt {prompt_id} did not complete within {timeout}s"
+                )
+            time.sleep(min(poll_interval, deadline - now))

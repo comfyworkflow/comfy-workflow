@@ -255,3 +255,61 @@ class SnapshotCollector:
             gpu_temp_c=int(temp_c) if temp_c is not None else 0,
             gpu_power_w=(power_mw / 1000.0) if power_mw is not None else 0.0,
         )
+
+    def start(self) -> None:
+        """Start the polling thread.
+
+        Initializes NVML, records the start timestamp, and spawns a daemon
+        polling thread that calls :meth:`_collect_one` once per
+        ``poll_interval``.
+
+        Raises:
+            SnapshotStateError: ``start`` was already called on this
+                instance.
+            NVMLInitError: NVML init failed; propagated from
+                :meth:`_init_nvml`.
+        """
+        if self._thread is not None:
+            raise SnapshotStateError("start() already called on this collector")
+        self._nvml_handle = self._init_nvml()
+        self._started_at = time.monotonic()
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(
+            target=self._poll_loop,
+            daemon=True,
+            name="SnapshotPoller",
+        )
+        self._thread.start()
+
+    def _poll_loop(self) -> None:
+        """Polling thread body. Runs until ``self._stop_event`` is set.
+
+        Uses ``Event.wait(timeout)`` instead of ``time.sleep`` so the loop
+        responds to a stop signal immediately, without waiting for the
+        remainder of the current poll interval.
+        """
+        assert self._stop_event is not None  # invariant: set by start()
+        while not self._stop_event.is_set():
+            sample = self._collect_one()
+            self._samples.append(sample)
+            self._stop_event.wait(self._poll_interval_s)
+
+    def stop(self) -> None:
+        """Signal the polling thread to stop, join it, and shut down NVML.
+
+        After ``stop`` returns, :meth:`aggregate` may be called to retrieve
+        the :class:`SnapshotResult`.
+
+        Raises:
+            SnapshotStateError: ``start`` was not called, or ``stop`` was
+                already called on this collector.
+        """
+        if self._thread is None:
+            raise SnapshotStateError("stop() called before start()")
+        if self._stopped_at is not None:
+            raise SnapshotStateError("stop() already called on this collector")
+        assert self._stop_event is not None  # invariant: set by start()
+        self._stop_event.set()
+        self._thread.join(timeout=2 * self._poll_interval_s + 1.0)
+        self._stopped_at = time.monotonic()
+        self._shutdown_nvml()

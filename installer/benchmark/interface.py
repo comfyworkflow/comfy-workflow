@@ -15,7 +15,9 @@ Each ``ComfyUIClient`` instance is single-client and NOT thread-safe.
 
 from __future__ import annotations
 
+import argparse
 import logging
+import sys
 import time
 from collections.abc import Callable
 from typing import Any, cast
@@ -443,3 +445,75 @@ class ComfyUIClient:
             raise ComfyUIAPIError(
                 f"POST {url} returned HTTP {response.status_code}: {response.text[:200]}"
             )
+
+
+def main() -> None:
+    """Self-test CLI for :class:`ComfyUIClient`.
+
+    Validates the GET endpoints (``is_alive``, ``system_stats``,
+    ``list_checkpoints``) against a running ComfyUI server. Prints a short
+    summary; exits with code 1 if the server does not respond.
+
+    POST endpoints (``queue_prompt``, ``interrupt``) are intentionally not
+    exercised here — they require a workflow JSON and live state.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Self-test for ComfyUIClient: probes the GET endpoints of a "
+            "ComfyUI server and prints a summary."
+        ),
+    )
+    parser.add_argument(
+        "--target",
+        required=True,
+        help="Base URL of the ComfyUI server, e.g. http://100.72.255.77:8188",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Per-request timeout in seconds (default: 30).",
+    )
+    args = parser.parse_args()
+    target = cast(str, args.target)
+    timeout = cast(int, args.timeout)
+
+    client = ComfyUIClient(target, timeout=timeout)
+    print(f"target: {client.base_url}")
+
+    alive = client.is_alive()
+    print(f"is_alive: {alive}")
+    if not alive:
+        print("server did not respond — aborting further checks", file=sys.stderr)
+        sys.exit(1)
+
+    stats = client.system_stats()
+    system = stats.get("system", {})
+    print(f"comfyui_version: {system.get('comfyui_version')}")
+    print(f"python_version: {system.get('python_version')}")
+    print(f"pytorch_version: {system.get('pytorch_version')}")
+
+    devices = stats.get("devices", [])
+    print(f"devices: {len(devices)}")
+    for i, device in enumerate(devices):
+        name = device.get("name")
+        vram_total = device.get("vram_total")
+        if isinstance(vram_total, int | float):
+            vram_gb = vram_total / (1024**3)
+            print(f"  [{i}] {name} — VRAM total: {vram_gb:.2f} GB")
+        else:
+            print(f"  [{i}] {name}")
+
+    checkpoints = client.list_checkpoints()
+    print(f"checkpoints registered: {len(checkpoints)}")
+    for ckpt in checkpoints:
+        print(f"  - {ckpt}")
+
+
+if __name__ == "__main__":
+    main()

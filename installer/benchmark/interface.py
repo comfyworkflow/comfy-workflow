@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Any, cast
 
 import requests
 
@@ -84,3 +85,78 @@ class ComfyUIClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._session = requests.Session()
+
+    def _get(self, path: str, timeout: int | None = None) -> dict[str, Any]:
+        """Issue an HTTP GET and decode the JSON object body.
+
+        Args:
+            path: URL path starting with ``/``, e.g. ``/system_stats``.
+            timeout: Optional override of the client's default timeout.
+
+        Returns:
+            Parsed JSON body as a dict.
+
+        Raises:
+            ComfyUIConnectionError: Network failure (connection refused,
+                DNS error, etc.).
+            ComfyUITimeoutError: Request exceeded the timeout.
+            ComfyUIAPIError: Server returned a 4xx/5xx response, or the
+                body could not be parsed as a JSON object.
+            ComfyUIError: Any other ``requests`` failure.
+        """
+        url = f"{self.base_url}{path}"
+        effective_timeout = timeout if timeout is not None else self.timeout
+        try:
+            response = self._session.get(url, timeout=effective_timeout)
+        except requests.Timeout as exc:
+            raise ComfyUITimeoutError(
+                f"GET {url} timed out after {effective_timeout}s"
+            ) from exc
+        except requests.ConnectionError as exc:
+            raise ComfyUIConnectionError(f"GET {url} failed to connect: {exc}") from exc
+        except requests.RequestException as exc:
+            raise ComfyUIError(f"GET {url} failed: {exc}") from exc
+
+        if not response.ok:
+            raise ComfyUIAPIError(
+                f"GET {url} returned HTTP {response.status_code}: {response.text[:200]}"
+            )
+
+        try:
+            data: object = response.json()
+        except ValueError as exc:
+            raise ComfyUIAPIError(f"GET {url} returned non-JSON body: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ComfyUIAPIError(
+                f"GET {url} returned non-object JSON: {type(data).__name__}"
+            )
+        return cast(dict[str, Any], data)
+
+    def system_stats(self) -> dict[str, Any]:
+        """Fetch ``/system_stats`` from the ComfyUI server.
+
+        Returns:
+            JSON dict with ComfyUI version info, system info, and per-device
+            VRAM totals. See ComfyUI source for the exact schema.
+
+        Raises:
+            ComfyUIConnectionError, ComfyUITimeoutError, ComfyUIAPIError,
+            ComfyUIError: See :meth:`_get`.
+        """
+        return self._get("/system_stats")
+
+    def is_alive(self) -> bool:
+        """Check whether the ComfyUI server is responsive.
+
+        Issues ``/system_stats`` with a short fixed timeout (5 seconds),
+        regardless of the client's default timeout. Returns ``False`` on
+        any failure: connection refused, timeout, HTTP error, invalid JSON.
+        Never raises ``ComfyUIError`` subclasses.
+        """
+        try:
+            self._get("/system_stats", timeout=5)
+        except ComfyUIError as exc:
+            logger.debug("is_alive() returning False: %r", exc)
+            return False
+        return True

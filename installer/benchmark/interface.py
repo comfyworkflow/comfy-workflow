@@ -199,3 +199,107 @@ class ComfyUIClient:
                 "non-string entries"
             )
         return cast(list[str], names)
+
+    def _post(
+        self,
+        path: str,
+        body: dict[str, Any],
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
+        """Issue an HTTP POST with a JSON body and decode the JSON object response.
+
+        Args:
+            path: URL path starting with ``/``, e.g. ``/prompt``.
+            body: JSON-serializable dict to send as the request body.
+            timeout: Optional override of the client's default timeout.
+
+        Returns:
+            Parsed JSON body as a dict.
+
+        Raises:
+            ComfyUIConnectionError: Network failure.
+            ComfyUITimeoutError: Request exceeded the timeout.
+            ComfyUIAPIError: Server returned a 4xx/5xx response, or the
+                body could not be parsed as a JSON object.
+            ComfyUIError: Any other ``requests`` failure.
+        """
+        url = f"{self.base_url}{path}"
+        effective_timeout = timeout if timeout is not None else self.timeout
+        try:
+            response = self._session.post(url, json=body, timeout=effective_timeout)
+        except requests.Timeout as exc:
+            raise ComfyUITimeoutError(
+                f"POST {url} timed out after {effective_timeout}s"
+            ) from exc
+        except requests.ConnectionError as exc:
+            raise ComfyUIConnectionError(f"POST {url} failed to connect: {exc}") from exc
+        except requests.RequestException as exc:
+            raise ComfyUIError(f"POST {url} failed: {exc}") from exc
+
+        if not response.ok:
+            raise ComfyUIAPIError(
+                f"POST {url} returned HTTP {response.status_code}: {response.text[:200]}"
+            )
+
+        try:
+            data: object = response.json()
+        except ValueError as exc:
+            raise ComfyUIAPIError(f"POST {url} returned non-JSON body: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ComfyUIAPIError(
+                f"POST {url} returned non-object JSON: {type(data).__name__}"
+            )
+        return cast(dict[str, Any], data)
+
+    def queue_prompt(self, workflow: dict[str, Any], client_id: str) -> str:
+        """Submit a workflow to the ComfyUI prompt queue.
+
+        POSTs to ``/prompt`` with body
+        ``{"prompt": workflow, "client_id": client_id}``.
+
+        The server validates the graph synchronously before queueing. If
+        validation fails it returns HTTP 200 with a non-empty ``node_errors``
+        field; this method surfaces that as :class:`ComfyUIQueueError`.
+
+        Args:
+            workflow: ComfyUI workflow as a JSON-serializable dict (node IDs
+                map to node specs). Must be a non-empty dict.
+            client_id: Stable client identifier used by ComfyUI to route
+                websocket events. Must be a non-empty string.
+
+        Returns:
+            The ``prompt_id`` (UUID string) assigned by the server.
+
+        Raises:
+            ValueError: ``workflow`` is not a non-empty dict, or ``client_id``
+                is empty.
+            ComfyUIQueueError: Server rejected the workflow (non-empty
+                ``node_errors`` in the response).
+            ComfyUIAPIError: ``prompt_id`` missing or non-string in the
+                response, or the response is otherwise malformed.
+            ComfyUIConnectionError, ComfyUITimeoutError, ComfyUIError:
+                See :meth:`_post`.
+        """
+        if not isinstance(workflow, dict):
+            raise ValueError(f"workflow must be a dict, got {type(workflow).__name__}")
+        if not workflow:
+            raise ValueError("workflow must contain at least one node")
+        if not client_id:
+            raise ValueError("client_id must be a non-empty string")
+
+        body: dict[str, Any] = {"prompt": workflow, "client_id": client_id}
+        data = self._post("/prompt", body)
+
+        node_errors = data.get("node_errors")
+        if node_errors:
+            raise ComfyUIQueueError(
+                f"ComfyUI rejected workflow with node_errors: {node_errors}"
+            )
+
+        prompt_id = data.get("prompt_id")
+        if not isinstance(prompt_id, str) or not prompt_id:
+            raise ComfyUIAPIError(
+                f"/prompt response missing or invalid prompt_id: {prompt_id!r}"
+            )
+        return prompt_id

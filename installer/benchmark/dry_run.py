@@ -25,11 +25,17 @@ Scope:
 
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
+import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+from installer.benchmark import interface
 
 logger = logging.getLogger(__name__)
 
@@ -270,3 +276,130 @@ def _parse_snapshot_stdout(stdout: str) -> dict[str, Any]:
             f"snapshot stdout missing required fields: {sorted(missing)}"
         )
     return parsed
+
+
+def _extract_outputs(
+    history_entry: dict[str, Any], prompt_id: str
+) -> list[dict[str, str]]:
+    """Extract image outputs from a ComfyUI ``/history/<prompt_id>`` entry.
+
+    Iterates over ``history_entry["outputs"]`` (a dict keyed by node ID),
+    aggregating any ``images`` arrays. Each output is normalized to
+    ``{filename, subfolder, type}`` with string values. Non-image outputs
+    and malformed entries are silently skipped.
+
+    Raises:
+        DryRunWorkflowError: ``outputs`` key is missing or no images were
+            produced.
+    """
+    raw_outputs = history_entry.get("outputs")
+    if not isinstance(raw_outputs, dict):
+        raise DryRunWorkflowError(
+            f"history entry for prompt_id={prompt_id} missing 'outputs' dict"
+        )
+
+    images: list[dict[str, str]] = []
+    for node_outputs in raw_outputs.values():
+        if not isinstance(node_outputs, dict):
+            continue
+        node_images = node_outputs.get("images")
+        if not isinstance(node_images, list):
+            continue
+        for img in node_images:
+            if not isinstance(img, dict):
+                continue
+            filename = img.get("filename")
+            if not isinstance(filename, str) or not filename:
+                continue
+            images.append({
+                "filename": filename,
+                "subfolder": str(img.get("subfolder", "")),
+                "type": str(img.get("type", "output")),
+            })
+
+    if not images:
+        raise DryRunWorkflowError(
+            f"history entry for prompt_id={prompt_id} has no image outputs"
+        )
+    return images
+
+
+def _run_workflow(
+    client: interface.ComfyUIClient,
+    workflow_path: Path,
+    ckpt_filename: str,
+    workflow_timeout: int = 60,
+) -> WorkflowResult:
+    """Load a workflow JSON, queue it on ComfyUI, poll until completion.
+
+    The full lifecycle: read and validate the workflow JSON, sanity-check
+    that the expected checkpoint is registered on the server, generate a
+    fresh ``client_id``, time the queue → completion roundtrip with
+    :func:`time.monotonic`, then extract image outputs from the history
+    entry.
+
+    Args:
+        client: A live :class:`interface.ComfyUIClient` pointing at the
+            executor's ComfyUI server.
+        workflow_path: Path to a workflow JSON file in ComfyUI API format
+            (i.e. ``{node_id: {class_type, inputs}}``).
+        ckpt_filename: Expected checkpoint filename (e.g.
+            ``"sd_xl_base_1.0.safetensors"``). Sanity-checked against the
+            server's :meth:`interface.ComfyUIClient.list_checkpoints`
+            before queueing.
+        workflow_timeout: Seconds to wait for the workflow to finish.
+
+    Returns:
+        :class:`WorkflowResult` with ``prompt_id``, ``wallclock_seconds``,
+        the raw ``history_entry``, and parsed image outputs.
+
+    Raises:
+        DryRunWorkflowError: Workflow file missing or malformed; checkpoint
+            not registered; outputs missing from the history entry.
+        interface.ComfyUIError: Any failure from the underlying HTTP calls
+            (network, queue rejection, timeout, etc.).
+    """
+    if not workflow_path.is_file():
+        raise DryRunWorkflowError(f"workflow file not found: {workflow_path}")
+
+    try:
+        workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise DryRunWorkflowError(
+            f"workflow file {workflow_path} is not valid JSON: {exc}"
+        ) from exc
+    if not isinstance(workflow, dict):
+        raise DryRunWorkflowError(
+            f"workflow file {workflow_path} is not a JSON object"
+        )
+
+    registered = client.list_checkpoints()
+    if ckpt_filename not in registered:
+        raise DryRunWorkflowError(
+            f"checkpoint {ckpt_filename!r} not registered on the server "
+            f"(found: {registered})"
+        )
+
+    client_id = uuid.uuid4().hex
+
+    t0 = time.monotonic()
+    prompt_id = client.queue_prompt(workflow, client_id=client_id)
+    logger.info("queued workflow prompt_id=%s client_id=%s", prompt_id, client_id)
+
+    history_entry = client.poll_history(
+        prompt_id,
+        timeout=workflow_timeout,
+        poll_interval=1.0,
+        progress_callback=lambda elapsed: logger.debug(
+            "polling /history/%s elapsed=%.1fs", prompt_id, elapsed
+        ),
+    )
+    wallclock = time.monotonic() - t0
+
+    outputs = _extract_outputs(history_entry, prompt_id)
+    return WorkflowResult(
+        prompt_id=prompt_id,
+        wallclock_seconds=wallclock,
+        history_entry=history_entry,
+        outputs=outputs,
+    )

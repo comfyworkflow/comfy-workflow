@@ -160,3 +160,42 @@ class ComfyUIClient:
             logger.debug("is_alive() returning False: %r", exc)
             return False
         return True
+
+    def list_checkpoints(self) -> list[str]:
+        """Return the list of checkpoint filenames registered on the server.
+
+        Queries ``/object_info/CheckpointLoaderSimple`` and parses the path
+        ``["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]``,
+        which the ComfyUI API uses to advertise the available choices for
+        the node's ``ckpt_name`` widget.
+
+        Returns:
+            List of checkpoint filenames. Empty list if the server has no
+            checkpoints registered.
+
+        Raises:
+            ComfyUIConnectionError, ComfyUITimeoutError, ComfyUIError:
+                See :meth:`_get`.
+            ComfyUIAPIError: Server response does not match the expected
+                ``CheckpointLoaderSimple`` schema, or ``ckpt_name[0]`` is
+                not a list of strings.
+        """
+        data = self._get("/object_info/CheckpointLoaderSimple")
+        try:
+            names = data["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ComfyUIAPIError(
+                "/object_info/CheckpointLoaderSimple did not match expected schema: "
+                f"{exc}"
+            ) from exc
+        if not isinstance(names, list):
+            raise ComfyUIAPIError(
+                "/object_info/CheckpointLoaderSimple returned non-list ckpt_name[0]: "
+                f"{type(names).__name__}"
+            )
+        if not all(isinstance(n, str) for n in names):
+            raise ComfyUIAPIError(
+                "/object_info/CheckpointLoaderSimple ckpt_name[0] contains "
+                "non-string entries"
+            )
+        return cast(list[str], names)

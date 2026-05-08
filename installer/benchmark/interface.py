@@ -89,6 +89,11 @@ class ComfyUIClient:
         self.timeout = timeout
         self._session = requests.Session()
 
+    # TODO(V2): Consolidate _get/_post/get_image/interrupt into a shared
+    # _request(method, path, **kwargs) helper. 4 copies of the same exception
+    # mapping (Timeout/ConnectionError/RequestException/response.ok) are
+    # acceptable in V1 because each method has a different return shape; refactor
+    # when it becomes painful. See decisoes_arquiteturais.md débitos V2 #1.
     def _get(self, path: str, timeout: int | None = None) -> dict[str, Any]:
         """Issue an HTTP GET and decode the JSON object body.
 

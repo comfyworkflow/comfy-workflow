@@ -62,6 +62,9 @@ class SnapshotStateError(SnapshotError):
     """
 
 
+# TODO(V2): Rename to _safe_call. Despite the name, this helper is generic
+# (Callable[[], T]) and is used for both NVML and psutil readings. Rename
+# when consolidating helpers across modules. See débitos V2 #2.
 def _safe_nvml[T](
     fn: Callable[[], T],
     errors: list[str],
@@ -290,6 +293,10 @@ class SnapshotCollector:
         responds to a stop signal immediately, without waiting for the
         remainder of the current poll interval.
         """
+        # TODO(V2): Replace asserts with explicit `if ... is None: raise
+        # SnapshotStateError(...)` for runtime hardening under `python -O`.
+        # Pragmatic trade-off in V1; -O is not an expected execution mode for
+        # this project. See débitos V2 #3.
         assert self._stop_event is not None  # invariant: set by start()
         while not self._stop_event.is_set():
             sample = self._collect_one()

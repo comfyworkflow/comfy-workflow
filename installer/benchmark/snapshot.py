@@ -31,9 +31,13 @@ Metrics NOT covered (handled elsewhere)::
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+
+import pynvml
 
 logger = logging.getLogger(__name__)
 
@@ -119,3 +123,76 @@ class SnapshotResult:
     samples_collected: int
     duration_seconds: float
     errors_during_collection: list[str]
+
+
+class SnapshotCollector:
+    """Thread-based hardware sampler.
+
+    Runs a polling thread that captures NVML + psutil samples at a fixed
+    interval. Designed to run in parallel with a ComfyUI workflow execution.
+    Single-instance, single-target — do NOT share an instance across threads.
+
+    Lifecycle: ``__init__`` → :meth:`start` → ``...workload runs...`` →
+    :meth:`stop` → :meth:`aggregate`. Calling :meth:`aggregate` before
+    :meth:`stop`, or :meth:`start` twice, raises :class:`SnapshotStateError`.
+
+    The polling thread is a daemon thread, so an unhandled exit of the main
+    thread is not blocked by an in-flight collector.
+
+    Internal note on locking: ``list.append`` on ``_samples`` is atomic in
+    CPython, and :meth:`aggregate` is only invoked after the polling thread
+    has been joined by :meth:`stop`, so no explicit lock is required.
+    """
+
+    def __init__(self, device_index: int = 0, poll_interval_ms: int = 100) -> None:
+        """Initialize the collector.
+
+        Args:
+            device_index: NVML device index to sample. Default 0 (first GPU).
+            poll_interval_ms: Sampling period in milliseconds. Must be > 0.
+                Default 100 ms (10 samples/sec).
+
+        Raises:
+            ValueError: ``poll_interval_ms`` is not positive.
+        """
+        if poll_interval_ms <= 0:
+            raise ValueError(
+                f"poll_interval_ms must be positive, got {poll_interval_ms}"
+            )
+        self._device_index: int = device_index
+        self._poll_interval_s: float = poll_interval_ms / 1000.0
+        self._thread: threading.Thread | None = None
+        self._stop_event: threading.Event | None = None
+        self._samples: list[Sample] = []
+        self._errors: list[str] = []
+        self._started_at: float | None = None
+        self._stopped_at: float | None = None
+        self._nvml_handle: object | None = None
+
+    def _init_nvml(self) -> object:
+        """Initialize NVML and return the device handle.
+
+        Raises:
+            NVMLInitError: NVML init failed, or the device handle could not
+                be acquired for ``self._device_index``.
+        """
+        try:
+            pynvml.nvmlInit()
+        except Exception as exc:  # noqa: BLE001 — wrap arbitrary NVML failures
+            raise NVMLInitError(f"NVML init failed: {exc}") from exc
+        try:
+            return pynvml.nvmlDeviceGetHandleByIndex(self._device_index)
+        except Exception as exc:  # noqa: BLE001 — wrap arbitrary NVML failures
+            with contextlib.suppress(Exception):
+                pynvml.nvmlShutdown()
+            raise NVMLInitError(
+                f"NVML device handle acquisition failed for "
+                f"index {self._device_index}: {exc}"
+            ) from exc
+
+    def _shutdown_nvml(self) -> None:
+        """Shutdown NVML, suppressing any errors (best-effort cleanup)."""
+        try:
+            pynvml.nvmlShutdown()
+        except Exception as exc:  # noqa: BLE001 — best-effort cleanup
+            logger.debug("Suppressed NVML shutdown error: %r", exc)

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -200,3 +201,72 @@ def _spawn_snapshot(
         stderr=subprocess.PIPE,
         text=True,
     )
+
+
+# Field name → parser. Mirrors the 8 fields printed by snapshot.main() in its
+# self-test entrypoint. Adding fields here when snapshot.py grows is the only
+# coupling point between the two modules.
+_SNAPSHOT_FIELD_PARSERS: dict[str, Callable[[str], Any]] = {
+    "samples_collected": int,
+    "duration_seconds": float,
+    "peak_vram_mb": int,
+    "peak_ram_gb": float,
+    "gpu_avg_utilization_pct": float,
+    "gpu_avg_temp_c": float,
+    "gpu_avg_power_w": float,
+    "errors_during_collection": int,
+}
+
+
+def _parse_snapshot_stdout(stdout: str) -> dict[str, Any]:
+    """Parse the stdout of ``snapshot.main()`` into a structured dict.
+
+    Expects the format produced by ``snapshot.py``'s ``__main__`` self-test
+    entrypoint::
+
+        samples_collected: <int>
+        duration_seconds: <float>
+        peak_vram_mb: <int>
+        peak_ram_gb: <float>
+        gpu_avg_utilization_pct: <float>
+        gpu_avg_temp_c: <float>
+        gpu_avg_power_w: <float>
+        errors_during_collection: <int>
+
+    Lines outside this set (header lines like ``device index: 0``,
+    ``poll interval: 100 ms``, ``collecting for 3.0s...``) are ignored.
+
+    Args:
+        stdout: Captured stdout from a snapshot.py run.
+
+    Returns:
+        Dict with the 8 fields above, parsed to their proper numeric types.
+
+    Raises:
+        DryRunWorkflowError: One or more required fields are missing or
+            have an unparseable value.
+    """
+    parsed: dict[str, Any] = {}
+    for raw_line in stdout.splitlines():
+        line = raw_line.strip()
+        if ":" not in line:
+            continue
+        key, _, raw_value = line.partition(":")
+        key = key.strip()
+        value = raw_value.strip()
+        parser = _SNAPSHOT_FIELD_PARSERS.get(key)
+        if parser is None:
+            continue
+        try:
+            parsed[key] = parser(value)
+        except (ValueError, TypeError) as exc:
+            raise DryRunWorkflowError(
+                f"failed to parse snapshot field {key!r}={value!r}: {exc}"
+            ) from exc
+
+    missing = set(_SNAPSHOT_FIELD_PARSERS) - parsed.keys()
+    if missing:
+        raise DryRunWorkflowError(
+            f"snapshot stdout missing required fields: {sorted(missing)}"
+        )
+    return parsed

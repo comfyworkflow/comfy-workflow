@@ -26,10 +26,16 @@ Scope:
 from __future__ import annotations
 
 import logging
+import subprocess
 from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Canonical path to the public repo on each executor (cg-3060/cg-4090/cg-5090).
+# Set up by the bootstrap audit (Phase 0). Forward slashes are accepted by both
+# cmd and PowerShell on Windows.
+REMOTE_REPO_PATH = "C:/ComfyWorkflowVS/comfy-workflow"
 
 
 class DryRunError(Exception):
@@ -97,3 +103,100 @@ class DryRunSummary:
     prompt_id: str
     snapshot: dict[str, Any]
     outputs: list[dict[str, Any]]
+
+
+def _ssh_run(host: str, command: str, timeout: int = 30) -> str:
+    """Run a command on a remote host via SSH and return its stdout.
+
+    Args:
+        host: SSH host alias (e.g. ``"cg-3060"``, configured in
+            ``~/.ssh/config``).
+        command: Single command line to execute. Passed as a single
+            argument to ``ssh``; quoting must be valid for the remote
+            shell (cmd or PowerShell on the Windows executors).
+        timeout: Seconds to wait before raising :class:`DryRunSSHError`.
+
+    Returns:
+        Captured stdout, decoded as UTF-8 text.
+
+    Raises:
+        DryRunSSHError: ``ssh`` exited non-zero or the call timed out.
+    """
+    args = ["ssh", host, command]
+    try:
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise DryRunSSHError(
+            f"ssh {host}: command timed out after {timeout}s: {command[:100]!r}"
+        ) from exc
+    if result.returncode != 0:
+        raise DryRunSSHError(
+            f"ssh {host}: exit {result.returncode}: "
+            f"stderr={result.stderr.strip()!r}"
+        )
+    return result.stdout
+
+
+def _ssh_pull(host: str, repo_path: str = REMOTE_REPO_PATH) -> str:
+    """Run ``git pull`` on the remote host's clone. Returns stdout for logging.
+
+    Args:
+        host: SSH host alias.
+        repo_path: Absolute path to the repo on the remote (forward
+            slashes). Defaults to :data:`REMOTE_REPO_PATH`.
+
+    Returns:
+        Captured stdout (e.g. ``"Already up to date."`` or fast-forward
+        summary), useful for logging.
+
+    Raises:
+        DryRunSSHError: ``git pull`` failed or timed out.
+    """
+    return _ssh_run(host, f'git -C "{repo_path}" pull', timeout=60)
+
+
+def _spawn_snapshot(
+    host: str,
+    duration_seconds: float,
+    device_index: int = 0,
+    poll_interval_ms: int = 100,
+) -> subprocess.Popen[str]:
+    """Spawn ``snapshot.py`` on the remote host via SSH (asynchronous).
+
+    The snapshot process polls hardware on the executor's GPU for the
+    given duration and prints its summary to stdout. The returned
+    :class:`subprocess.Popen` is alive; use ``.wait(timeout)`` to block
+    on completion, then read ``.stdout``.
+
+    Args:
+        host: SSH host alias.
+        duration_seconds: Forwarded to snapshot.py's ``--duration`` flag.
+            Coerced to int via ``round``.
+        device_index: Forwarded to snapshot.py's ``--device`` flag.
+        poll_interval_ms: Forwarded to snapshot.py's ``--interval`` flag.
+
+    Returns:
+        A live :class:`subprocess.Popen` with stdout and stderr captured
+        as text. Caller is responsible for ``.wait`` / ``.communicate``.
+    """
+    duration_int = int(round(duration_seconds))
+    remote_command = (
+        f'cd "{REMOTE_REPO_PATH}" && '
+        f"python -m installer.benchmark.snapshot "
+        f"--duration {duration_int} "
+        f"--device {device_index} "
+        f"--interval {poll_interval_ms}"
+    )
+    args = ["ssh", host, remote_command]
+    return subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )

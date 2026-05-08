@@ -34,9 +34,11 @@ from __future__ import annotations
 import contextlib
 import logging
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
+import psutil
 import pynvml
 
 logger = logging.getLogger(__name__)
@@ -196,3 +198,60 @@ class SnapshotCollector:
             pynvml.nvmlShutdown()
         except Exception as exc:  # noqa: BLE001 — best-effort cleanup
             logger.debug("Suppressed NVML shutdown error: %r", exc)
+
+    def _collect_one(self) -> Sample:
+        """Capture a single sample of GPU + RAM metrics.
+
+        Each NVML / psutil call is wrapped in :func:`_safe_nvml` so that
+        an individual read failure does not abort the polling loop. Failed
+        readings default to zero and an entry is appended to ``self._errors``.
+
+        Unit conversions:
+            - VRAM bytes → MiB (``// 1024**2``); field name uses ``_mb`` by
+              convention but the unit is binary MiB to align with NVML output.
+            - RAM bytes → GiB (``/ 1024**3``); same MB/GB-vs-MiB/GiB caveat.
+            - Power milliwatts → Watts (``/ 1000``).
+        """
+        handle = self._nvml_handle
+        timestamp = time.monotonic()
+
+        vram_used_bytes = _safe_nvml(
+            lambda: pynvml.nvmlDeviceGetMemoryInfo(handle).used,
+            self._errors,
+            "nvmlDeviceGetMemoryInfo failed",
+        )
+        util_pct = _safe_nvml(
+            lambda: pynvml.nvmlDeviceGetUtilizationRates(handle).gpu,
+            self._errors,
+            "nvmlDeviceGetUtilizationRates failed",
+        )
+        temp_c = _safe_nvml(
+            lambda: pynvml.nvmlDeviceGetTemperature(
+                handle, pynvml.NVML_TEMPERATURE_GPU
+            ),
+            self._errors,
+            "nvmlDeviceGetTemperature failed",
+        )
+        power_mw = _safe_nvml(
+            lambda: pynvml.nvmlDeviceGetPowerUsage(handle),
+            self._errors,
+            "nvmlDeviceGetPowerUsage failed",
+        )
+        ram_used_bytes = _safe_nvml(
+            lambda: psutil.virtual_memory().used,
+            self._errors,
+            "psutil.virtual_memory failed",
+        )
+
+        return Sample(
+            timestamp_monotonic=timestamp,
+            vram_used_mb=(
+                int(vram_used_bytes // (1024**2)) if vram_used_bytes is not None else 0
+            ),
+            ram_used_gb=(
+                ram_used_bytes / (1024**3) if ram_used_bytes is not None else 0.0
+            ),
+            gpu_utilization_pct=int(util_pct) if util_pct is not None else 0,
+            gpu_temp_c=int(temp_c) if temp_c is not None else 0,
+            gpu_power_w=(power_mw / 1000.0) if power_mw is not None else 0.0,
+        )

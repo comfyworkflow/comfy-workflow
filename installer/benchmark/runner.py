@@ -30,7 +30,7 @@ import subprocess
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -462,3 +462,56 @@ def _run_single(
         snapshot=snapshot_dict,
         errors_during_run=errors_during_run,
     )
+
+
+# PNG signature: first 8 bytes of any valid PNG file.
+# https://www.w3.org/TR/PNG/#5PNG-file-signature
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+
+
+def _download_outputs(
+    client: interface.ComfyUIClient,
+    outputs: list[dict[str, Any]],
+    dest_dir: Path,
+) -> list[dict[str, Any]]:
+    """Download each workflow output via ``/view`` and validate as PNG.
+
+    Mirrors :func:`installer.benchmark.dry_run._download_outputs`. For
+    each entry, fetches the image bytes via
+    :meth:`interface.ComfyUIClient.get_image`, writes them to
+    ``dest_dir/filename``, and inspects the first 8 bytes against the
+    PNG signature. Returned dicts include ``local_path``, ``size_bytes``,
+    and ``is_valid_png`` in addition to the input fields.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    enriched: list[dict[str, Any]] = []
+    for out in outputs:
+        filename = str(out["filename"])
+        subfolder = str(out["subfolder"])
+        image_type = str(out["type"])
+        data = client.get_image(filename, subfolder, image_type)
+        local_path = dest_dir / filename
+        local_path.write_bytes(data)
+        is_valid_png = len(data) >= 8 and data[:8] == _PNG_MAGIC
+        enriched.append({
+            "filename": filename,
+            "subfolder": subfolder,
+            "type": image_type,
+            "local_path": str(local_path),
+            "size_bytes": len(data),
+            "is_valid_png": is_valid_png,
+        })
+    return enriched
+
+
+def _save_summary(summary: RunnerSummary, output_path: Path) -> None:
+    """Write a :class:`RunnerSummary` as pretty JSON (indent=2, UTF-8).
+
+    Creates ``output_path.parent`` if it does not exist. Trailing
+    newline appended for POSIX-friendliness. Mirrors
+    :func:`installer.benchmark.dry_run._save_summary`.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
+        json.dump(asdict(summary), f, indent=2, ensure_ascii=False)
+        f.write("\n")

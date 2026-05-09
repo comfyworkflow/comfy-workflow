@@ -32,12 +32,21 @@ Architecture:
 from __future__ import annotations
 
 import logging
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
+
+# Canonical path to the public repo on each executor (set up by the
+# bootstrap audit, Phase 0). Identical to the constant in runner.py.
+REMOTE_REPO_PATH = "C:/ComfyWorkflowVS/comfy-workflow"
+
+# Canonical models tree on each executor (Windows portable layout).
+# Forward slashes accepted by both cmd and PowerShell.
+REMOTE_MODELS_BASE = "C:/ComfyUI_windows_portable/ComfyUI/models"
 
 
 class InstallerError(Exception):
@@ -244,3 +253,102 @@ def _load_manifest(manifest_path: Path) -> list[ModelEntry]:
         models.append(ModelEntry(name=name, tier=tier, files=files))
 
     return models
+
+
+def _ssh_run(host: str, command: str, timeout: int = 30) -> str:
+    """Run a command on a remote host via SSH and return its stdout.
+
+    Mirrors :func:`installer.benchmark.runner._ssh_run` (copy, not import,
+    to keep the top-level installer self-contained).
+
+    Args:
+        host: SSH host alias.
+        command: Single command line passed verbatim to ``ssh``. Quoting
+            must be valid for the remote shell (cmd by default on
+            Windows OpenSSH).
+        timeout: Seconds to wait before raising :class:`InstallerSSHError`.
+
+    Returns:
+        Captured stdout, decoded as UTF-8.
+
+    Raises:
+        InstallerSSHError: ``ssh`` exited non-zero or the call timed out.
+    """
+    args = ["ssh", host, command]
+    try:
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise InstallerSSHError(
+            f"ssh {host}: command timed out after {timeout}s: {command[:100]!r}"
+        ) from exc
+    if result.returncode != 0:
+        raise InstallerSSHError(
+            f"ssh {host}: exit {result.returncode}: "
+            f"stderr={result.stderr.strip()!r}"
+        )
+    return result.stdout
+
+
+def _ssh_pull(host: str, repo_path: str = REMOTE_REPO_PATH) -> str:
+    """Run ``git pull`` on the remote host's clone. Returns stdout for logging.
+
+    Args:
+        host: SSH host alias.
+        repo_path: Absolute path to the repo on the remote (forward
+            slashes). Defaults to :data:`REMOTE_REPO_PATH`.
+
+    Raises:
+        InstallerSSHError: ``git pull`` failed or timed out.
+    """
+    return _ssh_run(host, f'git -C "{repo_path}" pull', timeout=60)
+
+
+def _check_remote_file(host: str, remote_path: str) -> tuple[bool, int]:
+    """Check whether ``remote_path`` exists on ``host`` and report its size.
+
+    Uses PowerShell ``Test-Path`` + ``(Get-Item ...).Length`` via SSH.
+    The remote default shell is cmd on Windows OpenSSH; the PowerShell
+    command is wrapped accordingly with cmd-style outer quotes and
+    PowerShell-style inner single quotes.
+
+    Args:
+        host: SSH host alias.
+        remote_path: Absolute path on the remote. Forward slashes are
+            accepted by PowerShell.
+
+    Returns:
+        Tuple ``(exists, size_bytes)``. ``size_bytes`` is ``0`` when
+        ``exists`` is ``False``.
+
+    Raises:
+        InstallerSSHError: SSH failed, or the output could not be parsed
+            as ``MISSING`` or a non-negative integer.
+    """
+    remote_cmd = (
+        f"powershell -NoProfile -Command "
+        f"\"if (Test-Path '{remote_path}') "
+        f"{{ (Get-Item '{remote_path}').Length }} "
+        f"else {{ 'MISSING' }}\""
+    )
+    output = _ssh_run(host, remote_cmd, timeout=30).strip()
+    if output == "MISSING":
+        return (False, 0)
+    try:
+        size = int(output)
+    except ValueError as exc:
+        raise InstallerSSHError(
+            f"_check_remote_file({host}, {remote_path!r}): "
+            f"cannot parse PowerShell output as int: {output!r}"
+        ) from exc
+    if size < 0:
+        raise InstallerSSHError(
+            f"_check_remote_file({host}, {remote_path!r}): "
+            f"PowerShell returned negative size: {size}"
+        )
+    return (True, size)

@@ -38,6 +38,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import cast
 
 import psutil
@@ -323,6 +324,80 @@ class SnapshotCollector:
         self._stopped_at = time.monotonic()
         self._shutdown_nvml()
 
+    def start_with_flag(self, stop_flag: Path, watch_poll_ms: int = 100) -> None:
+        """Start the polling thread plus a watcher thread for a stop flag.
+
+        Behaves like :meth:`start` but also spawns a daemon watcher thread
+        that polls ``stop_flag`` for existence. When the flag file appears,
+        the watcher sets ``self._stop_event`` and exits, which causes the
+        polling thread to terminate. Used by ``--until-signal`` mode and by
+        runner.py for lifecycle alignment with the workflow execution.
+
+        Args:
+            stop_flag: File path to watch. Caller (e.g. runner.py via SSH)
+                creates this file to signal stop. The watcher does not
+                delete it; cleanup is the caller's or :func:`main`'s job.
+            watch_poll_ms: Polling interval for the watcher in
+                milliseconds. Default 100 ms.
+
+        Raises:
+            SnapshotStateError: ``start`` / ``start_with_flag`` already
+                called on this instance.
+            NVMLInitError: NVML init failed.
+        """
+        if self._thread is not None:
+            raise SnapshotStateError("start() already called on this collector")
+        self._nvml_handle = self._init_nvml()
+        self._started_at = time.monotonic()
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(
+            target=self._poll_loop,
+            daemon=True,
+            name="SnapshotPoller",
+        )
+        self._thread.start()
+        watcher = threading.Thread(
+            target=self._watch_stop_flag,
+            args=(stop_flag, watch_poll_ms),
+            daemon=True,
+            name="SnapshotFlagWatcher",
+        )
+        watcher.start()
+
+    def _watch_stop_flag(self, flag_path: Path, poll_ms: int = 100) -> None:
+        """Watcher thread body: poll for ``flag_path``, set stop event when found.
+
+        Returns when either ``flag_path`` is detected (signaling stop) or
+        ``self._stop_event`` is set externally (e.g. by :meth:`stop`).
+        Latency between flag creation and ``_stop_event`` signaling is
+        bounded by ``poll_ms`` (default ~100 ms).
+        """
+        assert self._stop_event is not None  # invariant: set by start_with_flag()
+        poll_s = poll_ms / 1000.0
+        while not self._stop_event.is_set():
+            if flag_path.is_file():
+                logger.debug("stop flag detected at %s", flag_path)
+                self._stop_event.set()
+                return
+            time.sleep(poll_s)
+
+    def wait_for_stop_signal(self) -> None:
+        """Block the calling thread until the stop event is set.
+
+        Used in ``--until-signal`` mode: after :meth:`start_with_flag`,
+        the main thread calls this method, which blocks until the watcher
+        thread detects the flag file (or :meth:`stop` is called from
+        elsewhere). After return, call :meth:`stop` to finalize.
+
+        Raises:
+            SnapshotStateError: ``start*`` was not called yet.
+        """
+        if self._stop_event is None:
+            raise SnapshotStateError(
+                "wait_for_stop_signal() called before start*()"
+            )
+        self._stop_event.wait()
+
     def aggregate(self) -> SnapshotResult:
         """Compute peak / average statistics over the collected samples.
 
@@ -376,11 +451,17 @@ class SnapshotCollector:
 def main() -> None:
     """Self-test CLI for :class:`SnapshotCollector`.
 
-    Spawns a collector, samples for ``--duration`` seconds, then prints the
-    aggregated :class:`SnapshotResult` fields. Runs locally on the machine
-    where snapshot.py is invoked — for a CG executor, this would be via SSH
-    dispatch by ``runner.py`` (future block); for the Bloco 12 self-test,
-    on the Itapoá's local RTX 3060.
+    Two mutually exclusive collection modes, exactly one of which must be
+    selected via the CLI:
+
+    - ``--duration N``: collect for ``N`` seconds, then aggregate. Legacy
+      mode used by ``dry_run.py``.
+    - ``--until-signal``: collect until the ``--stop-flag`` file appears.
+      Used by ``runner.py`` for lifecycle alignment with the workflow.
+
+    Runs locally on the machine where snapshot.py is invoked — for a CG
+    executor, via SSH dispatch by ``runner.py`` / ``dry_run.py``; for
+    self-tests, on Itapoá's local RTX 3060.
     """
     logging.basicConfig(
         level=logging.INFO,
@@ -389,15 +470,32 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Self-test for SnapshotCollector: samples GPU + RAM for the "
-            "given duration and prints aggregated metrics."
+            "Self-test for SnapshotCollector: samples GPU + RAM and prints "
+            "aggregated metrics. Choose --duration N (fixed window) or "
+            "--until-signal (waits for --stop-flag file)."
         ),
     )
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument(
         "--duration",
         type=float,
-        default=3.0,
-        help="Collection duration in seconds (default: 3.0).",
+        default=None,
+        help="Collection duration in seconds. Mutex with --until-signal.",
+    )
+    mode_group.add_argument(
+        "--until-signal",
+        action="store_true",
+        help="Collect until the --stop-flag file appears. "
+        "Mutex with --duration.",
+    )
+    default_stop_flag = str(Path.home() / "snapshot_stop.flag")
+    parser.add_argument(
+        "--stop-flag",
+        default=default_stop_flag,
+        help=(
+            "File path to watch in --until-signal mode "
+            f"(default: {default_stop_flag})."
+        ),
     )
     parser.add_argument(
         "--device",
@@ -412,7 +510,9 @@ def main() -> None:
         help="Poll interval in milliseconds (default: 100).",
     )
     args = parser.parse_args()
-    duration = cast(float, args.duration)
+    duration = cast("float | None", args.duration)
+    until_signal = cast(bool, args.until_signal)
+    stop_flag = Path(cast(str, args.stop_flag))
     device = cast(int, args.device)
     interval = cast(int, args.interval)
 
@@ -420,10 +520,22 @@ def main() -> None:
     print(f"poll interval: {interval} ms")
 
     collector = SnapshotCollector(device_index=device, poll_interval_ms=interval)
-    collector.start()
-    print(f"collecting for {duration:.1f}s...")
-    time.sleep(duration)
-    collector.stop()
+
+    if until_signal:
+        print(f"watching stop flag: {stop_flag}")
+        collector.start_with_flag(stop_flag)
+        collector.wait_for_stop_signal()
+        collector.stop()
+        with contextlib.suppress(FileNotFoundError):
+            stop_flag.unlink()
+    else:
+        # Duration mode (legacy). Mutex group ensures duration is not None
+        # when until_signal is False; assert keeps mypy happy.
+        assert duration is not None
+        print(f"collecting for {duration:.1f}s...")
+        collector.start()
+        time.sleep(duration)
+        collector.stop()
 
     result = collector.aggregate()
     print(f"samples_collected: {result.samples_collected}")

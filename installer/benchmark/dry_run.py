@@ -26,8 +26,10 @@ Scope:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import logging
+import random
 import subprocess
 import time
 import uuid
@@ -98,6 +100,10 @@ class DryRunSummary:
         timestamp_utc: ISO-8601 UTC timestamp of the run.
         wallclock_seconds: End-to-end workflow execution time.
         prompt_id: UUID returned by ComfyUI's ``/prompt`` endpoint.
+        seed: KSampler seed injected for this run. Random by default; the
+            CLI accepts ``--seed N`` for reproducibility. Schema-additive
+            field: new in Bloco 14, but ``schema_version`` remains ``1``
+            because the field is purely additive (older consumers ignore it).
         snapshot: Parsed snapshot output, dict with the 8 fields produced
             by ``snapshot.SnapshotResult``.
         outputs: List of ``{filename, subfolder, type, local_path,
@@ -110,6 +116,7 @@ class DryRunSummary:
     timestamp_utc: str
     wallclock_seconds: float
     prompt_id: str
+    seed: int
     snapshot: dict[str, Any]
     outputs: list[dict[str, Any]]
 
@@ -326,10 +333,59 @@ def _extract_outputs(
     return images
 
 
+def _find_ksampler_node_id(workflow: dict[str, Any]) -> str:
+    """Find the single KSampler node ID in a workflow.
+
+    V1 workflows are expected to have exactly one KSampler. Zero or
+    multiple nodes raise :class:`DryRunWorkflowError`.
+
+    Args:
+        workflow: Parsed workflow dict in ComfyUI API format.
+
+    Returns:
+        The node ID (e.g. ``"3"``) of the unique KSampler node.
+
+    Raises:
+        DryRunWorkflowError: Zero or more than one KSampler node found.
+    """
+    ksampler_ids = [
+        node_id
+        for node_id, node in workflow.items()
+        if isinstance(node, dict) and node.get("class_type") == "KSampler"
+    ]
+    if len(ksampler_ids) != 1:
+        raise DryRunWorkflowError(
+            f"workflow must contain exactly one KSampler node, "
+            f"found {len(ksampler_ids)}: {ksampler_ids}"
+        )
+    return ksampler_ids[0]
+
+
+def _inject_seed(workflow: dict[str, Any], seed: int) -> dict[str, Any]:
+    """Return a deep-copy of ``workflow`` with KSampler ``inputs.seed = seed``.
+
+    Does not mutate the input workflow. The KSampler node is located via
+    :func:`_find_ksampler_node_id`.
+
+    Args:
+        workflow: Parsed workflow dict in ComfyUI API format.
+        seed: Seed value to inject. Caller is responsible for validating
+            range; ComfyUI accepts arbitrary positive int32.
+
+    Returns:
+        New workflow dict with the seed updated. The original is untouched.
+    """
+    result = copy.deepcopy(workflow)
+    ksampler_id = _find_ksampler_node_id(result)
+    result[ksampler_id]["inputs"]["seed"] = seed
+    return result
+
+
 def _run_workflow(
     client: interface.ComfyUIClient,
     workflow_path: Path,
     ckpt_filename: str,
+    seed: int,
     workflow_timeout: int = 60,
 ) -> WorkflowResult:
     """Load a workflow JSON, queue it on ComfyUI, poll until completion.
@@ -349,6 +405,9 @@ def _run_workflow(
             ``"sd_xl_base_1.0.safetensors"``). Sanity-checked against the
             server's :meth:`interface.ComfyUIClient.list_checkpoints`
             before queueing.
+        seed: KSampler seed to inject (positive int32). Static seed values
+            cause ComfyUI to return cached history; callers wanting real
+            wallclock measurements should vary the seed per run.
         workflow_timeout: Seconds to wait for the workflow to finish.
 
     Returns:
@@ -381,6 +440,9 @@ def _run_workflow(
             f"checkpoint {ckpt_filename!r} not registered on the server "
             f"(found: {registered})"
         )
+
+    workflow = _inject_seed(workflow, seed)
+    logger.info("queueing workflow with seed=%d", seed)
 
     client_id = uuid.uuid4().hex
 
@@ -522,6 +584,12 @@ def _build_argparser() -> argparse.ArgumentParser:
         help="poll_history timeout, seconds (default: 60).",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="KSampler seed. Default: random per run (logged at INFO).",
+    )
+    parser.add_argument(
         "--checkpoint",
         default="sd_xl_base_1.0.safetensors",
         help="Expected checkpoint filename for sanity check.",
@@ -562,6 +630,7 @@ def main() -> None:
     snapshot_device = cast(int, args.snapshot_device)
     snapshot_interval_ms = cast(int, args.snapshot_interval_ms)
     workflow_timeout = cast(int, args.workflow_timeout)
+    seed_arg = cast("int | None", args.seed)
     checkpoint = cast(str, args.checkpoint)
 
     if output_dir_arg is None:
@@ -570,6 +639,20 @@ def main() -> None:
     else:
         output_dir = Path(output_dir_arg)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve effective seed (random per-run if not provided) and validate.
+    effective_seed = (
+        seed_arg if seed_arg is not None else random.randint(0, 2**31 - 1)
+    )
+    if effective_seed < 0 or effective_seed >= 2**31:
+        raise DryRunError(
+            f"seed out of range: {effective_seed} "
+            f"(must be in [0, 2**31)); pass --seed N with N in that range."
+        )
+    logger.info(
+        "effective seed: %d (provided=%s)",
+        effective_seed, seed_arg is not None,
+    )
 
     # 1) Pre-step git pull
     pull_out = _ssh_pull(ssh_host)
@@ -609,7 +692,7 @@ def main() -> None:
 
     # 5) Run workflow
     workflow_result = _run_workflow(
-        client, workflow_path, checkpoint, workflow_timeout,
+        client, workflow_path, checkpoint, effective_seed, workflow_timeout,
     )
     logger.info(
         "workflow completed in %.2fs (prompt_id=%s)",
@@ -660,6 +743,7 @@ def main() -> None:
         timestamp_utc=timestamp_utc,
         wallclock_seconds=workflow_result.wallclock_seconds,
         prompt_id=workflow_result.prompt_id,
+        seed=effective_seed,
         snapshot=snapshot_dict,
         outputs=outputs_with_local,
     )

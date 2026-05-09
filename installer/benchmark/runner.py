@@ -659,42 +659,64 @@ def _build_argparser() -> argparse.ArgumentParser:
         help="poll_history timeout, seconds (default: 60).",
     )
     parser.add_argument(
-        "--seed",
+        "--num-runs",
+        type=int,
+        default=5,
+        help="Total number of runs to execute (default: 5 = DA-008 mechanic).",
+    )
+    parser.add_argument(
+        "--num-cold",
+        type=int,
+        default=1,
+        help="Number of leading runs treated as cold (default: 1).",
+    )
+    parser.add_argument(
+        "--seed-base",
         type=int,
         default=None,
-        help="KSampler seed. Default: random per run (logged at INFO).",
+        help=(
+            "Base KSampler seed; per-run seed = base + run_index. "
+            "Default: random base per invocation (logged at INFO)."
+        ),
     )
     parser.add_argument(
         "--checkpoint",
         default="sd_xl_base_1.0.safetensors",
         help="Expected checkpoint filename for sanity check.",
     )
+    # ``argparse`` treats ``%`` as a format directive in help strings;
+    # escape ``%USERPROFILE%`` (etc.) by doubling so ``--help`` doesn't crash.
     parser.add_argument(
         "--stop-flag-remote",
         default=REMOTE_STOP_FLAG_DEFAULT,
         help=(
             "Remote path of the snapshot stop flag (default: "
-            f"{REMOTE_STOP_FLAG_DEFAULT}). cmd-style env vars expanded "
-            "by remote shell."
+            f"{REMOTE_STOP_FLAG_DEFAULT.replace('%', '%%')}). "
+            "cmd-style env vars expanded by remote shell."
         ),
     )
     return parser
 
 
 def main() -> None:
-    """End-to-end runner orchestrator (Bloco 15+, V1 minimal one-run).
+    """End-to-end runner orchestrator (Bloco 16: DA-008 5-runs mechanic).
 
     Sequence:
         1. ``git pull`` on the executor (pre-step).
         2. Sanity-check ComfyUI server (``is_alive``, ``list_checkpoints``).
-        3. Spawn ``snapshot.py`` in ``--until-signal`` mode (asynchronous,
-           BEFORE ``queue_prompt`` for lifecycle alignment).
-        4. Brief sleep so snapshot's NVML init completes.
-        5. :func:`_run_single`: queue + poll + signal stop + collect.
-        6. Download workflow outputs, validate PNG headers.
-        7. Build :class:`RunnerSummary` (one run, ``aggregated=None``),
-           save as pretty JSON.
-        8. Print summary to stdout.
+        3. For each of ``num_runs`` runs (cold first, then warm):
+           a. Spawn ``snapshot.py`` in ``--until-signal`` mode (BEFORE
+              ``queue_prompt`` for lifecycle alignment).
+           b. Brief sleep so snapshot's NVML init completes.
+           c. :func:`_run_single`: queue + poll + signal stop + collect.
+           d. Download workflow outputs into ``run_NN/``, enrich.
+        4. Aggregate via :func:`_aggregate_stats` if eligible.
+        5. Build :class:`RunnerSummary`, save as pretty JSON.
+        6. Print summary to stdout.
+
+    Per-run seed = ``effective_seed_base + run_index``. The base is
+    randomized per invocation by default; pass ``--seed-base N`` for
+    reproducibility.
 
     Raises:
         RunnerError, RunnerSSHError, RunnerWorkflowError,
@@ -714,9 +736,18 @@ def main() -> None:
     snapshot_device = cast(int, args.snapshot_device)
     snapshot_interval_ms = cast(int, args.snapshot_interval_ms)
     workflow_timeout = cast(int, args.workflow_timeout)
-    seed_arg = cast("int | None", args.seed)
+    num_runs = cast(int, args.num_runs)
+    num_cold = cast(int, args.num_cold)
+    seed_base_arg = cast("int | None", args.seed_base)
     checkpoint = cast(str, args.checkpoint)
     stop_flag_remote = cast(str, args.stop_flag_remote)
+
+    # Validate run-count math: need at least num_cold + 4 to satisfy
+    # _aggregate_stats (4 warm = trim min/max + 2 medianas).
+    if num_cold < 0:
+        raise RunnerError(f"num_cold must be >= 0, got {num_cold}")
+    if num_runs < 1:
+        raise RunnerError(f"num_runs must be >= 1, got {num_runs}")
 
     if output_dir_arg is None:
         ts_dir = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -725,26 +756,33 @@ def main() -> None:
         output_dir = Path(output_dir_arg)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resolve effective seed (random per-run if not provided) and validate.
-    effective_seed = (
-        seed_arg if seed_arg is not None else random.randint(0, 2**31 - 1)
-    )
-    if effective_seed < 0 or effective_seed >= 2**31:
+    # Resolve effective seed base; clamp upper bound so the last run still
+    # fits in positive int32.
+    if seed_base_arg is not None:
+        effective_seed_base = seed_base_arg
+    else:
+        effective_seed_base = random.randint(0, 2**31 - 1 - num_runs)
+    if (
+        effective_seed_base < 0
+        or effective_seed_base + num_runs - 1 >= 2**31
+    ):
         raise RunnerError(
-            f"seed out of range: {effective_seed} "
-            f"(must be in [0, 2**31)); pass --seed N with N in that range."
+            f"seed base out of range: {effective_seed_base} "
+            f"(seeds [{effective_seed_base}..{effective_seed_base + num_runs - 1}] "
+            f"must be in [0, 2**31)); pass --seed-base N with valid range."
         )
     logger.info(
-        "effective seed: %d (provided=%s)",
-        effective_seed, seed_arg is not None,
+        "effective seed base: %d (provided=%s); seeds: [%d..%d]",
+        effective_seed_base, seed_base_arg is not None,
+        effective_seed_base, effective_seed_base + num_runs - 1,
     )
 
-    # 1) Pre-step git pull
+    # 1) Pre-step git pull (once for the entire invocation).
     pull_out = _ssh_pull(ssh_host)
     pull_summary = pull_out.strip().splitlines()[0] if pull_out.strip() else "(empty)"
     logger.info("git pull on %s: %s", ssh_host, pull_summary)
 
-    # 2) Sanity checks
+    # 2) Sanity checks (once).
     client = interface.ComfyUIClient(target, timeout=workflow_timeout)
     if not client.is_alive():
         raise RunnerError(f"ComfyUI server at {target} did not respond")
@@ -757,49 +795,86 @@ def main() -> None:
         )
     logger.info("checkpoint registered: True (%s)", checkpoint)
 
-    # 3) Spawn snapshot in --until-signal mode (BEFORE queue_prompt for
-    #    lifecycle alignment).
-    logger.info(
-        "spawning snapshot.py on %s in --until-signal mode "
-        "(device=%d, interval=%dms, flag=%s)",
-        ssh_host, snapshot_device, snapshot_interval_ms, stop_flag_remote,
-    )
-    snapshot_proc = _spawn_snapshot_until_signal(
-        ssh_host, stop_flag_remote, snapshot_device, snapshot_interval_ms,
-    )
-
-    # 4) Brief sleep so snapshot inits NVML before workflow starts.
-    time.sleep(2.0)
-    if snapshot_proc.poll() is not None:
-        stdout, stderr = snapshot_proc.communicate()
-        raise RunnerSSHError(
-            f"snapshot exited prematurely (returncode={snapshot_proc.returncode}): "
-            f"stderr={stderr.strip()[:500]!r}"
+    # 3) Multi-run loop: each iteration is a complete lifecycle-aligned
+    #    snapshot+workflow+download cycle. Snapshot is spawned per run for
+    #    isolation (samples never mix across runs).
+    run_results: list[RunResult] = []
+    for run_index in range(num_runs):
+        run_seed = effective_seed_base + run_index
+        run_label = (
+            "cold"
+            if run_index < num_cold
+            else f"warm[{run_index - num_cold}]"
+        )
+        logger.info(
+            "=== run %d/%d (%s, seed=%d) ===",
+            run_index + 1, num_runs, run_label, run_seed,
         )
 
-    # 5) Run workflow and collect snapshot via lifecycle-aligned dispatch.
-    run_result = _run_single(
-        client=client,
-        workflow_path=workflow_path,
-        ckpt_filename=checkpoint,
-        seed=effective_seed,
-        snapshot_proc=snapshot_proc,
-        stop_flag_remote_path=stop_flag_remote,
-        host=ssh_host,
-        workflow_timeout=workflow_timeout,
-    )
+        # Spawn snapshot before queue_prompt (lifecycle alignment).
+        logger.info(
+            "spawning snapshot.py on %s in --until-signal mode "
+            "(device=%d, interval=%dms)",
+            ssh_host, snapshot_device, snapshot_interval_ms,
+        )
+        snapshot_proc = _spawn_snapshot_until_signal(
+            ssh_host, stop_flag_remote, snapshot_device, snapshot_interval_ms,
+        )
 
-    # 6) Download outputs and enrich.
-    enriched_outputs = _download_outputs(client, run_result.outputs, output_dir)
-    valid_count = sum(1 for o in enriched_outputs if o["is_valid_png"])
-    logger.info(
-        "downloaded %d image(s), %d valid PNG",
-        len(enriched_outputs), valid_count,
-    )
+        # Brief sleep so snapshot inits NVML before workflow starts.
+        time.sleep(2.0)
+        if snapshot_proc.poll() is not None:
+            stdout, stderr = snapshot_proc.communicate()
+            raise RunnerSSHError(
+                f"snapshot exited prematurely "
+                f"(run={run_index}, returncode={snapshot_proc.returncode}): "
+                f"stderr={stderr.strip()[:500]!r}"
+            )
 
-    # 7) Build & save summary. RunResult is frozen, so use dataclasses.replace
-    #    to swap in the enriched outputs.
-    enriched_run = replace(run_result, outputs=enriched_outputs)
+        run_result = _run_single(
+            client=client,
+            workflow_path=workflow_path,
+            ckpt_filename=checkpoint,
+            seed=run_seed,
+            snapshot_proc=snapshot_proc,
+            stop_flag_remote_path=stop_flag_remote,
+            host=ssh_host,
+            workflow_timeout=workflow_timeout,
+        )
+
+        # One run dir per iteration so PNGs from different seeds do not
+        # clobber each other (ComfyUI may reuse filenames if outputs reset).
+        run_dir = output_dir / f"run_{run_index:02d}"
+        enriched_outputs = _download_outputs(
+            client, run_result.outputs, run_dir,
+        )
+        valid_count = sum(1 for o in enriched_outputs if o["is_valid_png"])
+        logger.info(
+            "run %d done: wallclock=%.2fs, %d image(s) (%d valid PNG)",
+            run_index + 1, run_result.wallclock_seconds,
+            len(enriched_outputs), valid_count,
+        )
+        run_results.append(replace(run_result, outputs=enriched_outputs))
+
+    # 4) Aggregate when run count is sufficient (preserves debug-friendly
+    #    behavior for shorter invocations).
+    aggregated: dict[str, Any] | None
+    if num_runs >= num_cold + 4:
+        aggregated = _aggregate_stats(run_results, num_cold=num_cold)
+        logger.info(
+            "aggregated: cold=%.2fs, warm wallclock mean=%.2fs (stddev=%.2f)",
+            aggregated["cold_start_seconds"],
+            aggregated["warm_stats"]["wallclock_seconds"]["mean"],
+            aggregated["warm_stats"]["wallclock_seconds"]["stddev"],
+        )
+    else:
+        aggregated = None
+        logger.info(
+            "aggregated=None (num_runs=%d < num_cold+4=%d)",
+            num_runs, num_cold + 4,
+        )
+
+    # 5) Build & save summary at the top-level output dir.
     machine_id = ssh_host.replace("-", "_")
     timestamp_utc = (
         datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -809,14 +884,14 @@ def main() -> None:
         machine_id=machine_id,
         workflow=str(workflow_path),
         timestamp_utc=timestamp_utc,
-        runs=[enriched_run],
-        aggregated=None,
+        runs=run_results,
+        aggregated=aggregated,
     )
     summary_path = output_dir / "summary.json"
     _save_summary(summary, summary_path)
     logger.info("saved summary to %s", summary_path)
 
-    # 8) Print pretty JSON to stdout.
+    # 6) Print pretty JSON to stdout.
     print(json.dumps(asdict(summary), indent=2, ensure_ascii=False))
 
 

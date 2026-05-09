@@ -64,6 +64,9 @@ results/
 # Dry-run output artifacts (PNGs + summary.json per timestamp)
 dry_run_outputs/
 
+# Runner output artifacts (PNGs + summary.json per timestamp)
+runner_outputs/
+
 # Partial download files
 **/*.part
 

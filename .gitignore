@@ -61,6 +61,9 @@ results/
 !workflows/**/*.png
 !docs/images/*.png
 
+# Dry-run output artifacts (PNGs + summary.json per timestamp)
+dry_run_outputs/
+
 # Partial download files
 **/*.part
 

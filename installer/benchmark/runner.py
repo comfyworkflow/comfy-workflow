@@ -23,16 +23,19 @@ via a file flag on the executor (default
 
 from __future__ import annotations
 
+import argparse
 import copy
 import json
 import logging
+import random
 import subprocess
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from installer.benchmark import interface
 
@@ -515,3 +518,219 @@ def _save_summary(summary: RunnerSummary, output_path: Path) -> None:
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(asdict(summary), f, indent=2, ensure_ascii=False)
         f.write("\n")
+
+
+def _build_argparser() -> argparse.ArgumentParser:
+    """Build the CLI parser for ``main()``. Defaults target cg-3060."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Benchmark runner with lifecycle-aligned snapshot dispatch. "
+            "Spawns snapshot.py via SSH (--until-signal mode), queues a "
+            "workflow on the executor's ComfyUI server, signals snapshot "
+            "stop on completion, downloads outputs, and writes a "
+            "schema_version=1 RunnerSummary JSON. V1 minimal: one run."
+        ),
+    )
+    parser.add_argument(
+        "--ssh-host",
+        default="cg-3060",
+        help="SSH host alias for the executor (default: cg-3060).",
+    )
+    parser.add_argument(
+        "--target",
+        default="http://100.72.255.77:8188",
+        help="Base URL of the executor's ComfyUI server "
+        "(default: cg-3060 Tailscale).",
+    )
+    parser.add_argument(
+        "--workflow",
+        default="installer/benchmark/workflows/sdxl_base_dry_run.json",
+        help="Path to workflow JSON (default: SDXL base dry-run).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Output directory (default: ./runner_outputs/<UTC-timestamp>).",
+    )
+    parser.add_argument(
+        "--snapshot-device",
+        type=int,
+        default=0,
+        help="snapshot.py --device arg, NVML index (default: 0).",
+    )
+    parser.add_argument(
+        "--snapshot-interval-ms",
+        type=int,
+        default=100,
+        help="snapshot.py --interval arg, milliseconds (default: 100).",
+    )
+    parser.add_argument(
+        "--workflow-timeout",
+        type=int,
+        default=60,
+        help="poll_history timeout, seconds (default: 60).",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="KSampler seed. Default: random per run (logged at INFO).",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        default="sd_xl_base_1.0.safetensors",
+        help="Expected checkpoint filename for sanity check.",
+    )
+    parser.add_argument(
+        "--stop-flag-remote",
+        default=REMOTE_STOP_FLAG_DEFAULT,
+        help=(
+            "Remote path of the snapshot stop flag (default: "
+            f"{REMOTE_STOP_FLAG_DEFAULT}). cmd-style env vars expanded "
+            "by remote shell."
+        ),
+    )
+    return parser
+
+
+def main() -> None:
+    """End-to-end runner orchestrator (Bloco 15+, V1 minimal one-run).
+
+    Sequence:
+        1. ``git pull`` on the executor (pre-step).
+        2. Sanity-check ComfyUI server (``is_alive``, ``list_checkpoints``).
+        3. Spawn ``snapshot.py`` in ``--until-signal`` mode (asynchronous,
+           BEFORE ``queue_prompt`` for lifecycle alignment).
+        4. Brief sleep so snapshot's NVML init completes.
+        5. :func:`_run_single`: queue + poll + signal stop + collect.
+        6. Download workflow outputs, validate PNG headers.
+        7. Build :class:`RunnerSummary` (one run, ``aggregated=None``),
+           save as pretty JSON.
+        8. Print summary to stdout.
+
+    Raises:
+        RunnerError, RunnerSSHError, RunnerWorkflowError,
+        interface.ComfyUIError: On any step failure; the script exits
+        non-zero via the uncaught exception.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+    args = _build_argparser().parse_args()
+    ssh_host = cast(str, args.ssh_host)
+    target = cast(str, args.target)
+    workflow_path = Path(cast(str, args.workflow))
+    output_dir_arg = cast("str | None", args.output_dir)
+    snapshot_device = cast(int, args.snapshot_device)
+    snapshot_interval_ms = cast(int, args.snapshot_interval_ms)
+    workflow_timeout = cast(int, args.workflow_timeout)
+    seed_arg = cast("int | None", args.seed)
+    checkpoint = cast(str, args.checkpoint)
+    stop_flag_remote = cast(str, args.stop_flag_remote)
+
+    if output_dir_arg is None:
+        ts_dir = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        output_dir = Path("runner_outputs") / ts_dir
+    else:
+        output_dir = Path(output_dir_arg)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve effective seed (random per-run if not provided) and validate.
+    effective_seed = (
+        seed_arg if seed_arg is not None else random.randint(0, 2**31 - 1)
+    )
+    if effective_seed < 0 or effective_seed >= 2**31:
+        raise RunnerError(
+            f"seed out of range: {effective_seed} "
+            f"(must be in [0, 2**31)); pass --seed N with N in that range."
+        )
+    logger.info(
+        "effective seed: %d (provided=%s)",
+        effective_seed, seed_arg is not None,
+    )
+
+    # 1) Pre-step git pull
+    pull_out = _ssh_pull(ssh_host)
+    pull_summary = pull_out.strip().splitlines()[0] if pull_out.strip() else "(empty)"
+    logger.info("git pull on %s: %s", ssh_host, pull_summary)
+
+    # 2) Sanity checks
+    client = interface.ComfyUIClient(target, timeout=workflow_timeout)
+    if not client.is_alive():
+        raise RunnerError(f"ComfyUI server at {target} did not respond")
+    logger.info("is_alive: True")
+    registered = client.list_checkpoints()
+    if checkpoint not in registered:
+        raise RunnerError(
+            f"checkpoint {checkpoint!r} not registered on the server "
+            f"(found: {registered})"
+        )
+    logger.info("checkpoint registered: True (%s)", checkpoint)
+
+    # 3) Spawn snapshot in --until-signal mode (BEFORE queue_prompt for
+    #    lifecycle alignment).
+    logger.info(
+        "spawning snapshot.py on %s in --until-signal mode "
+        "(device=%d, interval=%dms, flag=%s)",
+        ssh_host, snapshot_device, snapshot_interval_ms, stop_flag_remote,
+    )
+    snapshot_proc = _spawn_snapshot_until_signal(
+        ssh_host, stop_flag_remote, snapshot_device, snapshot_interval_ms,
+    )
+
+    # 4) Brief sleep so snapshot inits NVML before workflow starts.
+    time.sleep(2.0)
+    if snapshot_proc.poll() is not None:
+        stdout, stderr = snapshot_proc.communicate()
+        raise RunnerSSHError(
+            f"snapshot exited prematurely (returncode={snapshot_proc.returncode}): "
+            f"stderr={stderr.strip()[:500]!r}"
+        )
+
+    # 5) Run workflow and collect snapshot via lifecycle-aligned dispatch.
+    run_result = _run_single(
+        client=client,
+        workflow_path=workflow_path,
+        ckpt_filename=checkpoint,
+        seed=effective_seed,
+        snapshot_proc=snapshot_proc,
+        stop_flag_remote_path=stop_flag_remote,
+        host=ssh_host,
+        workflow_timeout=workflow_timeout,
+    )
+
+    # 6) Download outputs and enrich.
+    enriched_outputs = _download_outputs(client, run_result.outputs, output_dir)
+    valid_count = sum(1 for o in enriched_outputs if o["is_valid_png"])
+    logger.info(
+        "downloaded %d image(s), %d valid PNG",
+        len(enriched_outputs), valid_count,
+    )
+
+    # 7) Build & save summary. RunResult is frozen, so use dataclasses.replace
+    #    to swap in the enriched outputs.
+    enriched_run = replace(run_result, outputs=enriched_outputs)
+    machine_id = ssh_host.replace("-", "_")
+    timestamp_utc = (
+        datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    )
+    summary = RunnerSummary(
+        schema_version=1,
+        machine_id=machine_id,
+        workflow=str(workflow_path),
+        timestamp_utc=timestamp_utc,
+        runs=[enriched_run],
+        aggregated=None,
+    )
+    summary_path = output_dir / "summary.json"
+    _save_summary(summary, summary_path)
+    logger.info("saved summary to %s", summary_path)
+
+    # 8) Print pretty JSON to stdout.
+    print(json.dumps(asdict(summary), indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

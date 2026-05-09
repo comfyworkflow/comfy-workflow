@@ -24,10 +24,21 @@ via a file flag on the executor (default
 from __future__ import annotations
 
 import logging
+import subprocess
 from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Canonical path to the public repo on each executor (cg-3060/cg-4090/cg-5090).
+# Set up by the bootstrap audit (Phase 0). Forward slashes are accepted by both
+# cmd and PowerShell on Windows.
+REMOTE_REPO_PATH = "C:/ComfyWorkflowVS/comfy-workflow"
+
+# Default stop-flag location on the remote. Uses cmd-style env var; the
+# remote shell (cmd by default on Windows OpenSSH) expands ``%USERPROFILE%``
+# before passing the argument to Python or to ``type nul``.
+REMOTE_STOP_FLAG_DEFAULT = "%USERPROFILE%\\runner_stop.flag"
 
 
 class RunnerError(Exception):
@@ -97,3 +108,79 @@ class RunnerSummary:
     timestamp_utc: str
     runs: list[RunResult]
     aggregated: dict[str, Any] | None
+
+
+def _ssh_run(host: str, command: str, timeout: int = 30) -> str:
+    """Run a command on a remote host via SSH and return its stdout.
+
+    Mirrors :func:`installer.benchmark.dry_run._ssh_run` (copied, not
+    imported, per Bloco 15 plan to avoid coupling). When dry_run.py is
+    deprecated (Bloco 16+), the helper consolidates here.
+
+    Args:
+        host: SSH host alias (e.g. ``"cg-3060"``).
+        command: Single command line passed verbatim to ``ssh``. Quoting
+            must be valid for the remote shell (cmd by default on Windows
+            OpenSSH).
+        timeout: Seconds to wait before raising :class:`RunnerSSHError`.
+
+    Returns:
+        Captured stdout, decoded as UTF-8.
+
+    Raises:
+        RunnerSSHError: ``ssh`` exited non-zero or the call timed out.
+    """
+    args = ["ssh", host, command]
+    try:
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RunnerSSHError(
+            f"ssh {host}: command timed out after {timeout}s: {command[:100]!r}"
+        ) from exc
+    if result.returncode != 0:
+        raise RunnerSSHError(
+            f"ssh {host}: exit {result.returncode}: "
+            f"stderr={result.stderr.strip()!r}"
+        )
+    return result.stdout
+
+
+def _ssh_pull(host: str, repo_path: str = REMOTE_REPO_PATH) -> str:
+    """Run ``git pull`` on the remote host's clone. Returns stdout for logging.
+
+    Args:
+        host: SSH host alias.
+        repo_path: Absolute path to the repo on the remote (forward
+            slashes). Defaults to :data:`REMOTE_REPO_PATH`.
+
+    Raises:
+        RunnerSSHError: ``git pull`` failed or timed out.
+    """
+    return _ssh_run(host, f'git -C "{repo_path}" pull', timeout=60)
+
+
+def _signal_snapshot_stop(
+    host: str, flag_path: str = REMOTE_STOP_FLAG_DEFAULT
+) -> None:
+    """Create the snapshot stop flag file on the remote host (idempotent).
+
+    Uses cmd's redirection (``type nul > <path>``) to create or overwrite
+    an empty file. Idempotent: re-running just overwrites with a fresh
+    empty file. The remote shell expands cmd-style env vars (e.g.
+    ``%USERPROFILE%``) before executing.
+
+    Args:
+        host: SSH host alias.
+        flag_path: Path on the remote. Default
+            :data:`REMOTE_STOP_FLAG_DEFAULT`.
+
+    Raises:
+        RunnerSSHError: ``ssh`` exited non-zero or timed out.
+    """
+    _ssh_run(host, f"type nul > {flag_path}", timeout=15)

@@ -103,15 +103,26 @@ class RunResult:
 class RunnerSummary:
     """Schema-versioned runner output (``schema_version=1``).
 
+    Schema is purely additive across blocs — Bloco 15 introduced this
+    dataclass with ``runs`` length 1 and ``aggregated`` always ``None``;
+    Bloco 16 keeps ``schema_version=1`` and populates ``aggregated`` when
+    enough runs are collected. Older consumers can ignore unknown keys
+    without breakage.
+
     Attributes:
         schema_version: Output schema version. Currently ``1``.
         machine_id: Identifier of the executor machine (e.g. ``"cg_3060"``).
         workflow: Path or name of the workflow JSON used.
         timestamp_utc: ISO-8601 UTC timestamp of the runner invocation.
-        runs: List of :class:`RunResult`. V1 minimal contains exactly one
-            element; V2+ DA-008 mechanic will return five.
-        aggregated: Aggregated multi-run statistics (mean, stddev, p50)
-            or ``None`` in V1 minimal. V2+ will populate.
+        runs: List of :class:`RunResult`. Bloco 15 minimal contained
+            exactly one element. Bloco 16 DA-008 contains
+            ``num_cold + num_warm`` elements (default 1 + 4 = 5).
+        aggregated: When ``len(runs) == 1``, ``None``. When the run count
+            satisfies :func:`_aggregate_stats` requirements (≥ ``num_cold
+            + 4``), a dict with ``num_runs_total``, ``num_cold``,
+            ``num_warm``, ``cold_start_seconds``, and ``warm_stats``
+            (per-metric ``mean``/``stddev``/``p50``). See DA-008 in
+            ``internal_docs/decisoes_arquiteturais.md``.
     """
 
     schema_version: int
@@ -521,8 +532,8 @@ def _save_summary(summary: RunnerSummary, output_path: Path) -> None:
         f.write("\n")
 
 
-# Metrics aggregated over warm runs (DA-008). The first three are pulled
-# from RunResult fields; the remaining five from RunResult.snapshot.
+# Metrics aggregated over warm runs (DA-008). ``wallclock_seconds`` is
+# pulled from RunResult fields; the remaining five from RunResult.snapshot.
 _WARM_METRIC_NAMES: tuple[str, ...] = (
     "wallclock_seconds",
     "peak_vram_mb",

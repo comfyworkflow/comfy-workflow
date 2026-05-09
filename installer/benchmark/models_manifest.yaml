@@ -1,0 +1,22 @@
+# Models manifest for Comfy Workflow Benchmark V1.
+# Schema version 1 — additive evolution per DA-011.
+schema_version: 1
+
+# Each model entry maps a logical model name to one or more file downloads.
+# `tier` follows DA-008 matrix (basic/offload/high_vram); `files[].path` is
+# relative to ComfyUI's `models/` directory (canonical Windows portable
+# layout: `C:\ComfyUI_windows_portable\ComfyUI\models\<path>`).
+models:
+  - name: sdxl_base_1.0
+    tier: basic
+    files:
+      - path: checkpoints/sd_xl_base_1.0.safetensors
+        url: https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
+        size_bytes: 6938078334
+
+  - name: flux_dev_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/flux1-dev-fp8.safetensors
+        url: https://huggingface.co/Comfy-Org/flux1-dev/resolve/main/flux1-dev-fp8.safetensors
+        size_bytes: 17246524772

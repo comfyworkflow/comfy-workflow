@@ -352,3 +352,143 @@ def _check_remote_file(host: str, remote_path: str) -> tuple[bool, int]:
             f"PowerShell returned negative size: {size}"
         )
     return (True, size)
+
+
+def _download_remote(
+    host: str,
+    url: str,
+    remote_path: str,
+    expected_size: int,
+    timeout: int = 1800,
+) -> int:
+    """Download ``url`` to ``remote_path`` on ``host`` and verify size.
+
+    Uses the executor's local ``curl.exe`` so the bytes flow directly
+    from HuggingFace to the executor (the coordinator is bypassed). The
+    parent directory is ensured to exist via cmd ``mkdir`` (silent if
+    already present). After download, :func:`_check_remote_file` is
+    called and the observed size is compared to ``expected_size``.
+
+    Args:
+        host: SSH host alias.
+        url: Source URL (HuggingFace LFS pointers are resolved by curl
+            ``-L``).
+        remote_path: Destination path on the remote (forward slashes
+            accepted by both cmd and curl).
+        expected_size: Expected byte size from the manifest, used for
+            post-download verification.
+        timeout: Seconds to wait for curl to finish. Default 1800
+            (30 min) accommodates ~17 GB downloads on moderate links.
+
+    Returns:
+        Observed size on the remote after the download.
+
+    Raises:
+        InstallerSSHError: ssh / curl failed or timed out.
+        InstallerSizeMismatchError: downloaded file is missing or has
+            unexpected size.
+    """
+    parent_dir = remote_path.rsplit("/", 1)[0]
+    remote_cmd = (
+        f'mkdir "{parent_dir}" 2>nul & '
+        f"curl.exe -L --fail --retry 3 --retry-delay 5 "
+        f"--silent --show-error "
+        f'-o "{remote_path}" "{url}"'
+    )
+    logger.info(
+        "[%s] downloading %s -> %s (expected %d bytes)",
+        host, url, remote_path, expected_size,
+    )
+    _ssh_run(host, remote_cmd, timeout=timeout)
+
+    exists, actual_size = _check_remote_file(host, remote_path)
+    if not exists:
+        raise InstallerSizeMismatchError(
+            f"download to {remote_path!r} on {host}: "
+            "curl reported success but file does not exist post-download"
+        )
+    if actual_size != expected_size:
+        raise InstallerSizeMismatchError(
+            f"download to {remote_path!r} on {host}: "
+            f"size {actual_size} != expected {expected_size}"
+        )
+    return actual_size
+
+
+def _install_file(
+    host: str, file_entry: FileEntry, models_base: str
+) -> FileResult:
+    """Ensure ``file_entry`` is present on ``host``, downloading if absent.
+
+    Decision tree:
+
+    1. If file exists and size matches → :class:`FileResult` with
+       ``status="skipped"`` (DA-011 additive: no-op).
+    2. If file exists and size mismatches → :class:`FileResult` with
+       ``status="size_mismatch"``, *not* overwritten. Caller decides
+       (e.g. ``--strict``) whether to halt; Nível 3 human resolves the
+       underlying issue.
+    3. If file does not exist → :func:`_download_remote` is invoked
+       and the result is wrapped in :class:`FileResult` with
+       ``status="downloaded"``.
+
+    Args:
+        host: SSH host alias.
+        file_entry: One :class:`FileEntry` from the manifest.
+        models_base: Absolute path to the ComfyUI ``models/`` tree on
+            the remote (typically :data:`REMOTE_MODELS_BASE`).
+
+    Returns:
+        :class:`FileResult` describing the per-file outcome.
+
+    Raises:
+        InstallerSSHError, InstallerSizeMismatchError: Propagated from
+            :func:`_check_remote_file` and :func:`_download_remote`.
+            ``size_mismatch`` on a *pre-existing* file is captured in
+            the result, not raised.
+    """
+    remote_path = f"{models_base}/{file_entry.path}"
+    exists, actual_size = _check_remote_file(host, remote_path)
+
+    if exists and actual_size == file_entry.size_bytes:
+        logger.info(
+            "[%s] %s: skipped (size match: %d bytes)",
+            host, file_entry.path, actual_size,
+        )
+        return FileResult(
+            path=file_entry.path,
+            status="skipped",
+            size_bytes_actual=actual_size,
+            error_message=None,
+        )
+
+    if exists and actual_size != file_entry.size_bytes:
+        msg = (
+            f"existing file size {actual_size} != expected "
+            f"{file_entry.size_bytes}; not overwritten (DA-011 additive)"
+        )
+        logger.warning(
+            "[%s] %s: size_mismatch — %s",
+            host, file_entry.path, msg,
+        )
+        return FileResult(
+            path=file_entry.path,
+            status="size_mismatch",
+            size_bytes_actual=actual_size,
+            error_message=msg,
+        )
+
+    # File absent on remote — download.
+    downloaded_size = _download_remote(
+        host, file_entry.url, remote_path, file_entry.size_bytes,
+    )
+    logger.info(
+        "[%s] %s: downloaded (%d bytes)",
+        host, file_entry.path, downloaded_size,
+    )
+    return FileResult(
+        path=file_entry.path,
+        status="downloaded",
+        size_bytes_actual=downloaded_size,
+        error_message=None,
+    )

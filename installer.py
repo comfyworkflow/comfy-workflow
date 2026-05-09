@@ -33,6 +33,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
+
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -141,3 +144,103 @@ class InstallerSummary:
     timestamp_utc: str
     manifest_path: str
     hosts: list[HostResult]
+
+
+def _load_manifest(manifest_path: Path) -> list[ModelEntry]:
+    """Load and validate the manifest YAML against the V1 schema.
+
+    Validation is structural and value-level: file existence, valid
+    YAML, ``schema_version == 1``, ``models`` list of mappings each
+    with non-empty ``name`` / ``tier`` / ``files``, and each file
+    mapping with non-empty ``path`` / ``url`` and positive integer
+    ``size_bytes``. The first failure raises with a path-qualified
+    error message.
+
+    Returns:
+        Parsed list of :class:`ModelEntry` (one per manifest entry).
+
+    Raises:
+        InstallerManifestError: missing file, invalid YAML, or any
+            schema mismatch.
+    """
+    if not manifest_path.is_file():
+        raise InstallerManifestError(f"manifest file not found: {manifest_path}")
+
+    try:
+        data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise InstallerManifestError(
+            f"manifest {manifest_path} is not valid YAML: {exc}"
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise InstallerManifestError(
+            f"manifest {manifest_path} top-level must be a mapping, "
+            f"got {type(data).__name__}"
+        )
+
+    schema_version = data.get("schema_version")
+    if schema_version != 1:
+        raise InstallerManifestError(
+            f"manifest {manifest_path} schema_version must be 1, "
+            f"got {schema_version!r}"
+        )
+
+    raw_models = data.get("models")
+    if not isinstance(raw_models, list):
+        raise InstallerManifestError(
+            f"manifest {manifest_path} 'models' must be a list, "
+            f"got {type(raw_models).__name__}"
+        )
+
+    models: list[ModelEntry] = []
+    for i, raw_model in enumerate(raw_models):
+        if not isinstance(raw_model, dict):
+            raise InstallerManifestError(
+                f"manifest models[{i}] must be a mapping"
+            )
+        name = raw_model.get("name")
+        tier = raw_model.get("tier")
+        raw_files = raw_model.get("files")
+        if not isinstance(name, str) or not name:
+            raise InstallerManifestError(
+                f"manifest models[{i}] 'name' must be a non-empty string"
+            )
+        if not isinstance(tier, str) or not tier:
+            raise InstallerManifestError(
+                f"manifest models[{i}] 'tier' must be a non-empty string"
+            )
+        if not isinstance(raw_files, list) or not raw_files:
+            raise InstallerManifestError(
+                f"manifest models[{i}] 'files' must be a non-empty list"
+            )
+
+        files: list[FileEntry] = []
+        for j, raw_file in enumerate(raw_files):
+            if not isinstance(raw_file, dict):
+                raise InstallerManifestError(
+                    f"manifest models[{i}].files[{j}] must be a mapping"
+                )
+            path = raw_file.get("path")
+            url = raw_file.get("url")
+            size_bytes = raw_file.get("size_bytes")
+            if not isinstance(path, str) or not path:
+                raise InstallerManifestError(
+                    f"manifest models[{i}].files[{j}] "
+                    "'path' must be a non-empty string"
+                )
+            if not isinstance(url, str) or not url:
+                raise InstallerManifestError(
+                    f"manifest models[{i}].files[{j}] "
+                    "'url' must be a non-empty string"
+                )
+            if not isinstance(size_bytes, int) or size_bytes <= 0:
+                raise InstallerManifestError(
+                    f"manifest models[{i}].files[{j}] "
+                    "'size_bytes' must be a positive integer"
+                )
+            files.append(FileEntry(path=path, url=url, size_bytes=size_bytes))
+
+        models.append(ModelEntry(name=name, tier=tier, files=files))
+
+    return models

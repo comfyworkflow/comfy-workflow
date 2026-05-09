@@ -28,6 +28,7 @@ import copy
 import json
 import logging
 import random
+import statistics
 import subprocess
 import time
 import uuid
@@ -518,6 +519,82 @@ def _save_summary(summary: RunnerSummary, output_path: Path) -> None:
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(asdict(summary), f, indent=2, ensure_ascii=False)
         f.write("\n")
+
+
+# Metrics aggregated over warm runs (DA-008). The first three are pulled
+# from RunResult fields; the remaining five from RunResult.snapshot.
+_WARM_METRIC_NAMES: tuple[str, ...] = (
+    "wallclock_seconds",
+    "peak_vram_mb",
+    "peak_ram_gb",
+    "gpu_avg_utilization_pct",
+    "gpu_avg_temp_c",
+    "gpu_avg_power_w",
+)
+
+
+def _aggregate_stats(
+    runs: list[RunResult], num_cold: int = 1
+) -> dict[str, Any]:
+    """Compute DA-008 aggregated statistics over cold + warm runs.
+
+    The first ``num_cold`` runs are reported separately under
+    ``cold_start_seconds`` (using ``wallclock_seconds`` of the first cold
+    run). The remaining runs are warm: their min and max are discarded,
+    and ``mean`` / ``stddev`` / ``p50`` are computed over the trimmed
+    values for each warm metric.
+
+    Metrics aggregated (warm only, per
+    :data:`_WARM_METRIC_NAMES`):
+
+        - ``wallclock_seconds`` (from :attr:`RunResult.wallclock_seconds`)
+        - ``peak_vram_mb``, ``peak_ram_gb``,
+          ``gpu_avg_utilization_pct``, ``gpu_avg_temp_c``,
+          ``gpu_avg_power_w`` (from :attr:`RunResult.snapshot`)
+
+    Args:
+        runs: All runs collected, in order (cold first).
+        num_cold: Number of leading runs to treat as cold. Default 1.
+
+    Returns:
+        Dict with keys ``num_runs_total``, ``num_cold``, ``num_warm``,
+        ``cold_start_seconds``, and ``warm_stats`` (nested dict, one entry
+        per metric with sub-keys ``mean``, ``stddev``, ``p50``).
+
+    Raises:
+        RunnerError: ``len(runs) < num_cold + 4`` (not enough warm to
+            discard min/max and have ≥ 2 left for stats).
+    """
+    if len(runs) < num_cold + 4:
+        raise RunnerError(
+            f"need at least num_cold + 4 runs to aggregate stats "
+            f"(num_cold={num_cold}, got {len(runs)} runs)"
+        )
+
+    cold_runs = runs[:num_cold]
+    warm_runs = runs[num_cold:]
+    cold_start_seconds = cold_runs[0].wallclock_seconds
+
+    warm_stats: dict[str, dict[str, float]] = {}
+    for metric_name in _WARM_METRIC_NAMES:
+        if metric_name == "wallclock_seconds":
+            values = [float(r.wallclock_seconds) for r in warm_runs]
+        else:
+            values = [float(r.snapshot[metric_name]) for r in warm_runs]
+        trimmed = sorted(values)[1:-1]
+        warm_stats[metric_name] = {
+            "mean": statistics.mean(trimmed),
+            "stddev": statistics.stdev(trimmed),
+            "p50": statistics.median(trimmed),
+        }
+
+    return {
+        "num_runs_total": len(runs),
+        "num_cold": num_cold,
+        "num_warm": len(warm_runs),
+        "cold_start_seconds": cold_start_seconds,
+        "warm_stats": warm_stats,
+    }
 
 
 def _build_argparser() -> argparse.ArgumentParser:

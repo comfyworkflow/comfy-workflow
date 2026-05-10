@@ -67,6 +67,9 @@ dry_run_outputs/
 # Runner output artifacts (PNGs + summary.json per timestamp)
 runner_outputs/
 
+# Installer output artifacts (per-host JSON summaries per timestamp)
+installer_outputs/
+
 # Partial download files
 **/*.part
 

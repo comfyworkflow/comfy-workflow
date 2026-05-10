@@ -59,6 +59,7 @@ results/
 
 # But keep images in workflows/ (those are just ComfyUI workflow JSONs)
 !workflows/**/*.png
+!installer/benchmark/workflows/**/*.png
 !docs/images/*.png
 
 # Dry-run output artifacts (PNGs + summary.json per timestamp)

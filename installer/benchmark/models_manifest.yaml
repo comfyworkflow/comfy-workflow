@@ -20,3 +20,72 @@ models:
       - path: diffusion_models/flux1-dev-fp8.safetensors
         url: https://huggingface.co/Comfy-Org/flux1-dev/resolve/main/flux1-dev-fp8.safetensors
         size_bytes: 17246524772
+
+  - name: flux_dev_fp16
+    tier: basic
+    files:
+      - path: diffusion_models/flux1-dev.safetensors
+        url: https://huggingface.co/ChuckMcSneed/FLUX.1-dev/resolve/main/flux1-dev.safetensors
+        size_bytes: 23802932552
+
+  - name: qwen_image_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/qwen_image_fp8_e4m3fn.safetensors
+        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_fp8_e4m3fn.safetensors
+        size_bytes: 20430635136
+
+  - name: wan22_i2v_14b_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors
+        url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors
+        size_bytes: 14294742832
+      - path: diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors
+        url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors
+        size_bytes: 14294742832
+
+  - name: flux_shared_encoders
+    tier: shared
+    files:
+      - path: text_encoders/t5xxl_fp16.safetensors
+        url: https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors
+        size_bytes: 9787841024
+      - path: text_encoders/clip_l.safetensors
+        url: https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
+        size_bytes: 246144152
+
+  - name: flux_shared_vae
+    tier: shared
+    files:
+      - path: vae/ae.safetensors
+        url: https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors
+        size_bytes: 335304388
+
+  - name: qwen_shared_encoders
+    tier: shared
+    files:
+      - path: text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
+        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
+        size_bytes: 9384670680
+
+  - name: qwen_shared_vae
+    tier: shared
+    files:
+      - path: vae/qwen_image_vae.safetensors
+        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors
+        size_bytes: 253806246
+
+  - name: wan_shared_encoder
+    tier: shared
+    files:
+      - path: text_encoders/umt5_xxl_fp16.safetensors
+        url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp16.safetensors
+        size_bytes: 11366399385
+
+  - name: wan_shared_vae
+    tier: shared
+    files:
+      - path: vae/wan_2.1_vae.safetensors
+        url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors
+        size_bytes: 253815318

@@ -20,6 +20,7 @@ import logging
 import sys
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, cast
 
 import requests
@@ -420,6 +421,84 @@ class ComfyUIClient:
                 f"returned HTTP {response.status_code}: {response.text[:200]}"
             )
         return response.content
+
+    def upload_image(
+        self,
+        image_path: Path,
+        image_name: str | None = None,
+        timeout: int | None = None,
+    ) -> str:
+        """Upload a local image to the ComfyUI server's ``input/`` directory.
+
+        POSTs to ``/upload/image`` with a multipart form containing the file.
+        ComfyUI saves it under ``ComfyUI/input/<name>`` and returns the
+        canonical name in the JSON response (which may differ from the
+        requested name if the server resolves a collision).
+
+        Used by I2V workflows (e.g. WAN 2.2) where ``LoadImage`` references
+        an input image by name.
+
+        Args:
+            image_path: Local path to the image file. Must exist.
+            image_name: Optional name to register on the server. Defaults to
+                ``image_path.name``.
+            timeout: Optional override of the client's default timeout.
+
+        Returns:
+            Canonical name as registered by ComfyUI.
+
+        Raises:
+            ValueError: ``image_path`` does not exist.
+            ComfyUIConnectionError: Network failure.
+            ComfyUITimeoutError: Request exceeded the timeout.
+            ComfyUIAPIError: Server returned a 4xx/5xx response, or the
+                response body is not a JSON object with a non-empty
+                ``"name"`` string field.
+            ComfyUIError: Any other ``requests`` failure.
+        """
+        if not image_path.exists():
+            raise ValueError(f"image_path does not exist: {image_path}")
+
+        name = image_name or image_path.name
+        url = f"{self.base_url}/upload/image"
+        effective_timeout = timeout if timeout is not None else self.timeout
+
+        try:
+            with image_path.open("rb") as fp:
+                files = {"image": (name, fp, "image/png")}
+                response = self._session.post(
+                    url, files=files, timeout=effective_timeout
+                )
+        except requests.Timeout as exc:
+            raise ComfyUITimeoutError(
+                f"POST {url} timed out after {effective_timeout}s"
+            ) from exc
+        except requests.ConnectionError as exc:
+            raise ComfyUIConnectionError(f"POST {url} failed to connect: {exc}") from exc
+        except requests.RequestException as exc:
+            raise ComfyUIError(f"POST {url} failed: {exc}") from exc
+
+        if not response.ok:
+            raise ComfyUIAPIError(
+                f"POST {url} returned HTTP {response.status_code}: {response.text[:200]}"
+            )
+
+        try:
+            data: object = response.json()
+        except ValueError as exc:
+            raise ComfyUIAPIError(f"POST {url} returned non-JSON body: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ComfyUIAPIError(
+                f"POST {url} returned non-object JSON: {type(data).__name__}"
+            )
+
+        canonical = data.get("name")
+        if not isinstance(canonical, str) or not canonical:
+            raise ComfyUIAPIError(
+                f"POST {url} response missing/non-string 'name' field: {data!r}"
+            )
+        return canonical
 
     def interrupt(self) -> None:
         """Cancel the prompt currently being executed by the ComfyUI server.

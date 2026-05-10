@@ -31,10 +31,14 @@ Architecture:
 
 from __future__ import annotations
 
+import argparse
+import json
 import logging
 import subprocess
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import yaml  # type: ignore[import-untyped]
 
@@ -492,3 +496,225 @@ def _install_file(
         size_bytes_actual=downloaded_size,
         error_message=None,
     )
+
+
+def _save_summary(summary: InstallerSummary, output_path: Path) -> None:
+    """Write the :class:`InstallerSummary` as pretty JSON (indent=2, UTF-8).
+
+    Mirrors :func:`installer.benchmark.runner._save_summary`. Trailing
+    newline appended for POSIX-friendliness.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as f:
+        json.dump(asdict(summary), f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def _build_argparser() -> argparse.ArgumentParser:
+    """Build the CLI parser for :func:`main`."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Idempotent model installer for the Comfy Workflow Benchmark. "
+            "Reads a manifest YAML and ensures each file is present on "
+            "every --ssh-hosts target, downloading via the executor's "
+            "local curl.exe (DA-011 additive: never overwrites)."
+        ),
+    )
+    parser.add_argument(
+        "--manifest",
+        default="installer/benchmark/models_manifest.yaml",
+        help="Path to manifest YAML (default: installer/benchmark/models_manifest.yaml).",
+    )
+    parser.add_argument(
+        "--ssh-hosts",
+        nargs="+",
+        required=True,
+        help="One or more SSH host aliases, space-separated.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Output directory (default: ./installer_outputs/<UTC-timestamp>).",
+    )
+    parser.add_argument(
+        "--remote-models-base",
+        default=REMOTE_MODELS_BASE,
+        help=(
+            "Absolute path of ComfyUI's models/ directory on the remote "
+            f"(default: {REMOTE_MODELS_BASE.replace('%', '%%')})."
+        ),
+    )
+    parser.add_argument(
+        "--filter-tier",
+        default=None,
+        help="Optional tier filter (e.g. 'basic'). Default: install all tiers.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Halt on first size_mismatch (default: warn and continue).",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report status of each file without downloading anything.",
+    )
+    return parser
+
+
+def main() -> None:
+    """End-to-end installer orchestrator (Bloco 17 entrypoint).
+
+    Sequence:
+        1. Load + validate manifest; optionally filter by tier.
+        2. For each host: git pull (best-effort), then iterate models /
+           files invoking :func:`_install_file` (or, in ``--dry-run``,
+           :func:`_check_remote_file`).
+        3. Aggregate per-host outcomes into :class:`InstallerSummary`.
+        4. Save as pretty JSON; print to stdout.
+
+    The installer is idempotent: re-running against the same manifest
+    issues no downloads when all files are present and size-matched
+    (DA-011 additive).
+
+    Raises:
+        InstallerError, InstallerSSHError, InstallerManifestError,
+        InstallerSizeMismatchError: On any step failure; the script
+        exits non-zero via the uncaught exception. ``--strict`` halts
+        on the first ``size_mismatch`` rather than continuing.
+    """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+    args = _build_argparser().parse_args()
+    manifest_path = Path(cast(str, args.manifest))
+    ssh_hosts = cast("list[str]", args.ssh_hosts)
+    output_dir_arg = cast("str | None", args.output_dir)
+    remote_models_base = cast(str, args.remote_models_base)
+    filter_tier = cast("str | None", args.filter_tier)
+    strict = cast(bool, args.strict)
+    dry_run = cast(bool, args.dry_run)
+
+    if output_dir_arg is None:
+        ts_dir = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        output_dir = Path("installer_outputs") / ts_dir
+    else:
+        output_dir = Path(output_dir_arg)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load + filter manifest.
+    models = _load_manifest(manifest_path)
+    if filter_tier is not None:
+        models = [m for m in models if m.tier == filter_tier]
+        logger.info(
+            "filtered to tier=%s: %d models remaining",
+            filter_tier, len(models),
+        )
+    if not models:
+        logger.warning("no models to install (filter-tier or empty manifest)")
+    total_files = sum(len(m.files) for m in models)
+    logger.info(
+        "manifest %s loaded: %d models, %d files; targets: %s; dry_run=%s",
+        manifest_path, len(models), total_files, ssh_hosts, dry_run,
+    )
+
+    host_results: list[HostResult] = []
+    skipped_total = 0
+    downloaded_total = 0
+    mismatch_total = 0
+    would_download_total = 0
+
+    for host in ssh_hosts:
+        logger.info("=== host %s ===", host)
+        try:
+            pull_out = _ssh_pull(host)
+            first_line = (
+                pull_out.strip().splitlines()[0]
+                if pull_out.strip()
+                else "(empty)"
+            )
+            logger.info("[%s] git pull: %s", host, first_line)
+        except InstallerSSHError as exc:
+            logger.warning(
+                "[%s] git pull failed (proceeding anyway): %s", host, exc,
+            )
+
+        file_results: list[FileResult] = []
+        for model in models:
+            for file_entry in model.files:
+                if dry_run:
+                    remote_path = f"{remote_models_base}/{file_entry.path}"
+                    exists, actual_size = _check_remote_file(host, remote_path)
+                    if exists and actual_size == file_entry.size_bytes:
+                        status = "skipped"
+                        skipped_total += 1
+                        msg: str | None = None
+                    elif exists:
+                        status = "size_mismatch"
+                        mismatch_total += 1
+                        msg = (
+                            f"existing file size {actual_size} != expected "
+                            f"{file_entry.size_bytes}; would not overwrite "
+                            "(DA-011)"
+                        )
+                    else:
+                        status = "would_download"
+                        would_download_total += 1
+                        msg = None
+                        actual_size = 0
+                    logger.info(
+                        "[%s] %s: dry-run %s",
+                        host, file_entry.path, status,
+                    )
+                    file_results.append(FileResult(
+                        path=file_entry.path,
+                        status=status,
+                        size_bytes_actual=actual_size,
+                        error_message=msg,
+                    ))
+                else:
+                    result = _install_file(
+                        host, file_entry, remote_models_base,
+                    )
+                    file_results.append(result)
+                    if result.status == "skipped":
+                        skipped_total += 1
+                    elif result.status == "downloaded":
+                        downloaded_total += 1
+                    elif result.status == "size_mismatch":
+                        mismatch_total += 1
+
+        host_results.append(HostResult(host=host, files=file_results))
+
+        if strict and any(r.status == "size_mismatch" for r in file_results):
+            raise InstallerError(
+                f"--strict halt: host {host} has size_mismatch entries; "
+                "operator action required (Nível 3)"
+            )
+
+    # Build & save summary.
+    timestamp_utc = (
+        datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    )
+    summary = InstallerSummary(
+        schema_version=1,
+        timestamp_utc=timestamp_utc,
+        manifest_path=str(manifest_path),
+        hosts=host_results,
+    )
+    summary_path = output_dir / "summary.json"
+    _save_summary(summary, summary_path)
+    logger.info("saved summary to %s", summary_path)
+    logger.info(
+        "totals: skipped=%d downloaded=%d size_mismatch=%d would_download=%d",
+        skipped_total, downloaded_total, mismatch_total, would_download_total,
+    )
+
+    # Print pretty JSON to stdout.
+    print(json.dumps(asdict(summary), indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

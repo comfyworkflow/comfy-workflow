@@ -89,3 +89,95 @@ models:
       - path: vae/wan_2.1_vae.safetensors
         url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors
         size_bytes: 253815318
+
+  # --- Bloco 22 V2 expansion ---
+
+  - name: flux_2_dev_q4km
+    tier: basic
+    files:
+      - path: diffusion_models/flux2-dev-Q4_K_M.gguf
+        url: https://huggingface.co/unsloth/FLUX.2-dev-GGUF/resolve/main/flux2-dev-Q4_K_M.gguf
+        size_bytes: 19959731168
+
+  - name: flux_2_dev_q8
+    tier: basic
+    files:
+      - path: diffusion_models/flux2-dev-Q8_0.gguf
+        url: https://huggingface.co/unsloth/FLUX.2-dev-GGUF/resolve/main/flux2-dev-Q8_0.gguf
+        size_bytes: 35002602464
+
+  - name: flux_2_dev_bf16
+    tier: basic
+    files:
+      - path: diffusion_models/flux2-dev-BF16.gguf
+        url: https://huggingface.co/unsloth/FLUX.2-dev-GGUF/resolve/main/flux2-dev-BF16.gguf
+        size_bytes: 64446616544
+
+  - name: flux_2_shared_encoder
+    tier: shared
+    files:
+      - path: text_encoders/mistral_3_small_flux2_fp8.safetensors
+        url: https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors
+        size_bytes: 18034640095
+
+  - name: flux_2_shared_vae
+    tier: shared
+    files:
+      - path: vae/flux2-vae.safetensors
+        url: https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors
+        size_bytes: 336213556
+
+  - name: qwen_image_2512_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/qwen_image_2512_fp8_e4m3fn.safetensors
+        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_2512_fp8_e4m3fn.safetensors
+        size_bytes: 20430679144
+
+  - name: qwen_image_2512_bf16
+    tier: basic
+    files:
+      - path: diffusion_models/qwen_image_2512_bf16.safetensors
+        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_2512_bf16.safetensors
+        size_bytes: 40861031488
+
+  - name: wan22_i2v_14b_fp16
+    tier: basic
+    files:
+      - path: diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors
+        url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors
+        size_bytes: 28577914792
+      - path: diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors
+        url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors
+        size_bytes: 28577914792
+
+  - name: hunyuan_image_21_bf16
+    tier: basic
+    files:
+      - path: diffusion_models/hunyuanimage2.1_bf16.safetensors
+        url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/diffusion_models/hunyuanimage2.1_bf16.safetensors
+        size_bytes: 34851687040
+
+  - name: hunyuan_image_21_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/hunyuanimage2.1_fp8_e4m3fn.safetensors
+        url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/diffusion_models/hunyuanimage2.1_fp8_e4m3fn.safetensors
+        size_bytes: 17425920656
+
+  - name: hunyuan_shared_encoders
+    tier: shared
+    files:
+      - path: text_encoders/qwen_2.5_vl_7b.safetensors
+        url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b.safetensors
+        size_bytes: 16584415576
+      - path: text_encoders/byt5_small_glyphxl_fp16.safetensors
+        url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/text_encoders/byt5_small_glyphxl_fp16.safetensors
+        size_bytes: 438643184
+
+  - name: hunyuan_shared_vae
+    tier: shared
+    files:
+      - path: vae/hunyuan_image_2.1_vae_fp16.safetensors
+        url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/vae/hunyuan_image_2.1_vae_fp16.safetensors
+        size_bytes: 811184822

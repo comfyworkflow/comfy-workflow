@@ -74,6 +74,9 @@ installer_outputs/
 # Sweep output artifacts (per-(host, workflow, run) outputs + consolidated summary.json)
 sweep_outputs/
 
+# Analyze report artifacts (markdown + data.json + 6 PNG charts per timestamp)
+reports/
+
 # Partial download files
 **/*.part
 

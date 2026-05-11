@@ -113,6 +113,10 @@ class SweepRunResult:
     diagnostic. ``gpu_util_p50`` is the p50 of intra-run snapshot
     samples (not a cross-run aggregate); ``_aggregate_runs`` later
     aggregates these per-run p50s across the 5-run series.
+
+    Bloco 22 additive: ``ram_peak_mib`` (host RAM peak, MiB) defaulted
+    to ``None`` for backward compatibility with summaries written
+    before the snapshot RAM-MiB telemetry expansion.
     """
 
     host: str
@@ -126,6 +130,7 @@ class SweepRunResult:
     power_draw_avg_w: float | None
     status: str  # "success" | "error" | "skipped"
     error_message: str | None
+    ram_peak_mib: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,6 +356,7 @@ def _execute_single_run(
     peak_vram = snap.get("peak_vram_mb")
     avg_util = snap.get("gpu_avg_utilization_pct")
     avg_power = snap.get("gpu_avg_power_w")
+    ram_peak = snap.get("ram_peak_mib")
 
     return SweepRunResult(
         host=host,
@@ -364,6 +370,7 @@ def _execute_single_run(
         power_draw_avg_w=float(avg_power) if avg_power is not None else None,
         status="success",
         error_message=None,
+        ram_peak_mib=float(ram_peak) if ram_peak is not None else None,
     )
 
 

@@ -98,6 +98,9 @@ class Sample:
             unit is binary MiB to align with NVML output.
         ram_used_gb: System RAM bytes in use, converted to GiB
             (``bytes / 1024**3``). Same MB/MiB caveat.
+        ram_used_mib: System RAM bytes in use, converted to MiB
+            (``bytes // 1024**2``). Bloco 22 V2 telemetry expansion;
+            integer MiB matches ``vram_used_mb`` unit convention.
         gpu_utilization_pct: GPU SM utilization, integer percent (0-100).
         gpu_temp_c: GPU temperature in degrees Celsius (integer).
         gpu_power_w: GPU instantaneous power draw in Watts. NVML reports
@@ -107,6 +110,7 @@ class Sample:
     timestamp_monotonic: float
     vram_used_mb: int
     ram_used_gb: float
+    ram_used_mib: int
     gpu_utilization_pct: int
     gpu_temp_c: int
     gpu_power_w: float
@@ -116,11 +120,16 @@ class Sample:
 class SnapshotResult:
     """Aggregated hardware metrics over a collection window.
 
-    Returned by :meth:`SnapshotCollector.aggregate`. The 5 metric fields
-    correspond to the 5 metrics covered by snapshot.py per DA-008
-    (peak VRAM, peak RAM, average GPU utilization / temperature / power).
-    ``errors_during_collection`` aggregates per-sample NVML failures
-    captured by :func:`_safe_nvml`; an empty list indicates a clean run.
+    Returned by :meth:`SnapshotCollector.aggregate`. The metric fields
+    correspond to peak VRAM, peak RAM (legacy + MiB-precision V2), and
+    average GPU utilization / temperature / power. ``errors_during_collection``
+    aggregates per-sample NVML failures captured by :func:`_safe_nvml`;
+    an empty list indicates a clean run.
+
+    Bloco 22 V2 additive expansion: ``ram_peak_mib`` (integer MiB, mirrors
+    ``vram_peak`` unit) and ``ram_total_mib`` (host RAM ceiling) provide
+    higher-resolution memory telemetry for the gallery sweep mode where
+    system RAM swap can dominate offload-heavy workflows.
     """
 
     peak_vram_mb: int
@@ -130,6 +139,8 @@ class SnapshotResult:
     gpu_avg_power_w: float
     samples_collected: int
     duration_seconds: float
+    ram_peak_mib: int
+    ram_total_mib: int
     errors_during_collection: list[str]
 
 
@@ -256,6 +267,9 @@ class SnapshotCollector:
             ),
             ram_used_gb=(
                 ram_used_bytes / (1024**3) if ram_used_bytes is not None else 0.0
+            ),
+            ram_used_mib=(
+                int(ram_used_bytes // (1024**2)) if ram_used_bytes is not None else 0
             ),
             gpu_utilization_pct=int(util_pct) if util_pct is not None else 0,
             gpu_temp_c=int(temp_c) if temp_c is not None else 0,
@@ -422,6 +436,18 @@ class SnapshotCollector:
         duration_seconds = self._stopped_at - started_at
         errors = list(self._errors)
 
+        # ram_total_mib is invariant across the run; capture once here.
+        # Wrapped in _safe_nvml-style fallback for parity, though psutil
+        # virtual_memory().total never fails in practice.
+        ram_total_bytes = _safe_nvml(
+            lambda: psutil.virtual_memory().total,
+            errors,
+            "psutil.virtual_memory(.total) failed",
+        )
+        ram_total_mib = (
+            int(ram_total_bytes // (1024**2)) if ram_total_bytes is not None else 0
+        )
+
         if not self._samples:
             errors.append("no samples collected")
             return SnapshotResult(
@@ -432,6 +458,8 @@ class SnapshotCollector:
                 gpu_avg_power_w=0.0,
                 samples_collected=0,
                 duration_seconds=duration_seconds,
+                ram_peak_mib=0,
+                ram_total_mib=ram_total_mib,
                 errors_during_collection=errors,
             )
 
@@ -444,6 +472,8 @@ class SnapshotCollector:
             gpu_avg_power_w=sum(s.gpu_power_w for s in self._samples) / n,
             samples_collected=n,
             duration_seconds=duration_seconds,
+            ram_peak_mib=max(s.ram_used_mib for s in self._samples),
+            ram_total_mib=ram_total_mib,
             errors_during_collection=errors,
         )
 
@@ -542,6 +572,8 @@ def main() -> None:
     print(f"duration_seconds: {result.duration_seconds:.2f}")
     print(f"peak_vram_mb: {result.peak_vram_mb}")
     print(f"peak_ram_gb: {result.peak_ram_gb:.2f}")
+    print(f"ram_peak_mib: {result.ram_peak_mib}")
+    print(f"ram_total_mib: {result.ram_total_mib}")
     print(f"gpu_avg_utilization_pct: {result.gpu_avg_utilization_pct:.1f}")
     print(f"gpu_avg_temp_c: {result.gpu_avg_temp_c:.1f}")
     print(f"gpu_avg_power_w: {result.gpu_avg_power_w:.1f}")

@@ -312,11 +312,14 @@ def _inject_seed(workflow: dict[str, Any], seed: int) -> dict[str, Any]:
 
 
 # Field name → parser. Mirrors snapshot.main() print format.
+# Bloco 22 additive: ram_peak_mib + ram_total_mib (RAM telemetry expansion).
 _SNAPSHOT_FIELD_PARSERS: dict[str, Callable[[str], Any]] = {
     "samples_collected": int,
     "duration_seconds": float,
     "peak_vram_mb": int,
     "peak_ram_gb": float,
+    "ram_peak_mib": int,
+    "ram_total_mib": int,
     "gpu_avg_utilization_pct": float,
     "gpu_avg_temp_c": float,
     "gpu_avg_power_w": float,

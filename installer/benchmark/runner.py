@@ -247,34 +247,67 @@ def _spawn_snapshot_until_signal(
     )
 
 
-def _find_ksampler_node_id(workflow: dict[str, Any]) -> str:
-    """Return the single KSampler node ID, or raise.
+def _find_sampler_node_ids(workflow: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return the seed-bearing sampler node IDs as ``(node_id, class_type)`` pairs.
 
-    Mirrors :func:`installer.benchmark.dry_run._find_ksampler_node_id`
-    (copy, not import). Bloco 16+ may consolidate when dry_run.py is
-    deprecated.
+    Supports both single-sampler workflows (SDXL/FLUX/Qwen with one
+    ``KSampler``) and MoE-style multi-sampler workflows (WAN 2.2 i2v
+    with two ``KSamplerAdvanced`` experts — high-noise + low-noise).
+    For ``KSamplerAdvanced``, only nodes with ``inputs.add_noise ==
+    "enable"`` are considered seed-bearing — the low-noise expert has
+    ``add_noise="disable"`` and a fixed ``noise_seed=0`` because it
+    consumes the residual latent from the high-noise stage and does
+    not introduce new randomness.
+
+    Bloco 20 Sub-tarefa 5: extends prior ``_find_ksampler_node_id``
+    which assumed exactly one ``KSampler`` and rejected WAN's
+    dual-KSamplerAdvanced graph.
+
+    Returns:
+        List of ``(node_id, class_type)``. Order follows
+        ``workflow.items()`` iteration order. V1 callers consume only
+        the first entry for seed injection.
+
+    Raises:
+        RunnerWorkflowError: zero seed-bearing sampler nodes found.
     """
-    ksampler_ids = [
-        node_id
-        for node_id, node in workflow.items()
-        if isinstance(node, dict) and node.get("class_type") == "KSampler"
-    ]
-    if len(ksampler_ids) != 1:
+    sampler_ids: list[tuple[str, str]] = []
+    for node_id, node in workflow.items():
+        if not isinstance(node, dict):
+            continue
+        class_type = node.get("class_type")
+        if class_type == "KSampler":
+            sampler_ids.append((node_id, "KSampler"))
+        elif class_type == "KSamplerAdvanced":
+            inputs = node.get("inputs", {})
+            if isinstance(inputs, dict) and inputs.get("add_noise") == "enable":
+                sampler_ids.append((node_id, "KSamplerAdvanced"))
+    if not sampler_ids:
         raise RunnerWorkflowError(
-            f"workflow must contain exactly one KSampler node, "
-            f"found {len(ksampler_ids)}: {ksampler_ids}"
+            "workflow must contain at least one seed-bearing sampler node "
+            "(KSampler or KSamplerAdvanced with add_noise=enable); found 0"
         )
-    return ksampler_ids[0]
+    return sampler_ids
 
 
 def _inject_seed(workflow: dict[str, Any], seed: int) -> dict[str, Any]:
-    """Return a deep-copy of ``workflow`` with KSampler ``inputs.seed = seed``.
+    """Return a deep-copy of ``workflow`` with the seed injected.
 
-    Mirrors :func:`installer.benchmark.dry_run._inject_seed`.
+    Branches by class_type:
+
+    - ``KSampler`` → ``inputs.seed = seed``
+    - ``KSamplerAdvanced`` → ``inputs.noise_seed = seed`` (the
+      Advanced variant exposes the seed under a different field name)
+
+    When multiple seed-bearing samplers exist (Bloco 20 Sub-tarefa 5
+    multi-sampler support), seeds the *first* such node — sufficient
+    for V1 MoE patterns where one sampler drives the random latent
+    and the downstream sampler consumes its residual.
     """
     result = copy.deepcopy(workflow)
-    ksampler_id = _find_ksampler_node_id(result)
-    result[ksampler_id]["inputs"]["seed"] = seed
+    node_id, class_type = _find_sampler_node_ids(result)[0]
+    seed_field = "seed" if class_type == "KSampler" else "noise_seed"
+    result[node_id]["inputs"][seed_field] = seed
     return result
 
 
@@ -369,7 +402,7 @@ def _extract_outputs(
 def _run_single(
     client: interface.ComfyUIClient,
     workflow_path: Path,
-    ckpt_filename: str,
+    ckpt_filename: str | None,
     seed: int,
     snapshot_proc: subprocess.Popen[str],
     stop_flag_remote_path: str,
@@ -422,12 +455,13 @@ def _run_single(
             f"workflow file {workflow_path} is not a JSON object"
         )
 
-    registered = client.list_checkpoints()
-    if ckpt_filename not in registered:
-        raise RunnerWorkflowError(
-            f"checkpoint {ckpt_filename!r} not registered on the server "
-            f"(found: {registered})"
-        )
+    if ckpt_filename is not None:
+        registered = client.list_checkpoints()
+        if ckpt_filename not in registered:
+            raise RunnerWorkflowError(
+                f"checkpoint {ckpt_filename!r} not registered on the server "
+                f"(found: {registered})"
+            )
 
     workflow = _inject_seed(workflow, seed)
     logger.info("queueing workflow with seed=%d", seed)

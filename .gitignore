@@ -71,6 +71,9 @@ runner_outputs/
 # Installer output artifacts (per-host JSON summaries per timestamp)
 installer_outputs/
 
+# Sweep output artifacts (per-(host, workflow, run) outputs + consolidated summary.json)
+sweep_outputs/
+
 # Partial download files
 **/*.part
 

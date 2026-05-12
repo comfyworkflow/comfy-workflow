@@ -250,27 +250,36 @@ def _spawn_snapshot_until_signal(
 def _find_sampler_node_ids(workflow: dict[str, Any]) -> list[tuple[str, str]]:
     """Return the seed-bearing sampler node IDs as ``(node_id, class_type)`` pairs.
 
-    Supports both single-sampler workflows (SDXL/FLUX/Qwen with one
-    ``KSampler``) and MoE-style multi-sampler workflows (WAN 2.2 i2v
-    with two ``KSamplerAdvanced`` experts — high-noise + low-noise).
-    For ``KSamplerAdvanced``, only nodes with ``inputs.add_noise ==
-    "enable"`` are considered seed-bearing — the low-noise expert has
-    ``add_noise="disable"`` and a fixed ``noise_seed=0`` because it
-    consumes the residual latent from the high-noise stage and does
-    not introduce new randomness.
+    Supports three workflow archetypes:
 
-    Bloco 20 Sub-tarefa 5: extends prior ``_find_ksampler_node_id``
-    which assumed exactly one ``KSampler`` and rejected WAN's
-    dual-KSamplerAdvanced graph.
+    1. **Single ``KSampler``** (SDXL / FLUX.1 / Qwen-Image / Hunyuan):
+       traditional single-sampler graph.
+    2. **MoE-style multi-``KSamplerAdvanced``** (WAN 2.2 i2v high-noise
+       + low-noise experts): only nodes with ``inputs.add_noise ==
+       "enable"`` are seed-bearing — the low-noise expert has
+       ``add_noise="disable"`` and ``noise_seed=0`` fixed.
+    3. **``SamplerCustomAdvanced`` + ``RandomNoise``** (FLUX.2 GGUF
+       pipeline; Bloco 22 Sub-tarefa 2): the seed lives on a separate
+       ``RandomNoise`` node which feeds ``SamplerCustomAdvanced``. The
+       ``RandomNoise`` node is treated as the seed source, but only
+       when the workflow also contains a ``SamplerCustomAdvanced``
+       (otherwise the standalone ``RandomNoise`` is non-deterministic
+       and not a target).
 
     Returns:
         List of ``(node_id, class_type)``. Order follows
-        ``workflow.items()`` iteration order. V1 callers consume only
+        ``workflow.items()`` iteration order. Callers consume only
         the first entry for seed injection.
 
     Raises:
         RunnerWorkflowError: zero seed-bearing sampler nodes found.
     """
+    has_sampler_custom_advanced = any(
+        isinstance(node, dict)
+        and node.get("class_type") == "SamplerCustomAdvanced"
+        for node in workflow.values()
+    )
+
     sampler_ids: list[tuple[str, str]] = []
     for node_id, node in workflow.items():
         if not isinstance(node, dict):
@@ -282,10 +291,13 @@ def _find_sampler_node_ids(workflow: dict[str, Any]) -> list[tuple[str, str]]:
             inputs = node.get("inputs", {})
             if isinstance(inputs, dict) and inputs.get("add_noise") == "enable":
                 sampler_ids.append((node_id, "KSamplerAdvanced"))
+        elif class_type == "RandomNoise" and has_sampler_custom_advanced:
+            sampler_ids.append((node_id, "RandomNoise"))
     if not sampler_ids:
         raise RunnerWorkflowError(
             "workflow must contain at least one seed-bearing sampler node "
-            "(KSampler or KSamplerAdvanced with add_noise=enable); found 0"
+            "(KSampler, KSamplerAdvanced with add_noise=enable, or "
+            "RandomNoise paired with SamplerCustomAdvanced); found 0"
         )
     return sampler_ids
 
@@ -298,9 +310,11 @@ def _inject_seed(workflow: dict[str, Any], seed: int) -> dict[str, Any]:
     - ``KSampler`` → ``inputs.seed = seed``
     - ``KSamplerAdvanced`` → ``inputs.noise_seed = seed`` (the
       Advanced variant exposes the seed under a different field name)
+    - ``RandomNoise`` → ``inputs.noise_seed = seed`` (FLUX.2 pipeline;
+      Bloco 22 Sub-tarefa 2 expansion)
 
-    When multiple seed-bearing samplers exist (Bloco 20 Sub-tarefa 5
-    multi-sampler support), seeds the *first* such node — sufficient
+    When multiple seed-bearing samplers exist (e.g. WAN's dual
+    ``KSamplerAdvanced``), seeds the *first* such node — sufficient
     for V1 MoE patterns where one sampler drives the random latent
     and the downstream sampler consumes its residual.
     """

@@ -34,7 +34,7 @@ REM left in place in case a future Update mode applies a .7z
 REM delta patch instead of skipping download entirely.
 REM
 REM Unattended mode: set environment variable COMFY_NONINTERACTIVE=1
-REM (or run setup-pillar1.bat --unattended) to suppress all `pause`
+REM (or run setup-sdxl.bat --unattended) to suppress all `pause`
 REM prompts and skip Step 9 FIRST LAUNCH. In unattended mode the
 REM Update/Fresh prompt is also bypassed: existing install -> Update,
 REM no install -> Fresh.

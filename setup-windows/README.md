@@ -30,10 +30,16 @@ There are three flavors of script in this directory:
 
 1. **`01-install-base.bat`** — the base installer (ComfyUI Portable +
    3 essential custom nodes).
-2. **`install-<model>.bat`** — per-Pillar / per-model installers that
-   download a specific model family + ship the matching workflow.
-3. **`setup-pillar1.bat`** — a master orchestrator that runs the base
-   install + a Pillar #1 model installer in one shot.
+2. **`install-<model>.bat`** — per-model installers that download a
+   specific model family + ship the matching workflow.
+3. **`setup-<model>.bat`** — master orchestrators that chain the base
+   install with a specific per-model installer. Currently we ship
+   `setup-sdxl.bat` (paired with the **Install SDXL** mini-series video).
+
+> The **install mini-series** (per-model setup videos) is a separate
+> editorial track from the **Benchmark Pillar mini-series** (cross-model
+> performance/quality comparisons). Each workflow sidecar README cross-
+> references both.
 
 ### `01-install-base.bat`
 
@@ -60,15 +66,15 @@ ships the corresponding workflow JSON + sidecar README into
 **idempotent**: re-running a script skips files already present with
 matching size.
 
-| Script | Pillar(s) | Display name | Hardware mínimo | Custom nodes |
-|---|---|---|---|---|
-| `install-sdxl.bat` | #1 | SDXL Base 1.0 | 16 GB RAM · 8 GB VRAM | — |
-| `install-flux1.bat` | #4, #1 | FLUX.1 dev (fp8 + fp16) | 64 GB RAM · 24 GB VRAM | — |
-| `install-flux2.bat` | #2, #4 | FLUX.2 dev GGUF (Q4_K_M) | 48 GB RAM · 12 GB VRAM | ComfyUI-GGUF |
-| `install-qwen-image.bat` | #1 | Qwen-Image fp8 | 64 GB RAM · 12 GB VRAM | — |
-| `install-qwen-2512.bat` | #2 | Qwen-Image 2512 fp8 | 64 GB RAM · 12 GB VRAM | — |
-| `install-hunyuan-21.bat` | #2, #3 | Hunyuan-Image 2.1 bf16 | 96 GB RAM · 16 GB VRAM | — |
-| `install-wan22.bat` | #5 | WAN 2.2 i2v fp8 dual-expert | 96 GB RAM · 16 GB VRAM | — |
+| Script | Install video | Benchmark Pillar(s) | Display name | Hardware mínimo | Custom nodes |
+|---|---|---|---|---|---|
+| `install-sdxl.bat` | #2 SDXL | #1 | SDXL Base 1.0 | 16 GB RAM · 8 GB VRAM | — |
+| `install-flux1.bat` | #3 FLUX family | #4, #1 | FLUX.1 dev (fp8 + fp16) | 64 GB RAM · 24 GB VRAM | — |
+| `install-flux2.bat` | #3 FLUX family | #2, #4 | FLUX.2 dev GGUF (Q4_K_M) | 48 GB RAM · 12 GB VRAM | ComfyUI-GGUF |
+| `install-qwen-image.bat` | #4 Qwen family | #1 | Qwen-Image fp8 | 64 GB RAM · 12 GB VRAM | — |
+| `install-qwen-2512.bat` | #4 Qwen family | #2 | Qwen-Image 2512 fp8 | 64 GB RAM · 12 GB VRAM | — |
+| `install-hunyuan-21.bat` | #5 Hunyuan | #2, #3 | Hunyuan-Image 2.1 bf16 | 96 GB RAM · 16 GB VRAM | — |
+| `install-wan22.bat` | #6 WAN | #5 | WAN 2.2 i2v fp8 dual-expert | 96 GB RAM · 16 GB VRAM | — |
 
 These scripts are **generated** from
 `installer/benchmark/models_manifest.yaml` via
@@ -79,14 +85,15 @@ by hand. To refresh after a manifest change, run:
 python -m installer.benchmark.generate_install_scripts
 ```
 
-### `setup-pillar1.bat`
+### `setup-sdxl.bat`
 
-Master orchestrator for the Pillar #1 video (SDXL). Runs
-`01-install-base.bat` then `install-sdxl.bat` in sequence. Pass
-`--unattended` (or `-u`, or set the env var `COMFY_NONINTERACTIVE=1`)
-to bypass the U/F/C prompt and the FIRST LAUNCH manual step in the
-base installer — useful for SSH / remote dispatch where there is no
-interactive console.
+Master orchestrator paired with the **Install SDXL** install-mini-
+series video. Runs `01-install-base.bat` then `install-sdxl.bat` in
+sequence, so the user goes from a fresh Windows machine to a working
+SDXL ComfyUI in one click. Pass `--unattended` (or `-u`, or set the
+env var `COMFY_NONINTERACTIVE=1`) to bypass the U/F/C prompt and the
+FIRST LAUNCH manual step in the base installer — useful for SSH /
+remote dispatch where there is no interactive console.
 
 ## Quick start
 

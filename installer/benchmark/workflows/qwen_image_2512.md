@@ -1,6 +1,7 @@
 # Qwen-Image 2512 fp8
 
-📺 Vídeo principal: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)
+📺 Install video #4: [Install Qwen-Image family (legacy + 2512)](https://github.com/comfyworkflow/comfy-workflow#install-qwen-family-pending)
+🔬 Benchmark Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)
 - `install-qwen-2512.bat`

@@ -4,24 +4,27 @@ Single responsibility: write a markdown sidecar (``<workflow>.md``)
 next to each production workflow JSON with:
 
 - workflow display name (H1)
-- primary YouTube Pillar link + optional secondary pillars
+- **Install video** link (install mini-series — primary, search-driven
+  per ContentIntel)
+- **Benchmark Pillar** link (Pillar mini-series — secondary cross-ref;
+  optional secondary pillars when the workflow makes a cameo)
 - install script references (under setup-windows/)
 - params extracted from the workflow (steps, CFG/guidance,
   sampler/scheduler, resolution, frames)
 - hardware tier minimums (RAM + VRAM)
 
 The CLI is **idempotent**: running with the same args twice produces
-zero on-disk write on the second run. First run creates the .md; subsequent
-runs compare the generated body to the existing file and write only on
-diff (atomic ``<path>.tmp`` + ``Path.replace``).
+zero on-disk write on the second run. First run creates the .md;
+subsequent runs compare the generated body to the existing file and
+write only on diff (atomic ``<path>.tmp`` + ``Path.replace``).
 
-Use case: post-recording YouTube uploads — paste the 5 published Pillar
-URLs as CLI args, the script refreshes all 8 production sidecar files
-in one shot.
+Use case: post-recording YouTube uploads — paste the 5 install-video
+URLs + 5 Benchmark Pillar URLs as CLI args, the script refreshes all
+8 production sidecar files in one shot.
 
-Default placeholder URLs point at the repo with a stable URL fragment
-(``#video-pillar-N-pending``), so links remain clickable even
-pre-launch.
+Default placeholder URLs point at the repo with stable URL fragments
+(``#install-<slug>-pending`` and ``#video-pillar-<N>-pending``), so
+links remain clickable even pre-launch.
 
 **Why sidecar (not MarkdownNote embedded in JSON):** ComfyUI workflow
 JSON in API format strictly excludes frontend-only nodes (MarkdownNote,
@@ -30,12 +33,18 @@ Format B (saved frontend workflow) shape — different JSON schema. Our
 workflows are API format (consumed by gallery.py / sweep.py / runner.py
 directly), so injecting MarkdownNote causes ComfyUI's ``/prompt``
 endpoint to reject the workflow with ``missing_node_type`` HTTP 400.
-Sidecar markdown files are GitHub-renderable, zero-risk, and
-decoupled from runtime execution. Débito V2 #23 captures this
-architectural rationale for V3 reconsideration if inline canvas embed
-becomes critical (would require Format A↔B conversion tool).
+Sidecar markdown files are GitHub-renderable, zero-risk, and decoupled
+from runtime execution. Débito V2 #23 captures this architectural
+rationale for V3 reconsideration if inline canvas embed becomes
+critical (would require Format A↔B conversion tool).
 
-Pillar mapping is hardcoded module-level (:data:`PILLAR_MAPPING`).
+**Why two mappings (install + Pillar):** the install mini-series and
+the Benchmark Pillar mini-series are distinct editorial products.
+:data:`INSTALL_VIDEO_MAPPING` keys workflow JSON name to install-series
+metadata (slug, scripts, display name); :data:`PILLAR_MAPPING` keys
+the same name to Pillar editorial metadata (primary + secondary Pillar
+numbers). The sidecar template renders both as cross-references.
+
 ``sdxl_base_dry_run.json`` is intentionally excluded — debug-only
 workflow not part of the audience-facing set.
 """
@@ -61,65 +70,104 @@ DEFAULT_WORKFLOWS_DIR: Path = Path("installer/benchmark/workflows")
 DEFAULT_GITHUB_BASE_URL: str = "https://github.com/comfyworkflow/comfy-workflow"
 
 
-def _placeholder_url(pillar: int, github_base: str) -> str:
-    """URL placeholder used until the real YouTube Pillar #N goes live."""
+def _placeholder_pillar_url(pillar: int, github_base: str) -> str:
+    """URL placeholder used until the real YouTube Benchmark Pillar #N goes live."""
     return f"{github_base}#video-pillar-{pillar}-pending"
 
 
-# Per-workflow pillar mapping + install scripts + display name. Order
-# in this dict drives the dry-run / report iteration order.
-PILLAR_MAPPING: dict[str, dict[str, Any]] = {
+def _placeholder_install_url(slug: str, github_base: str) -> str:
+    """URL placeholder used until the real install mini-series video goes live."""
+    return f"{github_base}#install-{slug}-pending"
+
+
+# Per-install-video-slug metadata. The install mini-series is a separate
+# editorial track from the Benchmark Pillar mini-series — the install
+# videos walk a user through one setup end-to-end (per model family),
+# while Pillar videos are cross-model comparisons.
+#
+# 5 install videos #2-#6 covering 8 production workflows (Flux1+Flux2
+# share a family video; Qwen-Image+Qwen-2512 likewise).
+INSTALL_VIDEO_NUMBER: dict[str, int] = {
+    "sdxl": 2,
+    "flux-family": 3,
+    "qwen-family": 4,
+    "hunyuan": 5,
+    "wan": 6,
+}
+
+INSTALL_VIDEO_LABEL: dict[str, str] = {
+    "sdxl": "Install SDXL ComfyUI",
+    "flux-family": "Install FLUX family (1 & 2)",
+    "qwen-family": "Install Qwen-Image family (legacy + 2512)",
+    "hunyuan": "Install Hunyuan-Image 2.1",
+    "wan": "Install WAN 2.2 i2v",
+}
+
+
+# Per-workflow install-mini-series mapping. Iteration order of this
+# dict drives the dry-run / report iteration order of the CLI.
+INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
     "sdxl_base.json": {
-        "primary": 1,
-        "secondary": [],
+        "install_slug": "sdxl",
         "scripts": ["install-sdxl.bat"],
         "display_name": "SDXL Base 1.0",
     },
     "flux_dev_fp8.json": {
-        "primary": 4,
-        "secondary": [1],
+        "install_slug": "flux-family",
         "scripts": ["install-flux1.bat"],
         "display_name": "FLUX.1 dev fp8",
     },
     "flux_dev_fp16.json": {
-        "primary": 4,
-        "secondary": [1],
+        "install_slug": "flux-family",
         "scripts": ["install-flux1.bat"],
         "display_name": "FLUX.1 dev fp16",
     },
     "qwen_image_fp8.json": {
-        "primary": 1,
-        "secondary": [],
+        "install_slug": "qwen-family",
         "scripts": ["install-qwen-image.bat"],
         "display_name": "Qwen-Image fp8",
     },
     "flux2_dev_gguf.json": {
-        "primary": 2,
-        "secondary": [4],
+        "install_slug": "flux-family",
         "scripts": ["install-flux2.bat"],
         "display_name": "FLUX.2 dev GGUF (Q4_K_M default)",
     },
     "qwen_image_2512.json": {
-        "primary": 2,
-        "secondary": [],
+        "install_slug": "qwen-family",
         "scripts": ["install-qwen-2512.bat"],
         "display_name": "Qwen-Image 2512 fp8",
     },
     "hunyuan_image_21.json": {
-        "primary": 2,
-        "secondary": [3],
+        "install_slug": "hunyuan",
         "scripts": ["install-hunyuan-21.bat"],
         "display_name": "Hunyuan-Image 2.1 bf16",
     },
     "wan22_i2v_fp8.json": {
-        "primary": 5,
-        "secondary": [],
+        "install_slug": "wan",
         "scripts": [
             "install-wan22.bat",
             "install-sdxl.bat (gera input image)",
         ],
         "display_name": "WAN 2.2 i2v fp8 dual-expert (81 frames)",
     },
+}
+
+
+# Per-workflow Benchmark Pillar mapping. The "Pillar" concept here is
+# the cross-model editorial mini-series (TBA #1..#5), NOT the install
+# mini-series. ``primary`` is the headline Pillar for the workflow;
+# ``secondary`` lists any additional Pillars where the workflow makes
+# a cameo (e.g., FLUX.1 fp8 plays a supporting role in Pillar #1 even
+# though its headline slot is Pillar #4).
+PILLAR_MAPPING: dict[str, dict[str, Any]] = {
+    "sdxl_base.json": {"primary": 1, "secondary": []},
+    "flux_dev_fp8.json": {"primary": 4, "secondary": [1]},
+    "flux_dev_fp16.json": {"primary": 4, "secondary": [1]},
+    "qwen_image_fp8.json": {"primary": 1, "secondary": []},
+    "flux2_dev_gguf.json": {"primary": 2, "secondary": [4]},
+    "qwen_image_2512.json": {"primary": 2, "secondary": []},
+    "hunyuan_image_21.json": {"primary": 2, "secondary": [3]},
+    "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
 }
 
 
@@ -199,30 +247,50 @@ def _extract_params(workflow: dict[str, Any]) -> dict[str, Any]:
 
 def _build_readme_text(
     workflow_name: str,
-    mapping: dict[str, Any],
+    install_entry: dict[str, Any],
+    pillar_entry: dict[str, Any],
     hardware: dict[str, str],
     params: dict[str, Any],
+    install_urls: dict[str, str],
     pillar_urls: dict[int, str],
     github_base: str,
     setup_base: str,
 ) -> str:
-    """Compose the MarkdownNote body for a workflow."""
-    display_name = mapping["display_name"]
-    primary: int = mapping["primary"]
-    secondary: list[int] = mapping["secondary"]
-    scripts: list[str] = mapping["scripts"]
+    """Compose the sidecar README body for a workflow.
 
-    primary_url = pillar_urls.get(
-        primary, _placeholder_url(primary, github_base),
+    Cross-references both editorial tracks: the install mini-series
+    (one video per model family — primary, search-driven) and the
+    Benchmark Pillar mini-series (cross-model comparisons — secondary
+    cross-ref).
+    """
+    display_name = install_entry["display_name"]
+    install_slug: str = install_entry["install_slug"]
+    scripts: list[str] = install_entry["scripts"]
+    primary: int = pillar_entry["primary"]
+    secondary: list[int] = pillar_entry["secondary"]
+
+    install_video_num = INSTALL_VIDEO_NUMBER[install_slug]
+    install_video_label = INSTALL_VIDEO_LABEL[install_slug]
+    install_url = install_urls.get(
+        install_slug, _placeholder_install_url(install_slug, github_base),
+    )
+    primary_pillar_url = pillar_urls.get(
+        primary, _placeholder_pillar_url(primary, github_base),
     )
 
     lines: list[str] = []
     lines.append(f"# {display_name}")
     lines.append("")
-    lines.append(f"📺 Vídeo principal: [Pillar #{primary}]({primary_url})")
+    lines.append(
+        f"📺 Install video #{install_video_num}: "
+        f"[{install_video_label}]({install_url})"
+    )
+    lines.append(
+        f"🔬 Benchmark Pillar #{primary}: [Pillar #{primary}]({primary_pillar_url})"
+    )
     for sp in secondary:
-        sp_url = pillar_urls.get(sp, _placeholder_url(sp, github_base))
-        lines.append(f"📺 Também em: [Pillar #{sp}]({sp_url})")
+        sp_url = pillar_urls.get(sp, _placeholder_pillar_url(sp, github_base))
+        lines.append(f"🔬 Também em Pillar #{sp}: [Pillar #{sp}]({sp_url})")
     lines.append("")
 
     lines.append(f"📥 Install: [{setup_base}]({setup_base})")
@@ -263,6 +331,7 @@ def _build_readme_text(
 
 def _write_workflow_readme(
     workflow_json_path: Path,
+    install_urls: dict[str, str],
     pillar_urls: dict[int, str],
     github_base: str,
     setup_base: str,
@@ -292,7 +361,8 @@ def _write_workflow_readme(
     no write occurs and ``modified`` is ``False``.
     """
     workflow_name = workflow_json_path.name
-    mapping = PILLAR_MAPPING[workflow_name]
+    install_entry = INSTALL_VIDEO_MAPPING[workflow_name]
+    pillar_entry = PILLAR_MAPPING[workflow_name]
     hardware = HARDWARE_TIERS[workflow_name]
 
     workflow = json.loads(workflow_json_path.read_text(encoding="utf-8"))
@@ -304,9 +374,11 @@ def _write_workflow_readme(
     params = _extract_params(workflow)
     new_text = _build_readme_text(
         workflow_name=workflow_name,
-        mapping=mapping,
+        install_entry=install_entry,
+        pillar_entry=pillar_entry,
         hardware=hardware,
         params=params,
+        install_urls=install_urls,
         pillar_urls=pillar_urls,
         github_base=github_base,
         setup_base=setup_base,
@@ -341,21 +413,36 @@ def _build_argparser() -> argparse.ArgumentParser:
     """Build the CLI parser."""
     parser = argparse.ArgumentParser(
         description=(
-            "Atomically inject/refresh MarkdownNote nodes in production "
-            "workflow JSONs with YouTube Pillar URLs + install script "
-            "refs + workflow params + hardware tiers. Idempotent: re-run "
-            "with same args = zero diff. Default URLs are placeholders "
-            "pointing at the repo with stable URL fragments until the "
-            "real videos go live."
+            "Refresh the sidecar README ('<workflow>.md') next to each "
+            "production workflow JSON with the latest install-video URLs "
+            "+ Benchmark Pillar URLs + install script refs + workflow "
+            "params + hardware tiers. Idempotent: re-run with same args "
+            "= zero on-disk diff. Default URLs are placeholders pointing "
+            "at the repo with stable URL fragments until the real videos "
+            "go live."
         ),
     )
+    # Install mini-series URLs (5 videos #2-#6, keyed by slug).
+    for slug in INSTALL_VIDEO_NUMBER:
+        n = INSTALL_VIDEO_NUMBER[slug]
+        parser.add_argument(
+            f"--install-{slug}-url",
+            default=_placeholder_install_url(slug, DEFAULT_GITHUB_BASE_URL),
+            help=(
+                f"YouTube URL for install video #{n} ({slug}). Default "
+                f"placeholder: repo URL with #install-{slug}-pending "
+                "fragment."
+            ),
+        )
+    # Benchmark Pillar URLs (5 cross-model editorial videos #1-#5).
     for n in (1, 2, 3, 4, 5):
         parser.add_argument(
             f"--pillar-{n}-url",
-            default=_placeholder_url(n, DEFAULT_GITHUB_BASE_URL),
+            default=_placeholder_pillar_url(n, DEFAULT_GITHUB_BASE_URL),
             help=(
-                f"YouTube URL for Pillar #{n}. Default placeholder: "
-                f"repo URL with #video-pillar-{n}-pending fragment."
+                f"YouTube URL for Benchmark Pillar #{n}. Default "
+                f"placeholder: repo URL with #video-pillar-{n}-pending "
+                "fragment."
             ),
         )
     parser.add_argument(
@@ -409,6 +496,11 @@ def main() -> None:
         4: args.pillar_4_url,
         5: args.pillar_5_url,
     }
+    # argparse converts --install-flux-family-url -> args.install_flux_family_url.
+    install_urls: dict[str, str] = {
+        slug: getattr(args, f"install_{slug.replace('-', '_')}_url")
+        for slug in INSTALL_VIDEO_NUMBER
+    }
     github_base = args.github_base_url.rstrip("/")
     setup_base = (
         args.setup_base_url
@@ -424,7 +516,7 @@ def main() -> None:
 
     n_modified = 0
     n_idempotent = 0
-    for workflow_name in PILLAR_MAPPING:
+    for workflow_name in INSTALL_VIDEO_MAPPING:
         workflow_path = workflows_dir / workflow_name
         if not workflow_path.is_file():
             logger.warning("workflow not found, skipping: %s", workflow_path)
@@ -434,6 +526,7 @@ def main() -> None:
             modified, md_path, line_count, new_text, existing_text = (
                 _write_workflow_readme(
                     workflow_json_path=workflow_path,
+                    install_urls=install_urls,
                     pillar_urls=pillar_urls,
                     github_base=github_base,
                     setup_base=setup_base,

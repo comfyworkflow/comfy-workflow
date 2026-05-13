@@ -1,6 +1,7 @@
 # SDXL Base 1.0
 
-📺 Vídeo principal: [Pillar #1](https://github.com/comfyworkflow/comfy-workflow#video-pillar-1-pending)
+📺 Install video #2: [Install SDXL ComfyUI](https://github.com/comfyworkflow/comfy-workflow#install-sdxl-pending)
+🔬 Benchmark Pillar #1: [Pillar #1](https://github.com/comfyworkflow/comfy-workflow#video-pillar-1-pending)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)
 - `install-sdxl.bat`

@@ -1,7 +1,8 @@
 # Hunyuan-Image 2.1 bf16
 
-📺 Vídeo principal: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)
-📺 Também em: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)
+📺 Install video #5: [Install Hunyuan-Image 2.1](https://github.com/comfyworkflow/comfy-workflow#install-hunyuan-pending)
+🔬 Benchmark Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)
+🔬 Também em Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)
 - `install-hunyuan-21.bat`

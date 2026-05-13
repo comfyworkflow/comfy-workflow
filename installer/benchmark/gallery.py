@@ -51,9 +51,11 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 from collections import Counter
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
@@ -75,6 +77,13 @@ _REMOTE_STOP_FLAG_DEFAULT: str = runner.REMOTE_STOP_FLAG_DEFAULT
 # WAN canonical frame count (Bloco 22c default #2 — fixed cross-aspects
 # for V2 simplicity; reused as length input on WanImageToVideo).
 I2V_LENGTH_DEFAULT: int = 81
+
+
+# Cross-thread lock guarding the shared cells list + atomic summary write
+# (Bloco 22d.2.1 parallel refactor). Threads append to cells_shared and
+# write summary.json under this lock; per-host I/O outside the lock runs
+# concurrent across hosts.
+_summary_lock = threading.Lock()
 
 
 # ============================================================================
@@ -181,6 +190,12 @@ class GalleryConfig:
     dataclass constraint). ``output_dir`` is required (resolved by
     :func:`main` before construction — default
     ``reports/gallery_<UTC-timestamp>`` is applied at the CLI layer).
+
+    ``i2v_skip_hosts`` (Bloco 22d.2.1): per-host opt-out from the
+    i2v chain even when ``i2v_chain`` is True globally. Use case:
+    low-VRAM hosts (e.g. cg-3060 12 GiB) where WAN dual-expert
+    offload is prohibitively slow / unstable. Hosts in this tuple
+    still run t2i; only the i2v chain is skipped.
     """
 
     workflows_dir: Path
@@ -192,6 +207,8 @@ class GalleryConfig:
     i2v_chain: bool = True
     variant_filter: str | None = None
     host_filter: str | None = None
+    i2v_skip_hosts: tuple[str, ...] = ()
+    retry_statuses: tuple[GalleryCellStatus, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -1190,19 +1207,28 @@ def _print_summary_tally(
     cells: list[GalleryCell],
     wall_s: float,
     summary_path: Path,
+    resume_skipped: int = 0,
 ) -> None:
-    """Final tally on stderr (status counts + total wall-clock + summary path)."""
+    """Final tally on stderr (status counts + wall-clock + summary path).
+
+    ``wall_s`` measures THIS invocation's runtime only;
+    ``resume_skipped`` is the count of cells inherited from a prior
+    interrupted run (added to the tally for honesty about gallery
+    completeness vs invocation cost).
+    """
     status_counts: Counter[str] = Counter(c.status for c in cells)
     print("\n=== GALLERY DONE ===", file=sys.stderr)
+    print(f"total cells:                  {len(cells)}", file=sys.stderr)
+    if resume_skipped > 0:
+        print(
+            f"resume_skipped (prior run):   {resume_skipped}",
+            file=sys.stderr,
+        )
     print(
-        f"total cells:      {len(cells)}",
+        f"wall_clock (this invocation): {wall_s:.1f}s ({wall_s / 60:.1f}min)",
         file=sys.stderr,
     )
-    print(
-        f"wall_clock_total: {wall_s:.1f}s ({wall_s / 60:.1f}min)",
-        file=sys.stderr,
-    )
-    print(f"summary:          {summary_path}", file=sys.stderr)
+    print(f"summary:                      {summary_path}", file=sys.stderr)
     print("\nstatus counts:", file=sys.stderr)
     for status, count in status_counts.most_common():
         print(f"  {status:<15} {count}", file=sys.stderr)
@@ -1221,12 +1247,220 @@ def _save_summary(summary: GallerySummary, output_path: Path) -> None:
 
     Creates parent directories as needed and appends a trailing
     newline for POSIX-friendly diffs.
+
+    Note: callers in the per-cell incremental save loop should prefer
+    :func:`_save_summary_atomic` for crash tolerance.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(asdict(summary), f, indent=2, ensure_ascii=False, default=str)
         f.write("\n")
     logger.info("saved gallery summary to %s", output_path)
+
+
+def _save_summary_atomic(summary: GallerySummary, output_path: Path) -> None:
+    """Atomic write to ``output_path`` via ``<path>.tmp`` + ``Path.replace``.
+
+    Crash-tolerant variant of :func:`_save_summary` used by
+    :func:`main`'s incremental save loop. Writes to a sibling
+    ``.tmp`` file then atomically replaces the target —
+    :meth:`Path.replace` is atomic on both POSIX and Windows
+    (Python 3.3+). On interruption mid-write, the prior
+    ``summary.json`` remains intact; on interruption between
+    write and replace, the ``.tmp`` may linger but the target
+    is unchanged.
+
+    Logs at DEBUG (not INFO) — called potentially hundreds of
+    times per sweep, INFO would drown the cell-completion logs.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    with tmp_path.open("w", encoding="utf-8") as f:
+        json.dump(asdict(summary), f, indent=2, ensure_ascii=False, default=str)
+        f.write("\n")
+    tmp_path.replace(output_path)
+    logger.debug("atomic-saved gallery summary to %s", output_path)
+
+
+def _load_resume_state(
+    summary_path: Path,
+    retry_statuses: Iterable[GalleryCellStatus] = (),
+) -> tuple[str | None, list[GalleryCell], set[tuple[str, str, str, str]]]:
+    """Load resume state from an existing ``summary.json``.
+
+    Returns ``(original_gallery_id, existing_cells, completed_keys)``
+    where ``completed_keys`` are
+    ``(host, variant_family, variant_precision, aspect_ratio_name)``
+    tuples used by :func:`main` to filter the combo enumeration.
+    All three are empty/``None`` when ``summary_path`` does not exist
+    (resume effectively becomes a no-op, fresh dispatch).
+
+    ``retry_statuses`` (Bloco 22d.2.4): cells in the loaded summary
+    whose ``status`` is in this iterable are TREATED AS NOT-YET-DONE:
+
+    - They are NOT added to ``completed_keys`` (so the combo is
+      re-enumerated for execution).
+    - They are NOT added to ``existing_cells`` (so the worker's
+      replacement-by-append produces a single up-to-date entry per
+      key, not duplicates).
+
+    Default empty tuple = previous behavior: ALL keys regardless of
+    status are blocked from re-execution.
+
+    Raises:
+        GalleryConfigError: file exists but is corrupted (JSON parse
+            error, missing/invalid ``gallery_id``, non-list ``cells``,
+            or cell shape incompatible with :class:`GalleryCell`).
+    """
+    if not summary_path.is_file():
+        return None, [], set()
+
+    try:
+        data = json.loads(summary_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise GalleryConfigError(
+            f"--resume: summary at {summary_path} is corrupted (JSON parse): {exc}"
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise GalleryConfigError(
+            f"--resume: summary at {summary_path} is not a JSON object"
+        )
+
+    original_id = data.get("gallery_id")
+    if not isinstance(original_id, str) or not original_id:
+        raise GalleryConfigError(
+            f"--resume: summary at {summary_path} missing valid 'gallery_id'"
+        )
+
+    raw_cells = data.get("cells", [])
+    if not isinstance(raw_cells, list):
+        raise GalleryConfigError(
+            f"--resume: summary at {summary_path} has non-list 'cells' field"
+        )
+
+    retry_set = set(retry_statuses)
+    existing_cells: list[GalleryCell] = []
+    completed_keys: set[tuple[str, str, str, str]] = set()
+    for raw in raw_cells:
+        if not isinstance(raw, dict):
+            raise GalleryConfigError(
+                f"--resume: summary at {summary_path} has non-object cell entry"
+            )
+        try:
+            cell = GalleryCell(**raw)
+        except TypeError as exc:
+            raise GalleryConfigError(
+                f"--resume: cell {raw.get('host')!r}/"
+                f"{raw.get('variant_family')!r}:{raw.get('variant_precision')!r} "
+                f"shape mismatch (schema_version drift?): {exc}"
+            ) from exc
+        if cell.status in retry_set:
+            # Drop from resume state — combo will be re-enumerated and
+            # the retry result replaces this stale cell.
+            continue
+        existing_cells.append(cell)
+        completed_keys.add((
+            cell.host,
+            cell.variant_family,
+            cell.variant_precision,
+            cell.aspect_ratio_name,
+        ))
+
+    return original_id, existing_cells, completed_keys
+
+
+# ============================================================================
+# Per-host worker (Bloco 22d.2.1 parallel)
+# ============================================================================
+
+def _run_host_combos(
+    host: str,
+    host_combos: list[tuple[str, ModelVariant, AspectRatio]],
+    config: GalleryConfig,
+    gallery_id: str,
+    aspect_ratios: tuple[AspectRatio, ...],
+    cells_shared: list[GalleryCell],
+    progress_counter: dict[str, int],
+    summary_path: Path,
+) -> None:
+    """Execute all combos assigned to one host (one ThreadPoolExecutor worker).
+
+    Each ThreadPoolExecutor worker owns its host completely:
+
+    - A dedicated :class:`interface.ComfyUIClient` (requests.Session is
+      NOT thread-safe per requests docs; per-host client avoids sharing).
+    - Per-cell ``runner._spawn_snapshot_until_signal`` + downloads —
+      the remote SSH process and ComfyUI server are also per-host.
+
+    The ONLY shared mutable state is :data:`cells_shared` and the
+    on-disk ``summary.json``; both are guarded by :data:`_summary_lock`.
+    Logger calls are thread-safe (logging module guarantees) so they
+    can fire outside the lock.
+
+    On per-cell failure (RunnerError / ComfyUIError / unexpected),
+    the worker continues with the next combo. On unrecoverable
+    exceptions outside the per-combo try/except, the worker re-raises
+    so :func:`main`'s ``future.result()`` surfaces the fault in logs.
+    """
+    client = interface.ComfyUIClient(
+        f"http://{host}:8188", timeout=config.workflow_timeout_s,
+    )
+
+    for combo_host, variant, aspect_ratio in host_combos:
+        cell_label = (
+            f"{combo_host} {variant.family}:{variant.precision} "
+            f"{aspect_ratio.name}"
+        )
+        logger.info("[start] %s — t2i", cell_label)
+        cell = _execute_t2i(
+            host=combo_host,
+            variant=variant,
+            aspect_ratio=aspect_ratio,
+            seed=config.seed,
+            workflows_dir=config.workflows_dir,
+            output_dir=config.output_dir,
+            timeout_s=config.workflow_timeout_s,
+            client=client,
+        )
+
+        if (
+            cell.status == "success"
+            and config.i2v_chain
+            and combo_host not in config.i2v_skip_hosts
+            and cell.t2i_output_path is not None
+        ):
+            logger.info("[start] %s — i2v chain", cell_label)
+            i2v_data = _execute_i2v_chain(
+                host=combo_host,
+                t2i_output_path=config.output_dir / cell.t2i_output_path,
+                aspect_ratio=aspect_ratio,
+                seed=config.seed,
+                workflows_dir=config.workflows_dir,
+                output_dir=config.output_dir,
+                timeout_s=config.workflow_timeout_s,
+                variants=VARIANT_CATALOG,
+                client=client,
+            )
+            cell = replace(cell, **i2v_data)
+
+        with _summary_lock:
+            cells_shared.append(cell)
+            progress_counter["done"] += 1
+            done = progress_counter["done"]
+            total = progress_counter["total"]
+            _save_summary_atomic(
+                GallerySummary(
+                    schema_version=1,
+                    gallery_id=gallery_id,
+                    config=asdict(config),
+                    aspect_ratios=aspect_ratios,
+                    variants=VARIANT_CATALOG,
+                    cells=tuple(cells_shared),
+                ),
+                summary_path,
+            )
+            _log_cell_result(done, total, cell)
 
 
 # ============================================================================
@@ -1319,6 +1553,47 @@ def _build_argparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the cross-product plan without running anything.",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Resume an interrupted gallery — loads cells from "
+            "<output-dir>/summary.json and skips combos already present "
+            "(regardless of their status; no per-cell retry). Pair with "
+            "--output-dir pointing at the existing gallery directory; "
+            "without that, the default --output-dir uses a new timestamp "
+            "and resume becomes a no-op (fresh dispatch). Preserves the "
+            "original gallery_id from the loaded summary."
+        ),
+    )
+    parser.add_argument(
+        "--no-i2v-on-hosts",
+        nargs="*",
+        default=[],
+        metavar="HOST",
+        help=(
+            "Skip the i2v chain on these specific hosts (t2i still runs). "
+            "Use for low-VRAM hosts where WAN dual-expert offload is "
+            "prohibitively slow / unstable (e.g. --no-i2v-on-hosts "
+            "cg-3060). Hosts not in this list run the full chain when "
+            "--i2v-chain is True. No effect when --no-i2v-chain is set."
+        ),
+    )
+    parser.add_argument(
+        "--retry-statuses",
+        nargs="*",
+        default=[],
+        choices=["timeout", "error_other", "oom_vram", "oom_ram", "skipped"],
+        metavar="STATUS",
+        help=(
+            "Status values that should be RE-EXECUTED on --resume instead "
+            "of skipped. Default: empty (skip ALL prior cells regardless "
+            "of status — original resume semantics). Example: "
+            "'--retry-statuses timeout error_other' re-runs cells that "
+            "previously timed out or errored. 'success' is intentionally "
+            "excluded from choices (no use case for redoing successes)."
+        ),
+    )
     return parser
 
 
@@ -1382,12 +1657,50 @@ def main() -> None:
         i2v_chain=args.i2v_chain,
         variant_filter=args.variant_filter,
         host_filter=args.host_filter,
+        i2v_skip_hosts=tuple(args.no_i2v_on_hosts),
+        retry_statuses=tuple(args.retry_statuses),
     )
 
     combos = _enumerate_combinations(config, VARIANT_CATALOG)
+
+    summary_path = output_dir / "summary.json"
+
+    # Resume gate: optionally preload cells from prior interrupted run.
+    existing_cells: list[GalleryCell] = []
+    completed_keys: set[tuple[str, str, str, str]] = set()
+    if args.resume:
+        resumed_id, existing_cells, completed_keys = _load_resume_state(
+            summary_path, retry_statuses=config.retry_statuses,
+        )
+        if resumed_id is not None:
+            gallery_id = resumed_id
+            retry_note = (
+                f" (retry_statuses={list(config.retry_statuses)})"
+                if config.retry_statuses
+                else ""
+            )
+            logger.info(
+                "--resume: continuing gallery_id=%s with %d completed cells from %s%s",
+                gallery_id, len(completed_keys), summary_path, retry_note,
+            )
+        else:
+            logger.info(
+                "--resume: no existing summary at %s — starting fresh dispatch",
+                summary_path,
+            )
+
+    # Filter combos to skip cells already completed (empty set in non-resume).
+    filtered_combos = [
+        combo for combo in combos
+        if (combo[0], combo[1].family, combo[1].precision, combo[2].name)
+        not in completed_keys
+    ]
+    resume_skipped = len(combos) - len(filtered_combos)
+
     logger.info(
-        "gallery_id=%s combos=%d hosts=%s output_dir=%s",
-        gallery_id, len(combos), config.hosts, output_dir,
+        "gallery_id=%s combos=%d (filtered=%d, resume_skipped=%d) hosts=%s output_dir=%s",
+        gallery_id, len(combos), len(filtered_combos), resume_skipped,
+        config.hosts, output_dir,
     )
 
     if args.dry_run:
@@ -1395,8 +1708,8 @@ def main() -> None:
         return
 
     # Pre-flight health checks (unique hosts only, order-preserving).
-    unique_hosts = list(dict.fromkeys(c[0] for c in combos))
-    healthy_clients: dict[str, interface.ComfyUIClient] = {}
+    # Sequential is fine — 3 hosts × is_alive(timeout=5) is ~3s total.
+    unique_hosts = list(dict.fromkeys(c[0] for c in filtered_combos))
     unhealthy_hosts: set[str] = set()
     for host in unique_hosts:
         url = f"http://{host}:8188"
@@ -1407,87 +1720,118 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001 — probe failures are non-fatal
             logger.warning("host %s pre-flight raised: %r", host, exc)
         if alive:
-            healthy_clients[host] = interface.ComfyUIClient(
-                url, timeout=config.workflow_timeout_s,
-            )
             logger.info("  [PRE-FLIGHT] %s OK", host)
         else:
             unhealthy_hosts.add(host)
             logger.warning("  [PRE-FLIGHT] %s UNHEALTHY", host)
 
-    cells: list[GalleryCell] = []
+    # Cells list seeded with existing_cells preserved from --resume load
+    # (empty list in non-resume runs). Threads append to this list under
+    # _summary_lock; atomic save after each append keeps the on-disk
+    # summary at most one cell behind in-memory state.
+    cells_shared: list[GalleryCell] = list(existing_cells)
     overall_start = time.monotonic()
 
-    for idx, (host, variant, aspect_ratio) in enumerate(combos):
-        cell_label = (
-            f"{host} {variant.family}:{variant.precision} "
-            f"{aspect_ratio.name}"
-        )
-
-        if host in unhealthy_hosts:
-            cells.append(_empty_cell(
-                host, variant, aspect_ratio,
+    # Append "skipped" cells for unhealthy hosts BEFORE spawning threads
+    # (no remote I/O needed; doing this synchronously simplifies the
+    # parallel loop body — workers only iterate healthy hosts).
+    for host in unique_hosts:
+        if host not in unhealthy_hosts:
+            continue
+        for combo_host, variant, aspect_ratio in filtered_combos:
+            if combo_host != host:
+                continue
+            cells_shared.append(_empty_cell(
+                combo_host, variant, aspect_ratio,
                 "skipped", "host_unhealthy_pre_flight",
             ))
             logger.info(
-                "[%d/%d] %s — skipped (host unhealthy)",
-                idx + 1, len(combos), cell_label,
+                "[skip] %s %s:%s %s — host unhealthy",
+                combo_host, variant.family, variant.precision,
+                aspect_ratio.name,
             )
-            continue
-
-        client = healthy_clients[host]
-        logger.info(
-            "[%d/%d] %s — t2i", idx + 1, len(combos), cell_label,
-        )
-        cell = _execute_t2i(
-            host=host,
-            variant=variant,
-            aspect_ratio=aspect_ratio,
-            seed=config.seed,
-            workflows_dir=workflows_dir,
-            output_dir=output_dir,
-            timeout_s=config.workflow_timeout_s,
-            client=client,
-        )
-
-        if (
-            cell.status == "success"
-            and config.i2v_chain
-            and cell.t2i_output_path is not None
-        ):
-            logger.info(
-                "[%d/%d] %s — i2v chain", idx + 1, len(combos), cell_label,
-            )
-            i2v_data = _execute_i2v_chain(
-                host=host,
-                t2i_output_path=output_dir / cell.t2i_output_path,
-                aspect_ratio=aspect_ratio,
-                seed=config.seed,
-                workflows_dir=workflows_dir,
-                output_dir=output_dir,
-                timeout_s=config.workflow_timeout_s,
+    if unhealthy_hosts:
+        _save_summary_atomic(
+            GallerySummary(
+                schema_version=1,
+                gallery_id=gallery_id,
+                config=asdict(config),
+                aspect_ratios=aspect_ratios,
                 variants=VARIANT_CATALOG,
-                client=client,
-            )
-            cell = replace(cell, **i2v_data)
+                cells=tuple(cells_shared),
+            ),
+            summary_path,
+        )
 
-        cells.append(cell)
-        _log_cell_result(idx + 1, len(combos), cell)
+    # Group remaining combos by HEALTHY host for ThreadPoolExecutor dispatch.
+    combos_by_host: dict[str, list[tuple[str, ModelVariant, AspectRatio]]] = {}
+    for combo in filtered_combos:
+        if combo[0] in unhealthy_hosts:
+            continue
+        combos_by_host.setdefault(combo[0], []).append(combo)
+
+    # Progress counter: shared dict guarded by _summary_lock for atomic
+    # increment + read. Total = original combos (including resume-skipped),
+    # done starts at the resume-loaded count so the [done/total] log
+    # reflects "X of 99" cumulative gallery progress, not invocation-only.
+    progress_counter: dict[str, int] = {
+        "done": len(existing_cells),
+        "total": len(combos),
+    }
+
+    if combos_by_host:
+        logger.info(
+            "parallel dispatch: spawning %d host worker thread(s) — %s",
+            len(combos_by_host),
+            {h: len(cs) for h, cs in combos_by_host.items()},
+        )
+        with ThreadPoolExecutor(
+            max_workers=len(combos_by_host),
+            thread_name_prefix="gallery-host",
+        ) as executor:
+            futures = {
+                executor.submit(
+                    _run_host_combos,
+                    host=host,
+                    host_combos=host_combos,
+                    config=config,
+                    gallery_id=gallery_id,
+                    aspect_ratios=aspect_ratios,
+                    cells_shared=cells_shared,
+                    progress_counter=progress_counter,
+                    summary_path=summary_path,
+                ): host
+                for host, host_combos in combos_by_host.items()
+            }
+            for future in as_completed(futures):
+                host = futures[future]
+                try:
+                    future.result()
+                    logger.info("host %s worker completed", host)
+                except Exception:
+                    logger.exception(
+                        "host %s worker raised unhandled exception", host,
+                    )
+    else:
+        logger.info(
+            "no healthy combos to dispatch — skipping ThreadPoolExecutor",
+        )
 
     overall_wall = time.monotonic() - overall_start
 
+    # Final save — idempotent if workers already wrote latest state.
     summary = GallerySummary(
         schema_version=1,
         gallery_id=gallery_id,
         config=asdict(config),
         aspect_ratios=aspect_ratios,
         variants=VARIANT_CATALOG,
-        cells=tuple(cells),
+        cells=tuple(cells_shared),
     )
-    summary_path = output_dir / "summary.json"
-    _save_summary(summary, summary_path)
+    _save_summary_atomic(summary, summary_path)
+    logger.info("saved gallery summary to %s", summary_path)
 
-    _print_summary_tally(cells, overall_wall, summary_path)
+    _print_summary_tally(cells_shared, overall_wall, summary_path, resume_skipped)
 
 
 if __name__ == "__main__":

@@ -24,10 +24,21 @@ If you have an older NVIDIA GPU (10-series or earlier), this script
 will not work — you would need the Python 3.12 + CUDA 12.6 build of
 ComfyUI Portable instead.
 
-## File
+## Files
 
-There is only one script: `01-install-base.bat`. It works in two
-modes depending on what's already on your machine.
+There are three flavors of script in this directory:
+
+1. **`01-install-base.bat`** — the base installer (ComfyUI Portable +
+   3 essential custom nodes).
+2. **`install-<model>.bat`** — per-Pillar / per-model installers that
+   download a specific model family + ship the matching workflow.
+3. **`setup-pillar1.bat`** — a master orchestrator that runs the base
+   install + a Pillar #1 model installer in one shot.
+
+### `01-install-base.bat`
+
+The base script works in two modes depending on what's already on your
+machine.
 
 | If your machine has... | The script will... |
 |---|---|
@@ -38,6 +49,44 @@ Most users want **Update**. **Fresh** is for people whose existing
 install is broken and they want to start clean — your old folder is
 renamed to `C:\ComfyUI_windows_portable.OLD-<timestamp>\` so nothing
 is lost.
+
+### Per-model installers
+
+Each `install-<model>.bat` assumes the base install is already present
+at `C:\ComfyUI_windows_portable\`. It downloads the model files with
+byte-exact size verification, clones any required custom nodes, and
+ships the corresponding workflow JSON + sidecar README into
+`ComfyUI\user\default\workflows\`. All file operations are
+**idempotent**: re-running a script skips files already present with
+matching size.
+
+| Script | Pillar(s) | Display name | Hardware mínimo | Custom nodes |
+|---|---|---|---|---|
+| `install-sdxl.bat` | #1 | SDXL Base 1.0 | 16 GB RAM · 8 GB VRAM | — |
+| `install-flux1.bat` | #4, #1 | FLUX.1 dev (fp8 + fp16) | 64 GB RAM · 24 GB VRAM | — |
+| `install-flux2.bat` | #2, #4 | FLUX.2 dev GGUF (Q4_K_M) | 48 GB RAM · 12 GB VRAM | ComfyUI-GGUF |
+| `install-qwen-image.bat` | #1 | Qwen-Image fp8 | 64 GB RAM · 12 GB VRAM | — |
+| `install-qwen-2512.bat` | #2 | Qwen-Image 2512 fp8 | 64 GB RAM · 12 GB VRAM | — |
+| `install-hunyuan-21.bat` | #2, #3 | Hunyuan-Image 2.1 bf16 | 96 GB RAM · 16 GB VRAM | — |
+| `install-wan22.bat` | #5 | WAN 2.2 i2v fp8 dual-expert | 96 GB RAM · 16 GB VRAM | — |
+
+These scripts are **generated** from
+`installer/benchmark/models_manifest.yaml` via
+`installer/benchmark/generate_install_scripts.py` — do not edit them
+by hand. To refresh after a manifest change, run:
+
+```cmd
+python -m installer.benchmark.generate_install_scripts
+```
+
+### `setup-pillar1.bat`
+
+Master orchestrator for the Pillar #1 video (SDXL). Runs
+`01-install-base.bat` then `install-sdxl.bat` in sequence. Pass
+`--unattended` (or `-u`, or set the env var `COMFY_NONINTERACTIVE=1`)
+to bypass the U/F/C prompt and the FIRST LAUNCH manual step in the
+base installer — useful for SSH / remote dispatch where there is no
+interactive console.
 
 ## Quick start
 

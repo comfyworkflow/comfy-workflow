@@ -32,6 +32,12 @@ REM Tech debt note: in Update mode the "Locate 7z.exe" check
 REM still runs but the variable is never used. Cheap, no-op,
 REM left in place in case a future Update mode applies a .7z
 REM delta patch instead of skipping download entirely.
+REM
+REM Unattended mode: set environment variable COMFY_NONINTERACTIVE=1
+REM (or run setup-pillar1.bat --unattended) to suppress all `pause`
+REM prompts and skip Step 9 FIRST LAUNCH. In unattended mode the
+REM Update/Fresh prompt is also bypassed: existing install -> Update,
+REM no install -> Fresh.
 REM ==========================================================
 
 goto :main
@@ -174,22 +180,27 @@ if exist "C:\ComfyUI_windows_portable\ComfyUI\main.py" (
     echo.
     echo    [C] CANCEL  - Exit without making any changes.
     echo.
-    set "USER_CHOICE="
-    set /p "USER_CHOICE=Choice [U/F/C]: "
-    if /i "!USER_CHOICE!"=="U" set "INSTALL_MODE=update"
-    if /i "!USER_CHOICE!"=="F" set "INSTALL_MODE=fresh"
-    if /i "!USER_CHOICE!"=="C" (
-        echo.
-        echo Cancelled by user. No changes were made.
-        echo.
-        pause
-        exit /b 0
-    )
-    if not defined INSTALL_MODE (
-        echo.
-        echo ERROR: Invalid choice "!USER_CHOICE!". Please type U, F, or C.
-        pause
-        exit /b 1
+    if defined COMFY_NONINTERACTIVE (
+        echo  COMFY_NONINTERACTIVE set: auto-selecting Update.
+        set "INSTALL_MODE=update"
+    ) else (
+        set "USER_CHOICE="
+        set /p "USER_CHOICE=Choice [U/F/C]: "
+        if /i "!USER_CHOICE!"=="U" set "INSTALL_MODE=update"
+        if /i "!USER_CHOICE!"=="F" set "INSTALL_MODE=fresh"
+        if /i "!USER_CHOICE!"=="C" (
+            echo.
+            echo Cancelled by user. No changes were made.
+            echo.
+            pause
+            exit /b 0
+        )
+        if not defined INSTALL_MODE (
+            echo.
+            echo ERROR: Invalid choice "!USER_CHOICE!". Please type U, F, or C.
+            pause
+            exit /b 1
+        )
     )
 ) else (
     if exist "C:\ComfyUI_windows_portable" (
@@ -427,6 +438,7 @@ REM ==========================================================
 REM Step 9/12 - First launch (Fresh mode only)
 REM ==========================================================
 if /i "%INSTALL_MODE%"=="update" goto :skip_first_launch
+if defined COMFY_NONINTERACTIVE goto :skip_first_launch_noninteractive
 
 echo.
 echo ========================================================
@@ -481,6 +493,12 @@ goto :after_first_launch
 :skip_first_launch
 echo.
 echo [Step  9/12] Skipped (Update mode -- ComfyUI already initialized).
+goto :after_first_launch
+
+:skip_first_launch_noninteractive
+echo.
+echo [Step  9/12] Skipped (COMFY_NONINTERACTIVE -- manual first launch
+echo              deferred; pip steps below do NOT need ComfyUI running).
 
 :after_first_launch
 
@@ -600,6 +618,6 @@ echo    3. Watch the channel for workflows!
 echo.
 echo ========================================================
 echo.
-pause
+if not defined COMFY_NONINTERACTIVE pause
 endlocal
 exit /b 0

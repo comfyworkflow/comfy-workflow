@@ -1,0 +1,489 @@
+"""Author / refresh per-workflow README sidecar files (.md).
+
+Single responsibility: write a markdown sidecar (``<workflow>.md``)
+next to each production workflow JSON with:
+
+- workflow display name (H1)
+- primary YouTube Pillar link + optional secondary pillars
+- install script references (under setup-windows/)
+- params extracted from the workflow (steps, CFG/guidance,
+  sampler/scheduler, resolution, frames)
+- hardware tier minimums (RAM + VRAM)
+
+The CLI is **idempotent**: running with the same args twice produces
+zero on-disk write on the second run. First run creates the .md; subsequent
+runs compare the generated body to the existing file and write only on
+diff (atomic ``<path>.tmp`` + ``Path.replace``).
+
+Use case: post-recording YouTube uploads — paste the 5 published Pillar
+URLs as CLI args, the script refreshes all 8 production sidecar files
+in one shot.
+
+Default placeholder URLs point at the repo with a stable URL fragment
+(``#video-pillar-N-pending``), so links remain clickable even
+pre-launch.
+
+**Why sidecar (not MarkdownNote embedded in JSON):** ComfyUI workflow
+JSON in API format strictly excludes frontend-only nodes (MarkdownNote,
+Note, PrimitiveNode, Reroute). Those nodes live exclusively in the
+Format B (saved frontend workflow) shape — different JSON schema. Our
+workflows are API format (consumed by gallery.py / sweep.py / runner.py
+directly), so injecting MarkdownNote causes ComfyUI's ``/prompt``
+endpoint to reject the workflow with ``missing_node_type`` HTTP 400.
+Sidecar markdown files are GitHub-renderable, zero-risk, and
+decoupled from runtime execution. Débito V2 #23 captures this
+architectural rationale for V3 reconsideration if inline canvas embed
+becomes critical (would require Format A↔B conversion tool).
+
+Pillar mapping is hardcoded module-level (:data:`PILLAR_MAPPING`).
+``sdxl_base_dry_run.json`` is intentionally excluded — debug-only
+workflow not part of the audience-facing set.
+"""
+
+from __future__ import annotations
+
+import argparse
+import difflib
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+DEFAULT_WORKFLOWS_DIR: Path = Path("installer/benchmark/workflows")
+
+DEFAULT_GITHUB_BASE_URL: str = "https://github.com/comfyworkflow/comfy-workflow"
+
+
+def _placeholder_url(pillar: int, github_base: str) -> str:
+    """URL placeholder used until the real YouTube Pillar #N goes live."""
+    return f"{github_base}#video-pillar-{pillar}-pending"
+
+
+# Per-workflow pillar mapping + install scripts + display name. Order
+# in this dict drives the dry-run / report iteration order.
+PILLAR_MAPPING: dict[str, dict[str, Any]] = {
+    "sdxl_base.json": {
+        "primary": 1,
+        "secondary": [],
+        "scripts": ["install-sdxl.bat"],
+        "display_name": "SDXL Base 1.0",
+    },
+    "flux_dev_fp8.json": {
+        "primary": 4,
+        "secondary": [1],
+        "scripts": ["install-flux1.bat"],
+        "display_name": "FLUX.1 dev fp8",
+    },
+    "flux_dev_fp16.json": {
+        "primary": 4,
+        "secondary": [1],
+        "scripts": ["install-flux1.bat"],
+        "display_name": "FLUX.1 dev fp16",
+    },
+    "qwen_image_fp8.json": {
+        "primary": 1,
+        "secondary": [],
+        "scripts": ["install-qwen-image.bat"],
+        "display_name": "Qwen-Image fp8",
+    },
+    "flux2_dev_gguf.json": {
+        "primary": 2,
+        "secondary": [4],
+        "scripts": ["install-flux2.bat"],
+        "display_name": "FLUX.2 dev GGUF (Q4_K_M default)",
+    },
+    "qwen_image_2512.json": {
+        "primary": 2,
+        "secondary": [],
+        "scripts": ["install-qwen-2512.bat"],
+        "display_name": "Qwen-Image 2512 fp8",
+    },
+    "hunyuan_image_21.json": {
+        "primary": 2,
+        "secondary": [3],
+        "scripts": ["install-hunyuan-21.bat"],
+        "display_name": "Hunyuan-Image 2.1 bf16",
+    },
+    "wan22_i2v_fp8.json": {
+        "primary": 5,
+        "secondary": [],
+        "scripts": [
+            "install-wan22.bat",
+            "install-sdxl.bat (gera input image)",
+        ],
+        "display_name": "WAN 2.2 i2v fp8 dual-expert (81 frames)",
+    },
+}
+
+
+# Conservative minimum hardware per workflow. RAM tier reflects the
+# observed offload pressure (Bloco 22d gallery V2: 93/99 cells in
+# offload-dominated regime — large workflows demand substantial RAM
+# even on hosts with 24 GiB VRAM).
+HARDWARE_TIERS: dict[str, dict[str, str]] = {
+    "sdxl_base.json": {"ram": "16 GB", "vram": "8 GB"},
+    "flux_dev_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
+    "flux_dev_fp16.json": {"ram": "64 GB", "vram": "24 GB"},
+    "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
+    "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
+    "qwen_image_2512.json": {"ram": "64 GB", "vram": "12 GB"},
+    "hunyuan_image_21.json": {"ram": "96 GB", "vram": "16 GB"},
+    "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},
+}
+
+
+# Class types that carry resolution inputs (mirrors gallery._inject_resolution).
+_RESOLUTION_CLASS_TYPES: frozenset[str] = frozenset({
+    "EmptyLatentImage",
+    "EmptySD3LatentImage",
+    "EmptyFlux2LatentImage",
+    "EmptyHunyuanImageLatent",
+    "WanImageToVideo",
+})
+
+
+# ============================================================================
+# Param extraction
+# ============================================================================
+
+def _extract_params(workflow: dict[str, Any]) -> dict[str, Any]:
+    """Pull steps / CFG-or-guidance / sampler / scheduler / resolution / frames.
+
+    Walks the workflow once. Fields are populated from the FIRST node
+    matching each class type — workflows that have multiple samplers
+    (e.g. WAN dual ``KSamplerAdvanced``) report params from the first;
+    callers can override via custom display strings if needed.
+    """
+    params: dict[str, Any] = {}
+    for node in workflow.values():
+        if not isinstance(node, dict):
+            continue
+        class_type = node.get("class_type")
+        inputs = node.get("inputs", {})
+        if not isinstance(inputs, dict):
+            continue
+        if class_type in ("KSampler", "KSamplerAdvanced"):
+            params.setdefault("steps", inputs.get("steps"))
+            params.setdefault("cfg", inputs.get("cfg"))
+            params.setdefault("sampler", inputs.get("sampler_name"))
+            params.setdefault("scheduler", inputs.get("scheduler"))
+        elif class_type == "KSamplerSelect":
+            params.setdefault("sampler", inputs.get("sampler_name"))
+        elif class_type == "Flux2Scheduler":
+            params.setdefault("steps", inputs.get("steps"))
+            params.setdefault("scheduler", "flux2_scheduler")
+        elif class_type == "FluxGuidance":
+            params.setdefault("guidance", inputs.get("guidance"))
+        elif class_type in _RESOLUTION_CLASS_TYPES:
+            width = inputs.get("width")
+            height = inputs.get("height")
+            if isinstance(width, int) and isinstance(height, int):
+                params.setdefault("resolution", f"{width}×{height}")
+            if class_type == "WanImageToVideo":
+                length = inputs.get("length")
+                if isinstance(length, int):
+                    params.setdefault("frames", length)
+    return params
+
+
+# ============================================================================
+# Markdown builder
+# ============================================================================
+
+def _build_readme_text(
+    workflow_name: str,
+    mapping: dict[str, Any],
+    hardware: dict[str, str],
+    params: dict[str, Any],
+    pillar_urls: dict[int, str],
+    github_base: str,
+    setup_base: str,
+) -> str:
+    """Compose the MarkdownNote body for a workflow."""
+    display_name = mapping["display_name"]
+    primary: int = mapping["primary"]
+    secondary: list[int] = mapping["secondary"]
+    scripts: list[str] = mapping["scripts"]
+
+    primary_url = pillar_urls.get(
+        primary, _placeholder_url(primary, github_base),
+    )
+
+    lines: list[str] = []
+    lines.append(f"# {display_name}")
+    lines.append("")
+    lines.append(f"📺 Vídeo principal: [Pillar #{primary}]({primary_url})")
+    for sp in secondary:
+        sp_url = pillar_urls.get(sp, _placeholder_url(sp, github_base))
+        lines.append(f"📺 Também em: [Pillar #{sp}]({sp_url})")
+    lines.append("")
+
+    lines.append(f"📥 Install: [{setup_base}]({setup_base})")
+    for script in scripts:
+        lines.append(f"- `{script}`")
+    lines.append("")
+
+    # Params line — assemble whichever fields the workflow provided.
+    param_bits: list[str] = []
+    if params.get("steps") is not None:
+        param_bits.append(f"{params['steps']} steps")
+    if params.get("cfg") is not None:
+        param_bits.append(f"CFG {params['cfg']}")
+    elif params.get("guidance") is not None:
+        param_bits.append(f"guidance {params['guidance']}")
+    sampler = params.get("sampler")
+    scheduler = params.get("scheduler")
+    if sampler:
+        if scheduler:
+            param_bits.append(f"{sampler}/{scheduler}")
+        else:
+            param_bits.append(str(sampler))
+    if params.get("resolution"):
+        param_bits.append(str(params["resolution"]))
+    if params.get("frames") is not None:
+        param_bits.append(f"{params['frames']} frames")
+    if param_bits:
+        lines.append(f"⚙️ Params: {', '.join(param_bits)}")
+
+    lines.append(f"💾 Hardware mínimo: {hardware['ram']} RAM · {hardware['vram']} VRAM")
+
+    return "\n".join(lines)
+
+
+# ============================================================================
+# Per-workflow sidecar write
+# ============================================================================
+
+def _write_workflow_readme(
+    workflow_json_path: Path,
+    pillar_urls: dict[int, str],
+    github_base: str,
+    setup_base: str,
+    dry_run: bool,
+) -> tuple[bool, Path, int, str, str]:
+    """Write a ``<workflow>.md`` sidecar next to a workflow JSON.
+
+    Returns ``(modified, md_path, line_count, new_text, existing_text)``:
+
+    - ``modified``: ``True`` if the .md would be written (or, in
+      ``dry_run``, would have been written) — i.e., disk content
+      differs from the proposed content.
+    - ``md_path``: the resolved sidecar path
+      (``<json>.with_suffix(".md")``).
+    - ``line_count``: line count of the new markdown body.
+    - ``new_text``: the composed markdown body (caller may diff against
+      ``existing_text`` for dry-run display).
+    - ``existing_text``: prior disk content if the .md existed,
+      empty string otherwise.
+
+    Atomic write semantics: writes to ``<md_path>.tmp`` then
+    :meth:`Path.replace` so a crash mid-write leaves the prior version
+    intact. Workflow JSON is NEVER modified by this function — only the
+    sidecar .md.
+
+    Idempotency: if the proposed body equals the existing on-disk body,
+    no write occurs and ``modified`` is ``False``.
+    """
+    workflow_name = workflow_json_path.name
+    mapping = PILLAR_MAPPING[workflow_name]
+    hardware = HARDWARE_TIERS[workflow_name]
+
+    workflow = json.loads(workflow_json_path.read_text(encoding="utf-8"))
+    if not isinstance(workflow, dict):
+        raise ValueError(
+            f"workflow at {workflow_json_path} is not a JSON object"
+        )
+
+    params = _extract_params(workflow)
+    new_text = _build_readme_text(
+        workflow_name=workflow_name,
+        mapping=mapping,
+        hardware=hardware,
+        params=params,
+        pillar_urls=pillar_urls,
+        github_base=github_base,
+        setup_base=setup_base,
+    )
+    if not new_text.endswith("\n"):
+        new_text = new_text + "\n"
+
+    md_path = workflow_json_path.with_suffix(".md")
+    existing_text = (
+        md_path.read_text(encoding="utf-8") if md_path.is_file() else ""
+    )
+    line_count = len(new_text.splitlines())
+
+    if existing_text == new_text:
+        return False, md_path, line_count, new_text, existing_text
+
+    if dry_run:
+        return True, md_path, line_count, new_text, existing_text
+
+    md_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = md_path.with_suffix(md_path.suffix + ".tmp")
+    tmp_path.write_text(new_text, encoding="utf-8")
+    tmp_path.replace(md_path)
+    return True, md_path, line_count, new_text, existing_text
+
+
+# ============================================================================
+# CLI
+# ============================================================================
+
+def _build_argparser() -> argparse.ArgumentParser:
+    """Build the CLI parser."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Atomically inject/refresh MarkdownNote nodes in production "
+            "workflow JSONs with YouTube Pillar URLs + install script "
+            "refs + workflow params + hardware tiers. Idempotent: re-run "
+            "with same args = zero diff. Default URLs are placeholders "
+            "pointing at the repo with stable URL fragments until the "
+            "real videos go live."
+        ),
+    )
+    for n in (1, 2, 3, 4, 5):
+        parser.add_argument(
+            f"--pillar-{n}-url",
+            default=_placeholder_url(n, DEFAULT_GITHUB_BASE_URL),
+            help=(
+                f"YouTube URL for Pillar #{n}. Default placeholder: "
+                f"repo URL with #video-pillar-{n}-pending fragment."
+            ),
+        )
+    parser.add_argument(
+        "--github-base-url",
+        default=DEFAULT_GITHUB_BASE_URL,
+        help=(
+            "Base URL for repo links (default: "
+            f"{DEFAULT_GITHUB_BASE_URL})."
+        ),
+    )
+    parser.add_argument(
+        "--setup-base-url",
+        default=None,
+        help=(
+            "Base URL for setup scripts (default derived from "
+            "--github-base-url + /tree/main/setup-windows)."
+        ),
+    )
+    parser.add_argument(
+        "--workflows-dir",
+        default=str(DEFAULT_WORKFLOWS_DIR),
+        help=(
+            "Directory containing the production workflow JSONs "
+            "(default: installer/benchmark/workflows)."
+        ),
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "Preview proposed changes without writing files. Reports "
+            "the proposed MarkdownNote text per workflow with a status "
+            "tag (CREATE / UPDATE / IDEMPOTENT)."
+        ),
+    )
+    return parser
+
+
+def main() -> None:
+    """Iterate the 8 production workflows + update each MarkdownNote."""
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        level=logging.INFO,
+    )
+    args = _build_argparser().parse_args()
+
+    pillar_urls: dict[int, str] = {
+        1: args.pillar_1_url,
+        2: args.pillar_2_url,
+        3: args.pillar_3_url,
+        4: args.pillar_4_url,
+        5: args.pillar_5_url,
+    }
+    github_base = args.github_base_url.rstrip("/")
+    setup_base = (
+        args.setup_base_url
+        if args.setup_base_url is not None
+        else f"{github_base}/tree/main/setup-windows"
+    )
+    workflows_dir = Path(args.workflows_dir)
+
+    if not workflows_dir.is_dir():
+        raise SystemExit(
+            f"--workflows-dir does not exist: {workflows_dir}"
+        )
+
+    n_modified = 0
+    n_idempotent = 0
+    for workflow_name in PILLAR_MAPPING:
+        workflow_path = workflows_dir / workflow_name
+        if not workflow_path.is_file():
+            logger.warning("workflow not found, skipping: %s", workflow_path)
+            continue
+
+        try:
+            modified, md_path, line_count, new_text, existing_text = (
+                _write_workflow_readme(
+                    workflow_json_path=workflow_path,
+                    pillar_urls=pillar_urls,
+                    github_base=github_base,
+                    setup_base=setup_base,
+                    dry_run=args.dry_run,
+                )
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.error(
+                "skipping %s: %s", workflow_path, exc,
+            )
+            continue
+
+        if modified:
+            n_modified += 1
+            tag = "UPDATE" if existing_text else "CREATE"
+            prefix = "[DRY-RUN] " if args.dry_run else ""
+            logger.info(
+                "%s%s %s.md — %d lines",
+                prefix, tag, workflow_path.stem, line_count,
+            )
+            if args.dry_run:
+                if existing_text:
+                    # Show unified diff against the existing sidecar.
+                    diff_lines = difflib.unified_diff(
+                        existing_text.splitlines(keepends=False),
+                        new_text.splitlines(keepends=False),
+                        fromfile=f"{md_path.name} (current)",
+                        tofile=f"{md_path.name} (proposed)",
+                        lineterm="",
+                    )
+                    for diff_line in diff_lines:
+                        logger.info("    %s", diff_line)
+                else:
+                    # No prior file — print the proposed body.
+                    for body_line in new_text.splitlines():
+                        logger.info("    %s", body_line)
+        else:
+            n_idempotent += 1
+            logger.info(
+                "[IDEMPOTENT] %s.md unchanged",
+                workflow_path.stem,
+            )
+
+    summary_tag = "DRY-RUN SUMMARY" if args.dry_run else "DONE"
+    logger.info(
+        "=== %s === modified=%d, idempotent=%d, total=%d",
+        summary_tag, n_modified, n_idempotent,
+        n_modified + n_idempotent,
+    )
+
+
+if __name__ == "__main__":
+    main()

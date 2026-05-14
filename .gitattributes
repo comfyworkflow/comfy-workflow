@@ -12,10 +12,20 @@
 *.gitignore text eol=lf
 *.gitattributes text eol=lf
 
-# Windows-native scripts: force CRLF
-*.bat text eol=crlf
-*.cmd text eol=crlf
-*.ps1 text eol=crlf
+# Windows-native scripts: preserve CRLF physically in the blob so
+# raw.githubusercontent.com serves bytes verbatim with CRLF intact.
+# Audiência baixa via "Download raw file" do GitHub e roda direto em
+# cmd.exe; cmd.exe falha silenciosamente parsear labels e blocos
+# multi-line se as quebras de linha forem LF only (`text eol=crlf`
+# normaliza blob pra LF e converte só no checkout, então raw download
+# entrega LF — bug confirmado live cg-5090 2026-05-14).
+#
+# `-text` (binary treatment) preserves on-disk bytes without any
+# filter conversion. Diff readability stays fine since git renders
+# these as text in the UI — `binary` keyword would suppress diffs.
+*.bat -text
+*.cmd -text
+*.ps1 -text
 
 # Binary: never normalize, mark explicitly to avoid corruption
 *.png binary

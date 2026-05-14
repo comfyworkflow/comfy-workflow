@@ -39,14 +39,17 @@ alignment.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from installer.benchmark.update_workflow_links import (
     DEFAULT_GITHUB_BASE_URL,
     HARDWARE_TIERS,
+    INSTALL_VIDEO_LABEL,
     INSTALL_VIDEO_MAPPING,
     INSTALL_VIDEO_NUMBER,
     PILLAR_MAPPING,
@@ -80,6 +83,117 @@ FORMAT_B_VERSION: float = 0.4
 # Widgets the frontend inserts after these names (not reported by /object_info).
 _FRONTEND_CONTROL_AFTER: frozenset[str] = frozenset({"seed", "noise_seed"})
 _FRONTEND_CONTROL_DEFAULT: str = "randomize"
+
+
+# ============================================================================
+# Aspect variants (Phase 1.5b)
+# ============================================================================
+#
+# A workflow base can ship multiple aspect ratio variants. Each variant
+# overrides EmptyLatentImage dimensions and (HD only) injects a
+# LatentUpscaleBy + KSampler refiner chain into the Format A workflow
+# before the Format A → Format B conversion. The audience receives N
+# files per install (one per variant), all visible under the same
+# sidebar subfolder, with cross-references in each Note pointing to
+# the siblings.
+#
+# Workflows not in ASPECT_VARIANTS keep the legacy single-output
+# behavior (zero behavior change for flux / qwen / hunyuan / wan).
+#
+# HD pipeline parameters chosen via Phase 1.5 audit
+# (internal_docs/quality_audit/20260514T165032Z/sdxl_phase1.5/):
+# 25 steps primary + 15 steps refiner at denoise 0.45, LatentUpscaleBy
+# 1.428 with nearest-exact upscale_method.
+
+
+@dataclass(frozen=True)
+class VariantSpec:
+    """One aspect/HD variant of a workflow base.
+
+    ``slug`` is appended to the workflow stem to form the output
+    filename (slug=``""`` → base filename unchanged). ``width`` /
+    ``height`` set the EmptyLatentImage dimensions (the NATIVE bucket
+    for HD variants; the upscaled target is computed via ``scale_by``).
+    """
+    slug: str
+    aspect_id: str
+    aspect_label: str
+    width: int
+    height: int
+    hd: bool
+    scale_by: float = 1.0           # Only used when hd=True.
+    refiner_steps: int = 15         # Only used when hd=True.
+    refiner_denoise: float = 0.45   # Only used when hd=True.
+    upscale_method: str = "nearest-exact"  # Only used when hd=True.
+
+
+_SDXL_VARIANTS: tuple[VariantSpec, ...] = (
+    VariantSpec(
+        slug="",
+        aspect_id="1x1",
+        aspect_label="1:1 square (1024×1024 native)",
+        width=1024,
+        height=1024,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_landscape",
+        aspect_id="16x9",
+        aspect_label="16:9 landscape (1344×768 native bucket)",
+        width=1344,
+        height=768,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_portrait",
+        aspect_id="9x16",
+        aspect_label="9:16 portrait (768×1344 native bucket)",
+        width=768,
+        height=1344,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_landscape_hd",
+        aspect_id="landscape_hd",
+        aspect_label="16:9 HD (1344×768 native → ~1920×1097 via latent upscale)",
+        width=1344,
+        height=768,
+        hd=True,
+        scale_by=1.428,
+    ),
+    VariantSpec(
+        slug="_portrait_hd",
+        aspect_id="portrait_hd",
+        aspect_label="9:16 HD (768×1344 native → ~1097×1920 via latent upscale)",
+        width=768,
+        height=1344,
+        hd=True,
+        scale_by=1.428,
+    ),
+)
+
+
+ASPECT_VARIANTS: dict[str, tuple[VariantSpec, ...]] = {
+    "sdxl_base": _SDXL_VARIANTS,
+    # Future: flux / qwen / hunyuan / wan variants land here when their
+    # quality audits clear.
+}
+
+
+def variant_filenames_for(workflow_name: str) -> list[str]:
+    """Public helper: return the list of variant output filenames for a base.
+
+    For workflows in :data:`ASPECT_VARIANTS`, expands to per-variant
+    filenames (``<stem><slug>.json``). For workflows not in the map,
+    returns ``[workflow_name]`` unchanged — preserves legacy
+    single-output behavior so the install-X.bat generator can call this
+    uniformly without conditional logic.
+    """
+    stem = workflow_name.removesuffix(".json")
+    variants = ASPECT_VARIANTS.get(stem)
+    if variants is None:
+        return [workflow_name]
+    return [f"{stem}{v.slug}.json" for v in variants]
 
 
 # ============================================================================
@@ -493,6 +607,209 @@ def _atomic_write(target: Path, content: str) -> bool:
     return True
 
 
+# ============================================================================
+# Variant Format A transforms + Note builder
+# ============================================================================
+
+def _apply_variant_to_workflow_a(
+    workflow_a: dict[str, Any], variant: VariantSpec,
+) -> dict[str, Any]:
+    """Return a deep copy of ``workflow_a`` with the variant applied.
+
+    Transforms applied:
+
+    - ``EmptyLatentImage`` widgets_values → variant's
+      ``(width, height, batch_size=1)`` (native bucket dims; HD upscale
+      runs DOWNSTREAM in latent space).
+    - HD variants only: inject ``LatentUpscaleBy`` (id ``"10"``) +
+      ``KSampler`` refiner (id ``"11"``) + rewire ``VAEDecode``
+      (id ``"8"``) to consume the refiner's LATENT output.
+
+    Assumes the base workflow has the canonical sdxl_base.json topology
+    (CheckpointLoaderSimple ``"4"``, EmptyLatentImage ``"5"``,
+    CLIPTextEncode ``"6"`` positive / ``"7"`` negative, KSampler ``"3"``,
+    VAEDecode ``"8"``, SaveImage ``"9"``).
+    """
+    out = copy.deepcopy(workflow_a)
+
+    # EmptyLatentImage resize (works on any node ID).
+    for node in out.values():
+        if not isinstance(node, dict):
+            continue
+        if node.get("class_type") == "EmptyLatentImage":
+            inputs = node.get("inputs")
+            if isinstance(inputs, dict):
+                inputs["width"] = variant.width
+                inputs["height"] = variant.height
+
+    if not variant.hd:
+        return out
+
+    # HD pipeline injection. Find the primary KSampler and its sampler
+    # config so the refiner mirrors it.
+    primary_ksampler_id: str | None = None
+    primary_sampler = "dpmpp_2m"
+    primary_scheduler = "karras"
+    primary_cfg = 7.0
+    primary_seed = 42
+    for nid, node in out.items():
+        if not isinstance(node, dict):
+            continue
+        if node.get("class_type") == "KSampler":
+            primary_ksampler_id = nid
+            inputs = node.get("inputs", {}) or {}
+            if isinstance(inputs, dict):
+                primary_sampler = str(inputs.get("sampler_name", primary_sampler))
+                primary_scheduler = str(inputs.get("scheduler", primary_scheduler))
+                primary_cfg = float(inputs.get("cfg", primary_cfg))
+                primary_seed = int(inputs.get("seed", primary_seed))
+            break
+    if primary_ksampler_id is None:
+        raise ValueError(
+            "HD variant requires a KSampler node in the base workflow"
+        )
+
+    # LatentUpscaleBy (id "10")
+    out["10"] = {
+        "class_type": "LatentUpscaleBy",
+        "inputs": {
+            "samples": [primary_ksampler_id, 0],
+            "upscale_method": variant.upscale_method,
+            "scale_by": variant.scale_by,
+        },
+    }
+    # KSampler refiner (id "11")
+    out["11"] = {
+        "class_type": "KSampler",
+        "inputs": {
+            "seed": primary_seed,
+            "steps": variant.refiner_steps,
+            "cfg": primary_cfg,
+            "sampler_name": primary_sampler,
+            "scheduler": primary_scheduler,
+            "denoise": variant.refiner_denoise,
+            "model": ["4", 0],
+            "positive": ["6", 0],
+            "negative": ["7", 0],
+            "latent_image": ["10", 0],
+        },
+    }
+    # Rewire VAEDecode (id "8") to refiner output.
+    vae_decode = out.get("8")
+    if isinstance(vae_decode, dict):
+        vae_inputs = vae_decode.get("inputs")
+        if isinstance(vae_inputs, dict):
+            vae_inputs["samples"] = ["11", 0]
+    return out
+
+
+def _compose_variant_note_markdown(
+    workflow_name: str,
+    workflow_a_variant: dict[str, Any],
+    variant: VariantSpec,
+    siblings: tuple[VariantSpec, ...],
+) -> str:
+    """Compose the Note markdown for one variant, including sibling cross-refs.
+
+    The Note body is structurally consistent with the .md sidecar
+    ``_build_readme_text`` output (so audience-facing content stays
+    aligned with the GitHub online sidecar), but adds:
+
+    - aspect label in the H1 title
+    - HD refiner step + denoise in the params section
+    - a "Outras aspect ratios neste install" list pointing at the
+      sibling filenames (current variant excluded)
+    """
+    install_entry = INSTALL_VIDEO_MAPPING[workflow_name]
+    pillar_entry = PILLAR_MAPPING[workflow_name]
+    hardware = HARDWARE_TIERS[workflow_name]
+    base_display = install_entry["display_name"]
+    install_slug: str = install_entry["install_slug"]
+    install_video_num = INSTALL_VIDEO_NUMBER[install_slug]
+    install_video_label = INSTALL_VIDEO_LABEL[install_slug]
+    primary_pillar: int = pillar_entry["primary"]
+    secondary_pillars: list[int] = pillar_entry["secondary"]
+
+    install_url = _placeholder_install_url(install_slug, DEFAULT_GITHUB_BASE_URL)
+    primary_pillar_url = _placeholder_pillar_url(
+        primary_pillar, DEFAULT_GITHUB_BASE_URL,
+    )
+    setup_base = f"{DEFAULT_GITHUB_BASE_URL}/tree/main/setup-windows"
+
+    # Params: extract from the VARIANT workflow (HD-modified or native).
+    params = _extract_params(workflow_a_variant)
+
+    base_stem = workflow_name.removesuffix(".json")
+
+    lines: list[str] = []
+    lines.append(f"# {base_display} — {variant.aspect_label}")
+    lines.append("")
+    lines.append(
+        f"📺 Install video #{install_video_num}: "
+        f"[{install_video_label}]({install_url})"
+    )
+    lines.append(
+        f"🔬 Benchmark Pillar #{primary_pillar}: "
+        f"[Pillar #{primary_pillar}]({primary_pillar_url})"
+    )
+    for sp in secondary_pillars:
+        sp_url = _placeholder_pillar_url(sp, DEFAULT_GITHUB_BASE_URL)
+        lines.append(f"🔬 Também em Pillar #{sp}: [Pillar #{sp}]({sp_url})")
+    lines.append("")
+
+    lines.append(f"📥 Install: [{setup_base}]({setup_base})")
+    for script in install_entry["scripts"]:
+        lines.append(f"- `{script}`")
+    lines.append("")
+
+    # Config block — variant-specific.
+    lines.append("⚙️ Config:")
+    if variant.hd:
+        target_w = int(round(variant.width * variant.scale_by))
+        target_h = int(round(variant.height * variant.scale_by))
+        lines.append(
+            f"- Resolution: {variant.width}×{variant.height} native "
+            f"→ ~{target_w}×{target_h} after latent upscale"
+        )
+    else:
+        lines.append(f"- Resolution: {variant.width}×{variant.height}")
+    sampler = params.get("sampler")
+    scheduler = params.get("scheduler")
+    if sampler and scheduler:
+        lines.append(f"- Sampler: `{sampler}` / `{scheduler}`")
+    elif sampler:
+        lines.append(f"- Sampler: `{sampler}`")
+    bits: list[str] = []
+    if params.get("steps") is not None:
+        bits.append(f"{params['steps']} steps")
+    if params.get("cfg") is not None:
+        bits.append(f"CFG {params['cfg']}")
+    elif params.get("guidance") is not None:
+        bits.append(f"guidance {params['guidance']}")
+    if bits:
+        lines.append(f"- {' · '.join(bits)}")
+    if variant.hd:
+        lines.append(
+            f"- Refiner: {variant.refiner_steps} steps, denoise "
+            f"{variant.refiner_denoise}, `{variant.upscale_method}` upscale"
+        )
+    lines.append("")
+
+    # Cross-reference siblings (excluding self).
+    other_siblings = [v for v in siblings if v.slug != variant.slug]
+    if other_siblings:
+        lines.append("📐 Outras aspect ratios neste install:")
+        for s in other_siblings:
+            sibling_filename = f"{base_stem}{s.slug}.json"
+            lines.append(f"- `{sibling_filename}` — {s.aspect_label}")
+        lines.append("")
+
+    lines.append(
+        f"💾 Hardware mínimo: {hardware['ram']} RAM · {hardware['vram']} VRAM"
+    )
+    return "\n".join(lines)
+
+
 def _compose_note_markdown(workflow_name: str, workflow_a: dict[str, Any]) -> str:
     """Build the Note's markdown body using the same composer as the .md sidecar."""
     install_entry = INSTALL_VIDEO_MAPPING[workflow_name]
@@ -542,6 +859,49 @@ def build_one(
     new_text = json.dumps(workflow_b, indent=2, ensure_ascii=False) + "\n"
     if dry_run:
         existing = out_path.read_text(encoding="utf-8") if out_path.is_file() else ""
+        return (existing != new_text), out_path, workflow_b
+    changed = _atomic_write(out_path, new_text)
+    return changed, out_path, workflow_b
+
+
+def build_one_variant(
+    workflow_name: str,
+    variant: VariantSpec,
+    siblings: tuple[VariantSpec, ...],
+    input_dir: Path,
+    output_dir: Path,
+    schema: dict[str, dict[str, Any]],
+    dry_run: bool,
+) -> tuple[bool, Path, dict[str, Any]]:
+    """Build one aspect/HD variant of a workflow base.
+
+    Output filename: ``<stem><variant.slug>.json`` under
+    ``output_dir``. Returns ``(changed, output_path, format_b)``.
+
+    Pipeline: load Format A base → apply variant
+    (:func:`_apply_variant_to_workflow_a`) → compose variant Note
+    markdown with sibling cross-refs → convert variant Format A to
+    Format B → inject Note → atomic write.
+    """
+    in_path = input_dir / workflow_name
+    base_a = json.loads(in_path.read_text(encoding="utf-8"))
+    if not isinstance(base_a, dict):
+        raise ValueError(f"{in_path}: top-level is not a JSON object")
+
+    variant_a = _apply_variant_to_workflow_a(base_a, variant)
+    note_md = _compose_variant_note_markdown(
+        workflow_name, variant_a, variant, siblings,
+    )
+    workflow_b = convert_a_to_b(variant_a, schema)
+    workflow_b = inject_note(workflow_b, note_md)
+
+    stem = workflow_name.removesuffix(".json")
+    out_path = output_dir / f"{stem}{variant.slug}.json"
+    new_text = json.dumps(workflow_b, indent=2, ensure_ascii=False) + "\n"
+    if dry_run:
+        existing = (
+            out_path.read_text(encoding="utf-8") if out_path.is_file() else ""
+        )
         return (existing != new_text), out_path, workflow_b
     changed = _atomic_write(out_path, new_text)
     return changed, out_path, workflow_b
@@ -641,6 +1001,41 @@ def main() -> None:
         if not in_path.is_file():
             logger.warning("workflow source missing, skipping: %s", in_path)
             continue
+
+        stem = Path(wf_name).stem
+        # Multi-variant base: build each aspect/HD variant separately.
+        if stem in ASPECT_VARIANTS:
+            variants = ASPECT_VARIANTS[stem]
+            for variant in variants:
+                changed, out_path, workflow_b = build_one_variant(
+                    workflow_name=wf_name,
+                    variant=variant,
+                    siblings=variants,
+                    input_dir=input_dir,
+                    output_dir=output_dir,
+                    schema=schema,
+                    dry_run=args.dry_run,
+                )
+                n_nodes = len(workflow_b["nodes"])
+                n_links = len(workflow_b["links"])
+                note_present = any(
+                    n["type"] == "Note" for n in workflow_b["nodes"]
+                )
+                prefix = "[DRY-RUN] " if args.dry_run else ""
+                if changed:
+                    n_changed += 1
+                    logger.info(
+                        "%sWROTE %s (variant=%s nodes=%d links=%d note=%s)",
+                        prefix, out_path, variant.aspect_id,
+                        n_nodes, n_links, note_present,
+                    )
+                else:
+                    n_idempotent += 1
+                    logger.info("[IDEMPOTENT] %s", out_path)
+            continue
+
+        # Single-output legacy path (unchanged behavior for non-variant
+        # workflows: flux / qwen / hunyuan / wan).
         changed, out_path, workflow_b = build_one(
             workflow_name=wf_name,
             input_dir=input_dir,

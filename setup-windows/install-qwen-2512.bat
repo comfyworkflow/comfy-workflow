@@ -131,7 +131,7 @@ call :download_or_skip "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/reso
 call :download_or_skip "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders\qwen_2.5_vl_7b_fp8_scaled.safetensors" 9384670680
 call :download_or_skip "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\vae\qwen_image_vae.safetensors" 253806246
 
-echo [2/2] Shipping workflow files...
+echo [2/2] Shipping 1 workflow file(s)...
 call :ship_workflow "qwen_image_2512.json"
 
 echo.

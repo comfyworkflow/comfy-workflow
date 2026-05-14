@@ -133,7 +133,7 @@ call :download_or_skip "https://huggingface.co/comfyanonymous/flux_text_encoders
 call :download_or_skip "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders\clip_l.safetensors" 246144152
 call :download_or_skip "https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\vae\ae.safetensors" 335304388
 
-echo [2/2] Shipping workflow files...
+echo [2/2] Shipping 2 workflow file(s)...
 call :ship_workflow "flux_dev_fp8.json"
 call :ship_workflow "flux_dev_fp16.json"
 

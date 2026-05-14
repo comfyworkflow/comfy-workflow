@@ -1,6 +1,6 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 9,
+  "last_node_id": 12,
+  "last_link_id": 14,
   "nodes": [
     {
       "id": 3,
@@ -43,7 +43,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            7
+            10
           ],
           "slot_index": 0
         }
@@ -81,7 +81,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1
+            1,
+            11
           ],
           "slot_index": 0
         },
@@ -139,8 +140,8 @@
         "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
-        1024,
-        1024,
+        1344,
+        768,
         1
       ]
     },
@@ -170,7 +171,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            2
+            2,
+            12
           ],
           "slot_index": 0
         }
@@ -208,7 +210,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            3
+            3,
+            13
           ],
           "slot_index": 0
         }
@@ -224,7 +227,7 @@
       "id": 8,
       "type": "VAEDecode",
       "pos": [
-        1080,
+        1800,
         0
       ],
       "size": [
@@ -265,7 +268,7 @@
       "id": 9,
       "type": "SaveImage",
       "pos": [
-        1440,
+        2160,
         0
       ],
       "size": [
@@ -292,9 +295,107 @@
     },
     {
       "id": 10,
+      "type": "LatentUpscaleBy",
+      "pos": [
+        1080,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LatentUpscaleBy"
+      },
+      "widgets_values": [
+        "nearest-exact",
+        1.428
+      ]
+    },
+    {
+      "id": 11,
+      "type": "KSampler",
+      "pos": [
+        1440,
+        0
+      ],
+      "size": [
+        320,
+        364
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 12
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        42,
+        "randomize",
+        15,
+        7.0,
+        "dpmpp_2m",
+        "karras",
+        0.45
+      ]
+    },
+    {
+      "id": 12,
       "type": "Note",
       "pos": [
-        1800,
+        2520,
         -360
       ],
       "size": [
@@ -309,7 +410,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# SDXL Base 1.0 — 1:1 square (1024×1024 native)\n\n📺 Install video #2: [Install SDXL ComfyUI](https://github.com/comfyworkflow/comfy-workflow#install-sdxl-pending)\n🔬 Benchmark Pillar #1: [Pillar #1](https://github.com/comfyworkflow/comfy-workflow#video-pillar-1-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-sdxl.bat`\n\n⚙️ Config:\n- Resolution: 1024×1024\n- Sampler: `dpmpp_2m` / `karras`\n- 25 steps · CFG 7.0\n\n📐 Outras aspect ratios neste install:\n- `sdxl_base_landscape.json` — 16:9 landscape (1344×768 native bucket)\n- `sdxl_base_portrait.json` — 9:16 portrait (768×1344 native bucket)\n- `sdxl_base_landscape_hd.json` — 16:9 HD (1344×768 native → ~1920×1097 via latent upscale)\n- `sdxl_base_portrait_hd.json` — 9:16 HD (768×1344 native → ~1097×1920 via latent upscale)\n\n💾 Hardware mínimo: 16 GB RAM · 8 GB VRAM"
+        "# SDXL Base 1.0 — 16:9 HD (1344×768 native → ~1920×1097 via latent upscale)\n\n📺 Install video #2: [Install SDXL ComfyUI](https://github.com/comfyworkflow/comfy-workflow#install-sdxl-pending)\n🔬 Benchmark Pillar #1: [Pillar #1](https://github.com/comfyworkflow/comfy-workflow#video-pillar-1-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-sdxl.bat`\n\n⚙️ Config:\n- Resolution: 1344×768 native → ~1919×1097 after latent upscale\n- Sampler: `dpmpp_2m` / `karras`\n- 25 steps · CFG 7.0\n- Refiner: 15 steps, denoise 0.45, `nearest-exact` upscale\n\n📐 Outras aspect ratios neste install:\n- `sdxl_base.json` — 1:1 square (1024×1024 native)\n- `sdxl_base_landscape.json` — 16:9 landscape (1344×768 native bucket)\n- `sdxl_base_portrait.json` — 9:16 portrait (768×1344 native bucket)\n- `sdxl_base_portrait_hd.json` — 9:16 HD (768×1344 native → ~1097×1920 via latent upscale)\n\n💾 Hardware mínimo: 16 GB RAM · 8 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"
@@ -366,7 +467,7 @@
     ],
     [
       7,
-      3,
+      11,
       0,
       8,
       0,
@@ -387,6 +488,46 @@
       9,
       0,
       "IMAGE"
+    ],
+    [
+      10,
+      3,
+      0,
+      10,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      4,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      6,
+      0,
+      11,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      13,
+      7,
+      0,
+      11,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      10,
+      0,
+      11,
+      3,
+      "LATENT"
     ]
   ],
   "groups": [],

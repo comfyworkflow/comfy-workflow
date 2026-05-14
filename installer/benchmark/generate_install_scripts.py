@@ -47,6 +47,8 @@ from typing import Any
 
 import yaml
 
+from installer.benchmark.inject_markdown import variant_filenames_for
+
 logger = logging.getLogger(__name__)
 
 
@@ -437,14 +439,21 @@ def _build_bat(
             parts.append(f'call :ensure_custom_node "{folder}" "{repo}"\n')
 
     step += 1
-    parts.append(
-        f"\necho [{step}/{total_steps}] Shipping workflow files...\n"
-    )
+    # Expand each base workflow into per-variant filenames (see
+    # inject_markdown.ASPECT_VARIANTS). Non-variant workflows keep their
+    # single name; multi-variant bases expand to N files.
+    expanded_workflows: list[str] = []
     for wf in script_def.workflows:
+        expanded_workflows.extend(variant_filenames_for(wf))
+    parts.append(
+        f"\necho [{step}/{total_steps}] Shipping {len(expanded_workflows)} "
+        f"workflow file(s)...\n"
+    )
+    for wf in expanded_workflows:
         parts.append(f'call :ship_workflow "{wf}"\n')
 
     workflow_hints = "\n".join(
-        _bat_workflow_hint(wf) for wf in script_def.workflows
+        _bat_workflow_hint(wf) for wf in expanded_workflows
     )
     parts.append(
         _BAT_FOOTER_FMT.format(

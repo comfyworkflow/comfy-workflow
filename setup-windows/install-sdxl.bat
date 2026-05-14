@@ -129,8 +129,12 @@ if not exist "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy W
 echo [1/2] Downloading model files (total: ~6.46 GiB)...
 call :download_or_skip "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\checkpoints\sd_xl_base_1.0.safetensors" 6938078334
 
-echo [2/2] Shipping workflow files...
+echo [2/2] Shipping 5 workflow file(s)...
 call :ship_workflow "sdxl_base.json"
+call :ship_workflow "sdxl_base_landscape.json"
+call :ship_workflow "sdxl_base_portrait.json"
+call :ship_workflow "sdxl_base_landscape_hd.json"
+call :ship_workflow "sdxl_base_portrait_hd.json"
 
 echo.
 echo ========================================================
@@ -141,6 +145,10 @@ echo  Next steps:
 echo    1. Run C:\ComfyUI_windows_portable\run_nvidia_gpu.bat
 echo    2. Open ComfyUI in browser, load workflow:
 echo        ComfyUI -^> Workflows -^> sdxl_base.json
+echo        ComfyUI -^> Workflows -^> sdxl_base_landscape.json
+echo        ComfyUI -^> Workflows -^> sdxl_base_portrait.json
+echo        ComfyUI -^> Workflows -^> sdxl_base_landscape_hd.json
+echo        ComfyUI -^> Workflows -^> sdxl_base_portrait_hd.json
 echo.
 if not defined COMFY_NONINTERACTIVE pause
 endlocal

@@ -162,5 +162,11 @@
     "input_order": {"required": [""]},
     "output": [],
     "output_name": []
+  },
+  "LatentUpscaleBy": {
+    "input": {"required": {"samples": ["LATENT"], "upscale_method": [["nearest-exact", "bilinear", "area", "bicubic", "bislerp"]], "scale_by": ["FLOAT", {"default": 1.5, "min": 0.01, "max": 8.0, "step": 0.01}]}},
+    "input_order": {"required": ["samples", "upscale_method", "scale_by"]},
+    "output": ["LATENT"],
+    "output_name": ["LATENT"]
   }
 }

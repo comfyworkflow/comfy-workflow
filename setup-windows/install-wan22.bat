@@ -132,7 +132,7 @@ call :download_or_skip "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repacka
 call :download_or_skip "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp16.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders\umt5_xxl_fp16.safetensors" 11366399385
 call :download_or_skip "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\vae\wan_2.1_vae.safetensors" 253815318
 
-echo [2/2] Shipping workflow files...
+echo [2/2] Shipping 1 workflow file(s)...
 call :ship_workflow "wan22_i2v_fp8.json"
 
 echo.

@@ -132,7 +132,7 @@ call :download_or_skip "https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyU
 call :download_or_skip "https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/text_encoders/byt5_small_glyphxl_fp16.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders\byt5_small_glyphxl_fp16.safetensors" 438643184
 call :download_or_skip "https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/vae/hunyuan_image_2.1_vae_fp16.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\vae\hunyuan_image_2.1_vae_fp16.safetensors" 811184822
 
-echo [2/2] Shipping workflow files...
+echo [2/2] Shipping 1 workflow file(s)...
 call :ship_workflow "hunyuan_image_21.json"
 
 echo.

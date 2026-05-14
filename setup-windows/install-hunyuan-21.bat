@@ -14,6 +14,7 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 set "REPO_RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main"
+set "CATEGORY=Image"
 
 REM ----- Pre-req: ComfyUI base install must exist -----
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\main.py" (
@@ -87,22 +88,22 @@ goto :eof
 REM ============================================================================
 REM Subroutine: ship_workflow
 REM   %1 = workflow filename (e.g. sdxl_base.json)
-REM Downloads <wf>.json (fatal on failure) + <wf>.md sidecar (warning).
+REM Downloads the Format B distribute version into the
+REM "Comfy Workflow\!CATEGORY!\" sidebar subfolder. The .md sidecar is
+REM NOT shipped — its content is embedded as a Note node inside the
+REM Format B workflow, so the audience sees the bula directly on the
+REM canvas (sidebar Workflows -> Comfy Workflow -> !CATEGORY! -> click).
 REM ============================================================================
 :ship_workflow
 set "WF_JSON=%~1"
-set "WF_BASE=%~n1"
-set "WF_MD=!WF_BASE!.md"
-set "DEST_DIR=C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows"
-echo   Shipping workflow: !WF_JSON!
-curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows/!WF_JSON!"
+set "DEST_BASE=C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow"
+set "DEST_DIR=!DEST_BASE!\!CATEGORY!"
+if not exist "!DEST_DIR!" mkdir "!DEST_DIR!"
+echo   Shipping workflow: !WF_JSON! ^(category: !CATEGORY!^)
+curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!WF_JSON!"
 if !ERRORLEVEL! NEQ 0 (
     echo   ERROR: download failed for !WF_JSON!
     exit /b 1
-)
-curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\!WF_MD!" "!REPO_RAW!/installer/benchmark/workflows/!WF_MD!"
-if !ERRORLEVEL! NEQ 0 (
-    echo   WARNING: download failed for !WF_MD! ^(non-fatal^)
 )
 goto :eof
 
@@ -123,7 +124,7 @@ if not exist "C:\ComfyUI_windows_portable\ComfyUI\models\checkpoints"      mkdir
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\models\diffusion_models" mkdir "C:\ComfyUI_windows_portable\ComfyUI\models\diffusion_models"
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders"    mkdir "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders"
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\models\vae"              mkdir "C:\ComfyUI_windows_portable\ComfyUI\models\vae"
-if not exist "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows" mkdir "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows"
+if not exist "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow" mkdir "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow"
 
 echo [1/2] Downloading model files (total: ~49.07 GiB)...
 call :download_or_skip "https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/diffusion_models/hunyuanimage2.1_bf16.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\diffusion_models\hunyuanimage2.1_bf16.safetensors" 34851687040

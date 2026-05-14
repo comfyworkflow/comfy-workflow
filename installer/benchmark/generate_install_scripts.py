@@ -63,7 +63,12 @@ DEFAULT_RAW_BASE: str = (
 
 @dataclass(frozen=True)
 class ScriptDef:
-    """Per-script metadata. ``models`` references manifest entries by name."""
+    """Per-script metadata. ``models`` references manifest entries by name.
+
+    ``category`` is the ComfyUI sidebar subfolder under
+    ``Comfy Workflow/`` where the distributed workflow JSON lands —
+    e.g. ``"Image"`` for t2i workflows, ``"Video"`` for i2v workflows.
+    """
     display_name: str
     pillars: tuple[int, ...]
     models: tuple[str, ...]
@@ -71,6 +76,7 @@ class ScriptDef:
     workflows: tuple[str, ...]
     ram_min: str
     vram_min: str
+    category: str
 
 
 # Mirrors PILLAR_MAPPING / HARDWARE_TIERS in update_workflow_links.py —
@@ -85,6 +91,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("sdxl_base.json",),
         ram_min="16 GB",
         vram_min="8 GB",
+        category="Image",
     ),
     "install-flux1.bat": ScriptDef(
         display_name="FLUX.1 dev (fp8 + fp16)",
@@ -99,6 +106,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("flux_dev_fp8.json", "flux_dev_fp16.json"),
         ram_min="64 GB",
         vram_min="24 GB",
+        category="Image",
     ),
     "install-flux2.bat": ScriptDef(
         display_name="FLUX.2 dev GGUF (Q4_K_M)",
@@ -114,6 +122,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("flux2_dev_gguf.json",),
         ram_min="48 GB",
         vram_min="12 GB",
+        category="Image",
     ),
     "install-qwen-image.bat": ScriptDef(
         display_name="Qwen-Image fp8",
@@ -127,6 +136,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("qwen_image_fp8.json",),
         ram_min="64 GB",
         vram_min="12 GB",
+        category="Image",
     ),
     "install-qwen-2512.bat": ScriptDef(
         display_name="Qwen-Image 2512 fp8",
@@ -140,6 +150,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("qwen_image_2512.json",),
         ram_min="64 GB",
         vram_min="12 GB",
+        category="Image",
     ),
     "install-hunyuan-21.bat": ScriptDef(
         display_name="Hunyuan-Image 2.1 bf16",
@@ -153,6 +164,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("hunyuan_image_21.json",),
         ram_min="96 GB",
         vram_min="16 GB",
+        category="Image",
     ),
     "install-wan22.bat": ScriptDef(
         display_name="WAN 2.2 i2v fp8 dual-expert",
@@ -166,6 +178,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("wan22_i2v_fp8.json",),
         ram_min="96 GB",
         vram_min="16 GB",
+        category="Video",
     ),
 }
 
@@ -227,6 +240,7 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 set "REPO_RAW={repo_raw}"
+set "CATEGORY={category}"
 
 REM ----- Pre-req: ComfyUI base install must exist -----
 if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\main.py" (
@@ -300,22 +314,22 @@ goto :eof
 REM ============================================================================
 REM Subroutine: ship_workflow
 REM   %1 = workflow filename (e.g. sdxl_base.json)
-REM Downloads <wf>.json (fatal on failure) + <wf>.md sidecar (warning).
+REM Downloads the Format B distribute version into the
+REM "Comfy Workflow\\!CATEGORY!\\" sidebar subfolder. The .md sidecar is
+REM NOT shipped — its content is embedded as a Note node inside the
+REM Format B workflow, so the audience sees the bula directly on the
+REM canvas (sidebar Workflows -> Comfy Workflow -> !CATEGORY! -> click).
 REM ============================================================================
 :ship_workflow
 set "WF_JSON=%~1"
-set "WF_BASE=%~n1"
-set "WF_MD=!WF_BASE!.md"
-set "DEST_DIR=C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows"
-echo   Shipping workflow: !WF_JSON!
-curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows/!WF_JSON!"
+set "DEST_BASE=C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows\\Comfy Workflow"
+set "DEST_DIR=!DEST_BASE!\\!CATEGORY!"
+if not exist "!DEST_DIR!" mkdir "!DEST_DIR!"
+echo   Shipping workflow: !WF_JSON! ^(category: !CATEGORY!^)
+curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!WF_JSON!"
 if !ERRORLEVEL! NEQ 0 (
     echo   ERROR: download failed for !WF_JSON!
     exit /b 1
-)
-curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\\!WF_MD!" "!REPO_RAW!/installer/benchmark/workflows/!WF_MD!"
-if !ERRORLEVEL! NEQ 0 (
-    echo   WARNING: download failed for !WF_MD! ^(non-fatal^)
 )
 goto :eof
 
@@ -336,7 +350,7 @@ if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\checkpoints"      m
 if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\diffusion_models" mkdir "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\diffusion_models"
 if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\text_encoders"    mkdir "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\text_encoders"
 if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\vae"              mkdir "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\vae"
-if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows" mkdir "C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows"
+if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows\\Comfy Workflow" mkdir "C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows\\Comfy Workflow"
 
 """
 
@@ -403,6 +417,7 @@ def _build_bat(
             vram_min=script_def.vram_min,
             total_gib=total_gib,
             repo_raw=repo_raw,
+            category=script_def.category,
         ),
     ]
 

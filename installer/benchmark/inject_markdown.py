@@ -708,6 +708,8 @@ def _compose_variant_note_markdown(
     workflow_a_variant: dict[str, Any],
     variant: VariantSpec,
     siblings: tuple[VariantSpec, ...],
+    install_urls: dict[str, str],
+    pillar_urls: dict[int, str],
 ) -> str:
     """Compose the Note markdown for one variant, including sibling cross-refs.
 
@@ -730,9 +732,11 @@ def _compose_variant_note_markdown(
     primary_pillar: int = pillar_entry["primary"]
     secondary_pillars: list[int] = pillar_entry["secondary"]
 
-    install_url = _placeholder_install_url(install_slug, DEFAULT_GITHUB_BASE_URL)
-    primary_pillar_url = _placeholder_pillar_url(
-        primary_pillar, DEFAULT_GITHUB_BASE_URL,
+    install_url = install_urls.get(
+        install_slug, _placeholder_install_url(install_slug, DEFAULT_GITHUB_BASE_URL),
+    )
+    primary_pillar_url = pillar_urls.get(
+        primary_pillar, _placeholder_pillar_url(primary_pillar, DEFAULT_GITHUB_BASE_URL),
     )
     setup_base = f"{DEFAULT_GITHUB_BASE_URL}/tree/main/setup-windows"
 
@@ -753,7 +757,9 @@ def _compose_variant_note_markdown(
         f"[Pillar #{primary_pillar}]({primary_pillar_url})"
     )
     for sp in secondary_pillars:
-        sp_url = _placeholder_pillar_url(sp, DEFAULT_GITHUB_BASE_URL)
+        sp_url = pillar_urls.get(
+            sp, _placeholder_pillar_url(sp, DEFAULT_GITHUB_BASE_URL),
+        )
         lines.append(f"🔬 Também em Pillar #{sp}: [Pillar #{sp}]({sp_url})")
     lines.append("")
 
@@ -810,20 +816,17 @@ def _compose_variant_note_markdown(
     return "\n".join(lines)
 
 
-def _compose_note_markdown(workflow_name: str, workflow_a: dict[str, Any]) -> str:
+def _compose_note_markdown(
+    workflow_name: str,
+    workflow_a: dict[str, Any],
+    install_urls: dict[str, str],
+    pillar_urls: dict[int, str],
+) -> str:
     """Build the Note's markdown body using the same composer as the .md sidecar."""
     install_entry = INSTALL_VIDEO_MAPPING[workflow_name]
     pillar_entry = PILLAR_MAPPING[workflow_name]
     hardware = HARDWARE_TIERS[workflow_name]
     params = _extract_params(workflow_a)
-    install_urls: dict[str, str] = {
-        slug: _placeholder_install_url(slug, DEFAULT_GITHUB_BASE_URL)
-        for slug in INSTALL_VIDEO_NUMBER
-    }
-    pillar_urls: dict[int, str] = {
-        n: _placeholder_pillar_url(n, DEFAULT_GITHUB_BASE_URL)
-        for n in (1, 2, 3, 4, 5)
-    }
     setup_base = f"{DEFAULT_GITHUB_BASE_URL}/tree/main/setup-windows"
     return _build_readme_text(
         workflow_name=workflow_name,
@@ -843,6 +846,8 @@ def build_one(
     input_dir: Path,
     output_dir: Path,
     schema: dict[str, dict[str, Any]],
+    install_urls: dict[str, str],
+    pillar_urls: dict[int, str],
     dry_run: bool,
 ) -> tuple[bool, Path, dict[str, Any]]:
     """Convert + inject one workflow. Returns (written, output_path, format_b)."""
@@ -851,7 +856,9 @@ def build_one(
     if not isinstance(workflow_a, dict):
         raise ValueError(f"{in_path}: top-level is not a JSON object")
 
-    note_md = _compose_note_markdown(workflow_name, workflow_a)
+    note_md = _compose_note_markdown(
+        workflow_name, workflow_a, install_urls, pillar_urls,
+    )
     workflow_b = convert_a_to_b(workflow_a, schema)
     workflow_b = inject_note(workflow_b, note_md)
 
@@ -871,6 +878,8 @@ def build_one_variant(
     input_dir: Path,
     output_dir: Path,
     schema: dict[str, dict[str, Any]],
+    install_urls: dict[str, str],
+    pillar_urls: dict[int, str],
     dry_run: bool,
 ) -> tuple[bool, Path, dict[str, Any]]:
     """Build one aspect/HD variant of a workflow base.
@@ -891,6 +900,7 @@ def build_one_variant(
     variant_a = _apply_variant_to_workflow_a(base_a, variant)
     note_md = _compose_variant_note_markdown(
         workflow_name, variant_a, variant, siblings,
+        install_urls, pillar_urls,
     )
     workflow_b = convert_a_to_b(variant_a, schema)
     workflow_b = inject_note(workflow_b, note_md)
@@ -952,6 +962,29 @@ def _build_argparser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true",
         help="Preview changes without writing files.",
     )
+    # Mirror update_workflow_links.py URL flags so the same publish
+    # invocation can refresh both .md sidecars and Format B Note nodes
+    # without drift. Defaults match the .md sidecar defaults — repo
+    # URL + stable URL fragment until the real video goes live.
+    for slug in INSTALL_VIDEO_NUMBER:
+        n = INSTALL_VIDEO_NUMBER[slug]
+        parser.add_argument(
+            f"--install-{slug}-url",
+            default=_placeholder_install_url(slug, DEFAULT_GITHUB_BASE_URL),
+            help=(
+                f"YouTube URL for install video #{n} ({slug}). Default "
+                f"placeholder points at the repo with stable URL fragment."
+            ),
+        )
+    for n in (1, 2, 3, 4, 5):
+        parser.add_argument(
+            f"--pillar-{n}-url",
+            default=_placeholder_pillar_url(n, DEFAULT_GITHUB_BASE_URL),
+            help=(
+                f"YouTube URL for Benchmark Pillar #{n}. Default "
+                f"placeholder points at the repo with stable URL fragment."
+            ),
+        )
     return parser
 
 
@@ -974,6 +1007,14 @@ def main() -> None:
         )
     schema = _load_schema(schema_path)
     logger.info("loaded schema %s (%d node types)", schema_path, len(schema))
+
+    install_urls: dict[str, str] = {
+        slug: getattr(args, f"install_{slug.replace('-', '_')}_url")
+        for slug in INSTALL_VIDEO_NUMBER
+    }
+    pillar_urls: dict[int, str] = {
+        n: getattr(args, f"pillar_{n}_url") for n in (1, 2, 3, 4, 5)
+    }
 
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
@@ -1014,6 +1055,8 @@ def main() -> None:
                     input_dir=input_dir,
                     output_dir=output_dir,
                     schema=schema,
+                    install_urls=install_urls,
+                    pillar_urls=pillar_urls,
                     dry_run=args.dry_run,
                 )
                 n_nodes = len(workflow_b["nodes"])
@@ -1041,6 +1084,8 @@ def main() -> None:
             input_dir=input_dir,
             output_dir=output_dir,
             schema=schema,
+            install_urls=install_urls,
+            pillar_urls=pillar_urls,
             dry_run=args.dry_run,
         )
         n_nodes = len(workflow_b["nodes"])

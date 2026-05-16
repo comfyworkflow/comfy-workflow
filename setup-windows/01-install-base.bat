@@ -98,6 +98,8 @@ echo.
 echo ========================================================
 echo  Comfy Workflow - ComfyUI Portable Installer
 echo ========================================================
+echo  Companion video #1: https://youtu.be/PZmJqxP5ajs
+echo ========================================================
 echo.
 
 REM ----- Check NVIDIA GPU -----

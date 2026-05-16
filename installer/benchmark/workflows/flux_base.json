@@ -3,7 +3,7 @@
     "class_type": "UNETLoader",
     "inputs": {
       "unet_name": "flux1-dev-fp8.safetensors",
-      "weight_dtype": "default"
+      "weight_dtype": "fp8_e4m3fn"
     }
   },
   "12": {
@@ -32,7 +32,7 @@
   "6": {
     "class_type": "CLIPTextEncode",
     "inputs": {
-      "text": "a photograph of a serene mountain landscape at sunrise, hyperrealistic, 4k",
+      "text": "cinematic photograph of a vintage red 1965 Ford Mustang convertible parked on a coastal cliff at sunset, dramatic clouds, golden hour lighting, ocean in the background, 35mm film grain, ultra detailed, professional photography",
       "clip": [
         "12",
         0
@@ -106,7 +106,7 @@
         "8",
         0
       ],
-      "filename_prefix": "flux_dev_fp8"
+      "filename_prefix": "flux_base"
     }
   }
 }

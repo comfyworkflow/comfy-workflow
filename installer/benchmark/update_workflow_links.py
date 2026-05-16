@@ -126,15 +126,10 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
         "scripts": ["install-sdxl.bat"],
         "display_name": "SDXL Base 1.0",
     },
-    "flux_dev_fp8.json": {
+    "flux_base.json": {
         "install_slug": "flux-family",
         "scripts": ["install-flux1.bat"],
-        "display_name": "FLUX.1 dev fp8",
-    },
-    "flux_dev_fp16.json": {
-        "install_slug": "flux-family",
-        "scripts": ["install-flux1.bat"],
-        "display_name": "FLUX.1 dev fp16",
+        "display_name": "FLUX.1 (5 variants, V2 fp8 default)",
     },
     "qwen_image_fp8.json": {
         "install_slug": "qwen-family",
@@ -175,12 +170,11 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
 # though its headline slot is Pillar #4).
 PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "sdxl_base.json": {"primary": 1, "secondary": []},
-    "flux_dev_fp8.json": {"primary": 4, "secondary": [1]},
-    "flux_dev_fp16.json": {"primary": 4, "secondary": [1]},
+    "flux_base.json": {"primary": 2, "secondary": [1]},
     "qwen_image_fp8.json": {"primary": 1, "secondary": []},
-    "flux2_dev_gguf.json": {"primary": 2, "secondary": [4]},
-    "qwen_image_2512.json": {"primary": 2, "secondary": []},
-    "hunyuan_image_21.json": {"primary": 2, "secondary": [3]},
+    "flux2_dev_gguf.json": {"primary": 2, "secondary": []},
+    "qwen_image_2512.json": {"primary": 3, "secondary": [2]},
+    "hunyuan_image_21.json": {"primary": 3, "secondary": [2]},
     "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
 }
 
@@ -191,8 +185,7 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
 # even on hosts with 24 GiB VRAM).
 HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "sdxl_base.json": {"ram": "16 GB", "vram": "8 GB"},
-    "flux_dev_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
-    "flux_dev_fp16.json": {"ram": "64 GB", "vram": "24 GB"},
+    "flux_base.json": {"ram": "32 GB", "vram": "12 GB"},
     "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
     "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
     "qwen_image_2512.json": {"ram": "64 GB", "vram": "12 GB"},

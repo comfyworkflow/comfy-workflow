@@ -96,18 +96,26 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         category="Image",
     ),
     "install-flux1.bat": ScriptDef(
-        display_name="FLUX.1 dev (fp8 + fp16)",
-        pillars=(4, 1),
+        # Phase 1.5 audit: ship 5 variants × 3 aspect workflows. Default
+        # is V2 fp8 (universal production default per the cross-GPU audit).
+        # Q8/Q4 GGUF variants require the city96 ComfyUI-GGUF custom node.
+        display_name="FLUX.1 (5 variants × 3 aspect workflows)",
+        pillars=(2, 1),
         models=(
             "flux_dev_fp8",
             "flux_dev_fp16",
+            "flux_schnell_fp8",
+            "flux_dev_Q8_gguf",
+            "flux_dev_Q4_gguf",
             "flux_shared_encoders",
             "flux_shared_vae",
         ),
-        custom_nodes=(),
-        workflows=("flux_dev_fp8.json", "flux_dev_fp16.json"),
+        custom_nodes=(
+            ("ComfyUI-GGUF", "https://github.com/city96/ComfyUI-GGUF.git"),
+        ),
+        workflows=("flux_base.json",),
         ram_min="64 GB",
-        vram_min="24 GB",
+        vram_min="12 GB",
         category="Image",
     ),
     "install-flux2.bat": ScriptDef(

@@ -173,11 +173,93 @@ _SDXL_VARIANTS: tuple[VariantSpec, ...] = (
 )
 
 
+_FLUX_VARIANTS: tuple[VariantSpec, ...] = (
+    # Phase 1.5 audit (commit e70572c) showed FLUX native at HD outperforms
+    # the SDXL-style LatentUpscaleBy + refiner path on every GPU tier we
+    # tested. Per Rafael's rule "upscale só justifica se tem speed gain",
+    # FLUX ships native-HD only — no HD upscale variants.
+    VariantSpec(
+        slug="",
+        aspect_id="1x1",
+        aspect_label="1:1 square (1024×1024)",
+        width=1024,
+        height=1024,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_landscape",
+        aspect_id="16x9",
+        aspect_label="16:9 landscape (1920×1080 native HD)",
+        width=1920,
+        height=1080,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_portrait",
+        aspect_id="9x16",
+        aspect_label="9:16 portrait (1080×1920 native HD)",
+        width=1080,
+        height=1920,
+        hd=False,
+    ),
+)
+
+
 ASPECT_VARIANTS: dict[str, tuple[VariantSpec, ...]] = {
     "sdxl_base": _SDXL_VARIANTS,
-    # Future: flux / qwen / hunyuan / wan variants land here when their
+    "flux_base": _FLUX_VARIANTS,
+    # Future: qwen / hunyuan / wan variants land here when their
     # quality audits clear.
 }
+
+
+# Per-workflow "extra Note text" appended to the audience-facing Note
+# body. Used for variant-swap guides on bases where the ScriptDef ships
+# multiple model variants (FLUX 5-variant pack, etc.). Keys are stems
+# (e.g. ``"flux_base"``), values are markdown strings inserted between
+# the params/hardware lines and the sibling aspect-ratios list.
+EXTRA_NOTE_TEXT: dict[str, str] = {
+    "flux_base": (
+        "\n"
+        "🔀 Swap to a different FLUX variant — edit the loader node:\n"
+        "- **V1 fp16 (max precision)**: keep UNETLoader, set "
+        "`unet_name` to `flux1-dev.safetensors`, `weight_dtype` "
+        "`default`. ~22 GB model. Slower than fp8, marginal quality lift.\n"
+        "- **V2 fp8 (default, production)**: ships out-of-the-box. "
+        "Best balance of VRAM / speed / quality per Phase 1.5 audit.\n"
+        "- **V3 schnell (4-step draft)**: keep UNETLoader, set "
+        "`unet_name` to `flux1-schnell-fp8.safetensors`. In KSampler, "
+        "set `steps=4`. In FluxGuidance, set `guidance=0`. Fastest "
+        "variant (~2× dev speed); aesthetic differs from dev.\n"
+        "- **V4 Q8 GGUF**: replace UNETLoader with **UnetLoaderGGUF** "
+        "(requires ComfyUI-GGUF custom node, installed by "
+        "install-flux1.bat), set `unet_name` to `flux1-dev-Q8_0.gguf`. "
+        "~12 GB model, near-fp8 quality, slightly slower (dequant).\n"
+        "- **V5 Q4 GGUF (low-VRAM)**: same as V4 but "
+        "`flux1-dev-Q4_K_S.gguf`. ~7 GB. Visible quality cost; ship "
+        "only when VRAM is the bind.\n"
+        "\n"
+        "📐 Resolution — FLUX is natively flexible: edit "
+        "`EmptySD3LatentImage` width/height to any size. Native HD "
+        "(1920×1080 or 1080×1920) outperformed the SDXL-style latent "
+        "upscale + refiner path on every GPU we tested (Phase 1.5).\n"
+        "\n"
+        "📊 Phase 1.5 timing reference (V2 fp8 · 1024² · seed 42):\n"
+        "- RTX 3060 — 74 s\n"
+        "- RTX 4090 — 18 s\n"
+        "- RTX 5090 — 12 s\n"
+    ),
+}
+
+
+def _extra_workflow_notes(workflow_name: str) -> str:
+    """Return the variant-swap guide text for a workflow stem, or ``""``."""
+    stem = workflow_name.removesuffix(".json")
+    # Strip aspect-variant slug so siblings share the same swap guide.
+    for v_map_key in EXTRA_NOTE_TEXT:
+        if stem == v_map_key or stem.startswith(v_map_key + "_"):
+            return EXTRA_NOTE_TEXT[v_map_key]
+    return ""
 
 
 def variant_filenames_for(workflow_name: str) -> list[str]:
@@ -632,11 +714,13 @@ def _apply_variant_to_workflow_a(
     """
     out = copy.deepcopy(workflow_a)
 
-    # EmptyLatentImage resize (works on any node ID).
+    # Resize the workflow's empty-latent node (works on any node ID).
+    # FLUX uses EmptySD3LatentImage; SDXL uses EmptyLatentImage.
+    _EMPTY_LATENT_CLASSES = {"EmptyLatentImage", "EmptySD3LatentImage"}
     for node in out.values():
         if not isinstance(node, dict):
             continue
-        if node.get("class_type") == "EmptyLatentImage":
+        if node.get("class_type") in _EMPTY_LATENT_CLASSES:
             inputs = node.get("inputs")
             if isinstance(inputs, dict):
                 inputs["width"] = variant.width
@@ -813,6 +897,12 @@ def _compose_variant_note_markdown(
     lines.append(
         f"💾 Hardware mínimo: {hardware['ram']} RAM · {hardware['vram']} VRAM"
     )
+
+    # Optional: per-workflow swap guide (e.g. FLUX 5-variant pack).
+    extra = _extra_workflow_notes(workflow_name)
+    if extra:
+        lines.append(extra)
+
     return "\n".join(lines)
 
 

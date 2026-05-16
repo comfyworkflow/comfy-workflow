@@ -32,7 +32,7 @@
       },
       "widgets_values": [
         "flux1-dev-fp8.safetensors",
-        "default"
+        "fp8_e4m3fn"
       ]
     },
     {
@@ -132,8 +132,8 @@
         "Node name for S&R": "EmptySD3LatentImage"
       },
       "widgets_values": [
-        1024,
-        1024,
+        1920,
+        1080,
         1
       ]
     },
@@ -172,7 +172,7 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        "a photograph of a serene mountain landscape at sunrise, hyperrealistic, 4k"
+        "cinematic photograph of a vintage red 1965 Ford Mustang convertible parked on a coastal cliff at sunset, dramatic clouds, golden hour lighting, ocean in the background, 35mm film grain, ultra detailed, professional photography"
       ]
     },
     {
@@ -377,7 +377,7 @@
         "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "flux_dev_fp8"
+        "flux_base"
       ]
     },
     {
@@ -399,7 +399,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# FLUX.1 dev fp8\n\n📺 Install video #3: [Install FLUX family (1 & 2)](https://github.com/comfyworkflow/comfy-workflow#install-flux-family-pending)\n🔬 Benchmark Pillar #4: [Pillar #4](https://github.com/comfyworkflow/comfy-workflow#video-pillar-4-pending)\n🔬 Também em Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-flux1.bat`\n\n⚙️ Params: 20 steps, CFG 1.0, euler/simple, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 12 GB VRAM"
+        "# FLUX.1 (5 variants, V2 fp8 default) — 16:9 landscape (1920×1080 native HD)\n\n📺 Install video #3: [Install FLUX family (1 & 2)](https://github.com/comfyworkflow/comfy-workflow#install-flux-family-pending)\n🔬 Benchmark Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)\n🔬 Também em Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-flux1.bat`\n\n⚙️ Config:\n- Resolution: 1920×1080\n- Sampler: `euler` / `simple`\n- 20 steps · CFG 1.0\n\n📐 Outras aspect ratios neste install:\n- `flux_base.json` — 1:1 square (1024×1024)\n- `flux_base_portrait.json` — 9:16 portrait (1080×1920 native HD)\n\n💾 Hardware mínimo: 32 GB RAM · 12 GB VRAM\n\n🔀 Swap to a different FLUX variant — edit the loader node:\n- **V1 fp16 (max precision)**: keep UNETLoader, set `unet_name` to `flux1-dev.safetensors`, `weight_dtype` `default`. ~22 GB model. Slower than fp8, marginal quality lift.\n- **V2 fp8 (default, production)**: ships out-of-the-box. Best balance of VRAM / speed / quality per Phase 1.5 audit.\n- **V3 schnell (4-step draft)**: keep UNETLoader, set `unet_name` to `flux1-schnell-fp8.safetensors`. In KSampler, set `steps=4`. In FluxGuidance, set `guidance=0`. Fastest variant (~2× dev speed); aesthetic differs from dev.\n- **V4 Q8 GGUF**: replace UNETLoader with **UnetLoaderGGUF** (requires ComfyUI-GGUF custom node, installed by install-flux1.bat), set `unet_name` to `flux1-dev-Q8_0.gguf`. ~12 GB model, near-fp8 quality, slightly slower (dequant).\n- **V5 Q4 GGUF (low-VRAM)**: same as V4 but `flux1-dev-Q4_K_S.gguf`. ~7 GB. Visible quality cost; ship only when VRAM is the bind.\n\n📐 Resolution — FLUX is natively flexible: edit `EmptySD3LatentImage` width/height to any size. Native HD (1920×1080 or 1080×1920) outperformed the SDXL-style latent upscale + refiner path on every GPU we tested (Phase 1.5).\n\n📊 Phase 1.5 timing reference (V2 fp8 · 1024² · seed 42):\n- RTX 3060 — 74 s\n- RTX 4090 — 18 s\n- RTX 5090 — 12 s\n"
       ],
       "color": "#432",
       "bgcolor": "#653"

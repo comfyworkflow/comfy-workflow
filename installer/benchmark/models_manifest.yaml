@@ -28,6 +28,27 @@ models:
         url: https://huggingface.co/ChuckMcSneed/FLUX.1-dev/resolve/main/flux1-dev.safetensors
         size_bytes: 23802932552
 
+  - name: flux_schnell_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/flux1-schnell-fp8.safetensors
+        url: https://huggingface.co/Comfy-Org/flux1-schnell/resolve/main/flux1-schnell-fp8.safetensors
+        size_bytes: 17236328572
+
+  - name: flux_dev_Q8_gguf
+    tier: basic
+    files:
+      - path: diffusion_models/flux1-dev-Q8_0.gguf
+        url: https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1-dev-Q8_0.gguf
+        size_bytes: 12708281504
+
+  - name: flux_dev_Q4_gguf
+    tier: basic
+    files:
+      - path: diffusion_models/flux1-dev-Q4_K_S.gguf
+        url: https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1-dev-Q4_K_S.gguf
+        size_bytes: 6805988640
+
   - name: qwen_image_fp8
     tier: basic
     files:

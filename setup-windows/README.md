@@ -5,13 +5,6 @@ Manual setup script for the **Comfy Workflow** YouTube channel.
 This installs (or updates) a clean ComfyUI Portable environment on
 Windows 10 / Windows 11, ready to run channel workflows.
 
-> **TODO (project-internal note for Rafael — remove before publishing):**
-> The base install uses ComfyUI Portable with **Python 3.13 + CUDA
-> 13.0** (the default Comfy-Org build as of May 2026, replacing the
-> older Python 3.12 + CUDA 12.8 build). Update `audit.py` and
-> `04-schema-audit-v3.md` accordingly: `embedded_python_version`
-> should now expect `3.13.x`, not `3.12.x`.
-
 ## Requirements
 
 - **Windows 10** (version 1809 or later) **or Windows 11**
@@ -26,15 +19,15 @@ ComfyUI Portable instead.
 
 ## Files
 
-There are three flavors of script in this directory:
+There are two flavors of script in this directory:
 
 1. **`01-install-base.bat`** — the base installer (ComfyUI Portable +
    3 essential custom nodes).
 2. **`install-<model>.bat`** — per-model installers that download a
-   specific model family + ship the matching workflow.
-3. **`setup-<model>.bat`** — master orchestrators that chain the base
-   install with a specific per-model installer. Currently we ship
-   `setup-sdxl.bat` (paired with the **Install SDXL** mini-series video).
+   specific model family + ship the matching workflow. Each one
+   checks that the base install is already present and prints a
+   step-by-step ERROR block (with the Video #1 tutorial URL) when
+   it isn't.
 
 > The **install mini-series** (per-model setup videos) is a separate
 > editorial track from the **Benchmark Pillar mini-series** (cross-model
@@ -69,15 +62,17 @@ matching size.
 | Script | Install video | Benchmark Pillar(s) | Display name | Hardware mínimo | Custom nodes |
 |---|---|---|---|---|---|
 | `install-sdxl.bat` | #2 SDXL | #1 | SDXL Base 1.0 | 16 GB RAM · 8 GB VRAM | — |
-| `install-flux1.bat` | #3 FLUX family | #4, #1 | FLUX.1 dev (fp8 + fp16) | 64 GB RAM · 24 GB VRAM | — |
-| `install-flux2.bat` | #3 FLUX family | #2, #4 | FLUX.2 dev GGUF (Q4_K_M) | 48 GB RAM · 12 GB VRAM | ComfyUI-GGUF |
-| `install-qwen-image.bat` | #4 Qwen family | #1 | Qwen-Image fp8 | 64 GB RAM · 12 GB VRAM | — |
-| `install-qwen-2512.bat` | #4 Qwen family | #2 | Qwen-Image 2512 fp8 | 64 GB RAM · 12 GB VRAM | — |
-| `install-hunyuan-21.bat` | #5 Hunyuan | #2, #3 | Hunyuan-Image 2.1 bf16 | 96 GB RAM · 16 GB VRAM | — |
-| `install-wan22.bat` | #6 WAN | #5 | WAN 2.2 i2v fp8 dual-expert | 96 GB RAM · 16 GB VRAM | — |
+| `install-flux1.bat` | #3 FLUX | #2, #1 | FLUX.1 (5 variants pre-wired) | 32 GB RAM · 10 GB VRAM | ComfyUI-GGUF |
 
-These scripts are **generated** from
-`installer/benchmark/models_manifest.yaml` via
+Future install scripts (FLUX.2, Qwen-Image, Qwen-Image 2512,
+Hunyuan-Image 2.1, WAN 2.2) are withheld from this directory until
+their matching launch video drops. Their `ScriptDef` entries live
+in the internal working copy and rotate back into
+`generate_install_scripts.SCRIPT_DEFS` on each video launch.
+
+Both scripts above are **generated** from
+`installer/benchmark/models_manifest.yaml` (+ the
+`installer/benchmark/templates/01-install-base.bat` template) via
 `installer/benchmark/generate_install_scripts.py` — do not edit them
 by hand. To refresh after a manifest change, run:
 
@@ -85,15 +80,19 @@ by hand. To refresh after a manifest change, run:
 python -m installer.benchmark.generate_install_scripts
 ```
 
-### `setup-sdxl.bat`
+To publish a new video URL (and cascade the update into every
+audience-facing surface — sidecar `.md` files, Format B Note nodes,
+install-bat ERROR/SUCCESS blocks), use:
 
-Master orchestrator paired with the **Install SDXL** install-mini-
-series video. Runs `01-install-base.bat` then `install-sdxl.bat` in
-sequence, so the user goes from a fresh Windows machine to a working
-SDXL ComfyUI in one click. Pass `--unattended` (or `-u`, or set the
-env var `COMFY_NONINTERACTIVE=1`) to bypass the U/F/C prompt and the
-FIRST LAUNCH manual step in the base installer — useful for SSH /
-remote dispatch where there is no interactive console.
+```cmd
+python -m installer.benchmark.update_workflow_links \
+    --install-base-url https://youtu.be/PZmJqxP5ajs \
+    --install-sdxl-url https://youtu.be/sC7cwc-mocw
+```
+
+`update_workflow_links` persists the URLs to the manifest's `videos:`
+section (single source of truth) and then auto-runs `inject_markdown`
+and `generate_install_scripts` so every surface stays in lockstep.
 
 ## Quick start
 

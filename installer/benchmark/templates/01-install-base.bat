@@ -582,7 +582,7 @@ REM ==========================================================
 REM Summary (mode-dependent) + SUCCESS block
 REM ==========================================================
 REM The Next-steps SUCCESS block below carries URL placeholders
-REM (e.g. https://youtu.be/PZmJqxP5ajs, https://youtu.be/sC7cwc-mocw)
+REM (e.g. {{INSTALL_BASE_URL}}, {{INSTALL_SDXL_URL_OR_COMING_SOON}})
 REM that generate_install_scripts.py substitutes from the videos:
 REM section of models_manifest.yaml at .bat build time. Empty URLs
 REM render as "(Coming soon - watch the repo for updates)".
@@ -628,11 +628,11 @@ echo.
 echo   Essential nodes: ComfyUI-Manager, rgthree, Crystools
 echo.
 echo   Tutorial video ^(Video #1 - ComfyUI base^):
-echo   https://youtu.be/PZmJqxP5ajs
+echo   {{INSTALL_BASE_URL}}
 echo.
 echo   Next steps - pick a model to install:
-echo     install-sdxl.bat   ^(Video #2 - SDXL^)    https://youtu.be/sC7cwc-mocw
-echo     install-flux1.bat  ^(Video #3 - FLUX^)    (Coming soon - watch the repo for updates)
+echo     install-sdxl.bat   ^(Video #2 - SDXL^)    {{INSTALL_SDXL_URL_OR_COMING_SOON}}
+echo     install-flux1.bat  ^(Video #3 - FLUX^)    {{INSTALL_FLUX1_URL_OR_COMING_SOON}}
 echo     ^(more coming: Qwen, Hunyuan, WAN^)
 echo.
 echo   Repo ^(all installs^):

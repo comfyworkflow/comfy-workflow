@@ -17,14 +17,34 @@ set "REPO_RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/mai
 set "CATEGORY=Image\SDXL"
 
 REM ----- Pre-req: ComfyUI base install must exist -----
+REM The detailed ERROR block below is for users who downloaded this
+REM .bat without running 01-install-base.bat first. YouTube channel
+REM link restrictions (DA: external-channel links banned) mean the
+REM audience cannot navigate via playlists — so this block embeds the
+REM repo URL, the file name to fetch, and the Video #1 tutorial URL
+REM directly. {INSTALL_BASE_URL} is substituted at generation time
+REM from the manifest videos: section (empty => "Coming soon").
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\main.py" (
     echo.
-    echo ERROR: ComfyUI base install not found.
+    echo =========================================================================
+    echo   ERROR: ComfyUI base install not found
+    echo =========================================================================
     echo.
-    echo   Expected at: C:\ComfyUI_windows_portable\ComfyUI\main.py
+    echo   This install needs ComfyUI base installed FIRST.
+    echo   Step 1 of the series - you skipped it.
     echo.
-    echo Run 01-install-base.bat first, then re-run this script.
+    echo   How to fix:
     echo.
+    echo    1. Open:           https://github.com/comfyworkflow/comfy-workflow
+    echo    2. Click folder:   setup-windows
+    echo    3. Download:       01-install-base.bat
+    echo    4. Run it          ^(installs ComfyUI portable + essential nodes^)
+    echo    5. Come back and run this script again
+    echo.
+    echo   Tutorial video ^(Video #1 - ComfyUI base^):
+    echo   https://youtu.be/PZmJqxP5ajs
+    echo.
+    echo =========================================================================
     if not defined COMFY_NONINTERACTIVE pause
     exit /b 1
 )
@@ -168,18 +188,25 @@ call :ship_workflow "sdxl_base_landscape_hd.json"
 call :ship_workflow "sdxl_base_portrait_hd.json"
 
 echo.
-echo ========================================================
-echo  DONE - SDXL Base 1.0
-echo ========================================================
+echo =========================================================================
+echo   SDXL install complete^^!
+echo =========================================================================
 echo.
-echo  Next steps:
-echo    1. Run C:\ComfyUI_windows_portable\run_nvidia_gpu.bat
-echo    2. Open ComfyUI in browser, load workflow:
-echo        ComfyUI -^> Workflows -^> sdxl_base.json
-echo        ComfyUI -^> Workflows -^> sdxl_base_landscape.json
-echo        ComfyUI -^> Workflows -^> sdxl_base_portrait.json
-echo        ComfyUI -^> Workflows -^> sdxl_base_landscape_hd.json
-echo        ComfyUI -^> Workflows -^> sdxl_base_portrait_hd.json
+echo   Model installed: SDXL Base 1.0
+echo.
+echo   Workflows in ComfyUI sidebar:
+echo     Comfy Workflow ^> Image ^> SDXL ^> (5 aspect variants)
+echo.
+echo   Tutorial video ^(Video #2 - SDXL install + benchmark^):
+echo   https://youtu.be/sC7cwc-mocw
+echo.
+echo   Next in series ^(Video #3 - FLUX^):
+echo   (Coming soon - watch the repo for updates)
+echo.
+echo   Repo ^(all installs^):
+echo   https://github.com/comfyworkflow/comfy-workflow
+echo.
+echo =========================================================================
 echo.
 if not defined COMFY_NONINTERACTIVE pause
 endlocal

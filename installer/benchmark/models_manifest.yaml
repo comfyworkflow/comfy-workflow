@@ -2,6 +2,31 @@
 # Schema version 1 — additive evolution per DA-011.
 schema_version: 1
 
+# YouTube video URLs — single source of truth (point 5 of self-explanatory
+# bats sub-tarefa). Read by:
+#   - update_workflow_links.py  → .md sidecar body
+#   - inject_markdown.py        → Format B Note body
+#   - generate_install_scripts.py → ERROR/SUCCESS blocks in install .bat
+#
+# CLI flags on update_workflow_links.py write to this section and then
+# auto-chain inject_markdown + generate_install_scripts so all three
+# audience-facing surfaces stay in lockstep with the published URLs.
+# Empty string => the surface renders "(Coming soon — watch the repo
+# for updates)" in place of the URL.
+videos:
+  install_base: "https://youtu.be/PZmJqxP5ajs"
+  install_sdxl: "https://youtu.be/sC7cwc-mocw"
+  install_flux1: ""
+  install_qwen_image: ""
+  install_qwen_2512: ""
+  install_hunyuan_21: ""
+  install_wan22: ""
+  pillar_1: "https://youtu.be/sC7cwc-mocw"
+  pillar_2: ""
+  pillar_3: ""
+  pillar_4: ""
+  pillar_5: ""
+
 # Each model entry maps a logical model name to one or more file downloads.
 # `tier` follows DA-008 matrix (basic/offload/high_vram); `files[].path` is
 # relative to ComfyUI's `models/` directory (canonical Windows portable

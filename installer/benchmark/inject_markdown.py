@@ -69,6 +69,48 @@ logger = logging.getLogger(__name__)
 DEFAULT_INPUT_DIR: Path = Path("installer/benchmark/workflows")
 DEFAULT_OUTPUT_DIR: Path = Path("installer/benchmark/workflows_distribute")
 DEFAULT_SCHEMA_PATH: Path = Path("installer/benchmark/_object_info_schema.json")
+DEFAULT_MANIFEST_PATH: Path = Path("installer/benchmark/models_manifest.yaml")
+
+
+def load_video_urls_from_manifest(
+    manifest_path: Path,
+) -> tuple[dict[str, str], dict[int, str]]:
+    """Read videos: section + return (install_urls, pillar_urls).
+
+    install_urls maps install-mini-series slug → URL; pillar_urls maps
+    Pillar number → URL. Empty / missing values fall back to the
+    placeholder URL builders so .md sidecars / Format B Notes always
+    have a clickable target (defaults: repo URL with stable
+    ``#install-<slug>-pending`` / ``#video-pillar-<N>-pending``
+    fragment).
+    """
+    import yaml as _yaml
+    data = _yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    videos = data.get("videos", {}) if isinstance(data, dict) else {}
+    if not isinstance(videos, dict):
+        videos = {}
+
+    from installer.benchmark.update_workflow_links import (
+        INSTALL_VIDEO_NUMBER,
+        _videos_yaml_key_for_install_slug,
+    )
+    install_urls: dict[str, str] = {}
+    for slug in INSTALL_VIDEO_NUMBER:
+        key = _videos_yaml_key_for_install_slug(slug)
+        url = videos.get(key, "")
+        url = url.strip() if isinstance(url, str) else ""
+        install_urls[slug] = url or _placeholder_install_url(
+            slug, DEFAULT_GITHUB_BASE_URL,
+        )
+
+    pillar_urls: dict[int, str] = {}
+    for n in (1, 2, 3, 4, 5):
+        url = videos.get(f"pillar_{n}", "")
+        url = url.strip() if isinstance(url, str) else ""
+        pillar_urls[n] = url or _placeholder_pillar_url(
+            n, DEFAULT_GITHUB_BASE_URL,
+        )
+    return install_urls, pillar_urls
 
 # Grid layout: left-to-right by topological depth, vertical stack within column.
 COL_WIDTH: int = 360
@@ -1117,29 +1159,16 @@ def _build_argparser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true",
         help="Preview changes without writing files.",
     )
-    # Mirror update_workflow_links.py URL flags so the same publish
-    # invocation can refresh both .md sidecars and Format B Note nodes
-    # without drift. Defaults match the .md sidecar defaults — repo
-    # URL + stable URL fragment until the real video goes live.
-    for slug in INSTALL_VIDEO_NUMBER:
-        n = INSTALL_VIDEO_NUMBER[slug]
-        parser.add_argument(
-            f"--install-{slug}-url",
-            default=_placeholder_install_url(slug, DEFAULT_GITHUB_BASE_URL),
-            help=(
-                f"YouTube URL for install video #{n} ({slug}). Default "
-                f"placeholder points at the repo with stable URL fragment."
-            ),
-        )
-    for n in (1, 2, 3, 4, 5):
-        parser.add_argument(
-            f"--pillar-{n}-url",
-            default=_placeholder_pillar_url(n, DEFAULT_GITHUB_BASE_URL),
-            help=(
-                f"YouTube URL for Benchmark Pillar #{n}. Default "
-                f"placeholder points at the repo with stable URL fragment."
-            ),
-        )
+    parser.add_argument(
+        "--manifest", default=str(DEFAULT_MANIFEST_PATH),
+        help=(
+            "Path to models_manifest.yaml — read for the videos: section "
+            f"(default: {DEFAULT_MANIFEST_PATH}). URLs are no longer CLI "
+            "flags on this tool; the single source of truth is the YAML, "
+            "updated via update_workflow_links.py --install-<slug>-url "
+            "and --pillar-N-url flags."
+        ),
+    )
     return parser
 
 
@@ -1163,13 +1192,10 @@ def main() -> None:
     schema = _load_schema(schema_path)
     logger.info("loaded schema %s (%d node types)", schema_path, len(schema))
 
-    install_urls: dict[str, str] = {
-        slug: getattr(args, f"install_{slug.replace('-', '_')}_url")
-        for slug in INSTALL_VIDEO_NUMBER
-    }
-    pillar_urls: dict[int, str] = {
-        n: getattr(args, f"pillar_{n}_url") for n in (1, 2, 3, 4, 5)
-    }
+    manifest_path = Path(args.manifest)
+    if not manifest_path.is_file():
+        raise SystemExit(f"manifest not found: {manifest_path}")
+    install_urls, pillar_urls = load_video_urls_from_manifest(manifest_path)
 
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)

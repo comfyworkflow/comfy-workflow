@@ -69,6 +69,7 @@ import argparse
 import difflib
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,113 @@ def _placeholder_install_url(slug: str, github_base: str) -> str:
     return f"{github_base}#install-{slug}-pending"
 
 
+# Pattern for the leading line of a YAML videos: section entry, e.g.
+#   "  install_base: """  →  groups: indent="  ", slug="install_base"
+_VIDEOS_LINE_RE: re.Pattern[str] = re.compile(
+    r"^(?P<indent>\s+)(?P<slug>[A-Za-z_][A-Za-z0-9_]*):\s*.*?$",
+)
+
+
+def _update_videos_yaml(
+    manifest_path: Path, updates: dict[str, str],
+) -> dict[str, str]:
+    """Apply ``updates`` to the manifest ``videos:`` section in-place.
+
+    Performs surgical line edits so comments + key order in the
+    manifest file are preserved (PyYAML's dump would strip them, and
+    we don't want a dep on ruamel.yaml). Returns the merged
+    ``{slug: url}`` dict after the update — caller uses this to drive
+    .md / Note / .bat generation without re-reading the file.
+
+    ``updates`` keys are YAML slugs (e.g. ``"install_base"``, not
+    ``"base"``). Values are URLs as the user typed them on the CLI.
+    Keys missing from the existing videos: block are appended at the
+    end of the block (rare; only when extending the manifest schema).
+    """
+    text = manifest_path.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+
+    # Scan to find the videos: block boundaries.
+    block_start: int | None = None
+    block_end: int | None = None
+    block_indent: str | None = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#") or not stripped:
+            continue
+        if block_start is None:
+            if line.rstrip().endswith("videos:") and not line.startswith(" "):
+                block_start = i + 1
+            continue
+        # In-block: detect next top-level key (zero-indent) to close.
+        if line and not line[0].isspace() and not line.startswith("#"):
+            block_end = i
+            break
+        if block_indent is None and line[:1].isspace():
+            leading = len(line) - len(line.lstrip(" "))
+            if leading > 0:
+                block_indent = " " * leading
+    if block_start is None:
+        raise ValueError(
+            f"manifest {manifest_path} has no top-level 'videos:' section",
+        )
+    if block_end is None:
+        # videos: was the last top-level key — block extends to EOF.
+        block_end = len(lines)
+    if block_indent is None:
+        block_indent = "  "
+
+    # Resolve current values + apply updates (surgical line replace).
+    current: dict[str, str] = {}
+    line_index_by_slug: dict[str, int] = {}
+    for i in range(block_start, block_end):
+        m = _VIDEOS_LINE_RE.match(lines[i])
+        if not m:
+            continue
+        slug = m.group("slug")
+        # Naive but correct enough: split off comment, strip quotes.
+        rhs = lines[i].split(":", 1)[1]
+        rhs = rhs.split("#", 1)[0].strip()
+        if rhs.startswith(("'", '"')) and rhs.endswith(rhs[0]):
+            rhs = rhs[1:-1]
+        current[slug] = rhs
+        line_index_by_slug[slug] = i
+
+    def _format_line(slug: str, url: str) -> str:
+        url_q = '""' if not url else f'"{url}"'
+        return f"{block_indent}{slug}: {url_q}\n"
+
+    for slug, new_url in updates.items():
+        if slug in line_index_by_slug:
+            idx = line_index_by_slug[slug]
+            lines[idx] = _format_line(slug, new_url)
+        else:
+            # Append to end of block.
+            insert_at = block_end
+            lines.insert(insert_at, _format_line(slug, new_url))
+            block_end += 1
+        current[slug] = new_url
+
+    manifest_path.write_text("".join(lines), encoding="utf-8")
+    return current
+
+
+def _read_videos_yaml(manifest_path: Path) -> dict[str, str]:
+    """Read the videos: section as a slug→URL dict (no comment-preservation)."""
+    import yaml as _yaml
+    data = _yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    videos = data.get("videos", {}) if isinstance(data, dict) else {}
+    if not isinstance(videos, dict):
+        return {}
+    return {
+        slug: (url if isinstance(url, str) else "")
+        for slug, url in videos.items()
+        if isinstance(slug, str)
+    }
+
+
+
+
 # Per-install-video-slug metadata. The install mini-series is a separate
 # editorial track from the Benchmark Pillar mini-series — the install
 # videos walk a user through one setup end-to-end (per model family),
@@ -102,6 +210,7 @@ def _placeholder_install_url(slug: str, github_base: str) -> str:
 # 5 install videos #2-#6 covering 8 production workflows (Flux1+Flux2
 # share a family video; Qwen-Image+Qwen-2512 likewise).
 INSTALL_VIDEO_NUMBER: dict[str, int] = {
+    "base": 1,
     "sdxl": 2,
     "flux-family": 3,
     "qwen-family": 4,
@@ -110,12 +219,34 @@ INSTALL_VIDEO_NUMBER: dict[str, int] = {
 }
 
 INSTALL_VIDEO_LABEL: dict[str, str] = {
+    "base": "ComfyUI base install (Windows portable)",
     "sdxl": "Install SDXL ComfyUI",
     "flux-family": "Install FLUX family (1 & 2)",
     "qwen-family": "Install Qwen-Image family (legacy + 2512)",
     "hunyuan": "Install Hunyuan-Image 2.1",
     "wan": "Install WAN 2.2 i2v",
 }
+
+
+# Slug aliasing for the YAML videos: section. The install-mini-series
+# slug ``flux-family`` (kebab in CLI args / display) maps to the YAML
+# key ``install_flux1`` (snake) — since the family video covers
+# install-flux1.bat as the primary script. Slugs not listed here use
+# the default convention ``install_<slug_underscored>``
+# (e.g. sdxl → install_sdxl).
+_INSTALL_VIDEO_YAML_KEY: dict[str, str] = {
+    "flux-family": "install_flux1",
+    "qwen-family": "install_qwen_image",
+    "hunyuan": "install_hunyuan_21",
+    "wan": "install_wan22",
+}
+
+
+def _videos_yaml_key_for_install_slug(slug: str) -> str:
+    """Return the YAML videos: key for an install slug (kebab → snake)."""
+    if slug in _INSTALL_VIDEO_YAML_KEY:
+        return _INSTALL_VIDEO_YAML_KEY[slug]
+    return f"install_{slug.replace('-', '_')}"
 
 
 # Per-workflow install-mini-series mapping. Iteration order of this
@@ -461,27 +592,32 @@ def _build_argparser() -> argparse.ArgumentParser:
             "go live."
         ),
     )
-    # Install mini-series URLs (5 videos #2-#6, keyed by slug).
+    # Install mini-series URLs (6 videos #1-#6, keyed by slug). Each
+    # flag, when supplied, writes the URL into models_manifest.yaml's
+    # videos: section (single source of truth) and then re-renders all
+    # downstream artifacts (.md sidecars + Format B Notes + install
+    # .bat ERROR/SUCCESS blocks). Omitted flag => leave that slug's
+    # YAML value untouched.
     for slug in INSTALL_VIDEO_NUMBER:
         n = INSTALL_VIDEO_NUMBER[slug]
         parser.add_argument(
             f"--install-{slug}-url",
-            default=_placeholder_install_url(slug, DEFAULT_GITHUB_BASE_URL),
+            default=None,
             help=(
-                f"YouTube URL for install video #{n} ({slug}). Default "
-                f"placeholder: repo URL with #install-{slug}-pending "
-                "fragment."
+                f"YouTube URL for install video #{n} ({slug}). "
+                "Persists to manifest videos: section on each invocation. "
+                f"Empty / unset => placeholder #install-{slug}-pending."
             ),
         )
     # Benchmark Pillar URLs (5 cross-model editorial videos #1-#5).
     for n in (1, 2, 3, 4, 5):
         parser.add_argument(
             f"--pillar-{n}-url",
-            default=_placeholder_pillar_url(n, DEFAULT_GITHUB_BASE_URL),
+            default=None,
             help=(
-                f"YouTube URL for Benchmark Pillar #{n}. Default "
-                f"placeholder: repo URL with #video-pillar-{n}-pending "
-                "fragment."
+                f"YouTube URL for Benchmark Pillar #{n}. Persists to "
+                "manifest videos: section. Empty / unset => placeholder "
+                f"#video-pillar-{n}-pending."
             ),
         )
     parser.add_argument(
@@ -509,37 +645,100 @@ def _build_argparser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--manifest",
+        default="installer/benchmark/models_manifest.yaml",
+        help=(
+            "Path to models_manifest.yaml — videos: section is the single "
+            "source of truth for install/Pillar URLs. CLI --install-X-url "
+            "and --pillar-N-url flags persist here on every invocation."
+        ),
+    )
+    parser.add_argument(
+        "--skip-chain",
+        action="store_true",
+        help=(
+            "Disable the auto-chain that re-runs inject_markdown (Format B "
+            "Notes) and generate_install_scripts (install .bat ERROR/SUCCESS "
+            "blocks) after the .md sidecars refresh. Useful while debugging "
+            "the .md output in isolation."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help=(
             "Preview proposed changes without writing files. Reports "
             "the proposed MarkdownNote text per workflow with a status "
-            "tag (CREATE / UPDATE / IDEMPOTENT)."
+            "tag (CREATE / UPDATE / IDEMPOTENT). Skips YAML write and "
+            "auto-chain."
         ),
     )
     return parser
 
 
 def main() -> None:
-    """Iterate the 8 production workflows + update each MarkdownNote."""
+    """Persist URL CLI overrides to manifest videos:, refresh sidecars, chain."""
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         level=logging.INFO,
     )
     args = _build_argparser().parse_args()
 
-    pillar_urls: dict[int, str] = {
-        1: args.pillar_1_url,
-        2: args.pillar_2_url,
-        3: args.pillar_3_url,
-        4: args.pillar_4_url,
-        5: args.pillar_5_url,
-    }
-    # argparse converts --install-flux-family-url -> args.install_flux_family_url.
-    install_urls: dict[str, str] = {
-        slug: getattr(args, f"install_{slug.replace('-', '_')}_url")
-        for slug in INSTALL_VIDEO_NUMBER
-    }
+    manifest_path = Path(args.manifest)
+    if not manifest_path.is_file():
+        raise SystemExit(f"manifest not found: {manifest_path}")
+
+    # Stage 1: collect CLI overrides keyed by YAML slug. None => skip
+    # (preserve existing YAML value). The CLI uses kebab slugs; the
+    # YAML uses the resolved key from _videos_yaml_key_for_install_slug
+    # (handles flux-family → install_flux1 etc.).
+    yaml_updates: dict[str, str] = {}
+    for slug in INSTALL_VIDEO_NUMBER:
+        cli_attr = f"install_{slug.replace('-', '_')}_url"
+        cli_val = getattr(args, cli_attr, None)
+        if cli_val is not None:
+            yaml_updates[_videos_yaml_key_for_install_slug(slug)] = cli_val
+    for n in (1, 2, 3, 4, 5):
+        cli_val = getattr(args, f"pillar_{n}_url", None)
+        if cli_val is not None:
+            yaml_updates[f"pillar_{n}"] = cli_val
+
+    # Stage 2: persist updates to YAML (or just read current state).
+    if args.dry_run or not yaml_updates:
+        videos_state = _read_videos_yaml(manifest_path)
+        if args.dry_run and yaml_updates:
+            logger.info(
+                "[DRY-RUN] would write videos: %s",
+                ", ".join(f"{k}={v!r}" for k, v in yaml_updates.items()),
+            )
+    else:
+        videos_state = _update_videos_yaml(manifest_path, yaml_updates)
+        logger.info(
+            "wrote %d videos: slug(s) to %s: %s",
+            len(yaml_updates), manifest_path,
+            ", ".join(sorted(yaml_updates)),
+        )
+
+    # Stage 3: resolve install_urls / pillar_urls dicts from YAML state
+    # (empty values fall back to placeholders so .md sidecar lines stay
+    # clickable). These drive the .md sidecar refresh below.
+    install_urls: dict[str, str] = {}
+    for slug in INSTALL_VIDEO_NUMBER:
+        url = videos_state.get(
+            _videos_yaml_key_for_install_slug(slug), "",
+        )
+        url = url.strip() if isinstance(url, str) else ""
+        install_urls[slug] = url or _placeholder_install_url(
+            slug, args.github_base_url.rstrip("/"),
+        )
+    pillar_urls: dict[int, str] = {}
+    for n in (1, 2, 3, 4, 5):
+        url = videos_state.get(f"pillar_{n}", "")
+        url = url.strip() if isinstance(url, str) else ""
+        pillar_urls[n] = url or _placeholder_pillar_url(
+            n, args.github_base_url.rstrip("/"),
+        )
+
     github_base = args.github_base_url.rstrip("/")
     setup_base = (
         args.setup_base_url
@@ -615,6 +814,30 @@ def main() -> None:
         summary_tag, n_modified, n_idempotent,
         n_modified + n_idempotent,
     )
+
+    # Stage 4: auto-chain inject_markdown + generate_install_scripts
+    # so the Format B Notes + install .bat ERROR/SUCCESS blocks pick
+    # up the updated videos: section in the same invocation.
+    if args.dry_run or args.skip_chain:
+        if args.skip_chain and not args.dry_run:
+            logger.info("--skip-chain set: not running downstream regen")
+        return
+    import subprocess
+    import sys
+
+    for cmd_desc, cmd in [
+        ("inject_markdown --all",
+         [sys.executable, "-m", "installer.benchmark.inject_markdown", "--all"]),
+        ("generate_install_scripts",
+         [sys.executable, "-m", "installer.benchmark.generate_install_scripts"]),
+    ]:
+        logger.info("auto-chain: %s", cmd_desc)
+        result = subprocess.run(cmd, check=False)
+        if result.returncode != 0:
+            raise SystemExit(
+                f"auto-chain step '{cmd_desc}' failed with exit "
+                f"{result.returncode}"
+            )
 
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -58,9 +59,45 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MANIFEST: Path = Path("installer/benchmark/models_manifest.yaml")
 DEFAULT_SETUP_DIR: Path = Path("setup-windows")
+DEFAULT_TEMPLATE_DIR: Path = Path("installer/benchmark/templates")
 DEFAULT_RAW_BASE: str = (
     "https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main"
 )
+
+# Rendered when a videos: slug is empty or missing. Audience-facing text
+# (every install bat is in English per the channel principle).
+_COMING_SOON: str = "(Coming soon - watch the repo for updates)"
+
+# Matches {{<KEY>_URL}} and {{<KEY>_URL_OR_COMING_SOON}} placeholders.
+# The slug body (lowercased) must match a key in the manifest videos:
+# section — e.g. INSTALL_BASE → "install_base", PILLAR_1 → "pillar_1".
+# Both forms resolve identically: URL when set, _COMING_SOON when empty;
+# the suffix is purely a stylistic hint for the human editor.
+_VIDEO_PLACEHOLDER_RE: re.Pattern[str] = re.compile(
+    r"\{\{([A-Z][A-Z0-9_]*)_URL(?:_OR_COMING_SOON)?\}\}",
+)
+
+
+@dataclass(frozen=True)
+class SuccessBlockMeta:
+    """Metadata for the SUCCESS block emitted at the end of an install .bat.
+
+    Each install script ends with an "X install complete!" block that
+    confirms what landed on disk, points the audience at the matching
+    tutorial video, and previews the next video in the series — see the
+    self-explanatory bats sub-tarefa. URL fields reference videos:
+    slugs in the manifest; ``_render_success_block`` emits placeholders
+    that get substituted by ``_substitute_video_placeholders`` at the
+    end of the .bat composition pipeline.
+    """
+    title: str                                  # "FLUX install complete!"
+    installed_summary: tuple[str, ...]          # "Models installed: ..." lines
+    sidebar_summary: tuple[str, ...]            # "Workflows in ComfyUI sidebar:" lines
+    current_video_slug: str                     # videos: key — e.g. "install_sdxl"
+    current_video_label: str                    # "Video #2 - SDXL install + benchmark"
+    next_video_slug: str = ""                   # videos: key for next-in-series, "" => skip
+    next_video_label: str = ""                  # human label for next video
+    extra_after_installed: tuple[str, ...] = () # e.g. "Default recommendation: ..."
 
 
 @dataclass(frozen=True)
@@ -79,6 +116,10 @@ class ScriptDef:
     ``Comfy Workflow\\Image\\`` folder before shipping the new
     subfolder layout. Empty string skips the cleanup step (legacy
     flat scripts that never moved into a subfolder).
+
+    ``success_meta`` drives the audience-facing SUCCESS block emitted
+    at the end of the .bat — confirms the install, points at the
+    tutorial video, previews the next video in the series.
     """
     display_name: str
     pillars: tuple[int, ...]
@@ -88,6 +129,7 @@ class ScriptDef:
     ram_min: str
     vram_min: str
     category: str
+    success_meta: SuccessBlockMeta
     cleanup_glob: str = ""
 
 
@@ -105,6 +147,20 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         vram_min="8 GB",
         category="Image\\SDXL",
         cleanup_glob="sdxl_*.json",
+        success_meta=SuccessBlockMeta(
+            title="SDXL install complete!",
+            installed_summary=(
+                "Model installed: SDXL Base 1.0",
+            ),
+            sidebar_summary=(
+                "Workflows in ComfyUI sidebar:",
+                "  Comfy Workflow > Image > SDXL > (5 aspect variants)",
+            ),
+            current_video_slug="install_sdxl",
+            current_video_label="Video #2 - SDXL install + benchmark",
+            next_video_slug="install_flux1",
+            next_video_label="Video #3 - FLUX",
+        ),
     ),
     "install-flux1.bat": ScriptDef(
         # Phase 1.5 audit (e70572c): ship 5 separate variant workflows
@@ -137,6 +193,23 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         vram_min="10 GB",
         category="Image\\FLUX",
         cleanup_glob="flux_*.json",
+        success_meta=SuccessBlockMeta(
+            title="FLUX install complete!",
+            installed_summary=(
+                "Models installed: fp16, fp8, schnell, Q8, Q4 (5 variants)",
+            ),
+            sidebar_summary=(
+                "Workflows in ComfyUI sidebar:",
+                "  Comfy Workflow > Image > FLUX > (5 variants)",
+            ),
+            current_video_slug="install_flux1",
+            current_video_label="Video #3 - FLUX install + benchmark",
+            next_video_slug="install_qwen_image",
+            next_video_label="Video #4 - Qwen-Image",
+            extra_after_installed=(
+                "Default recommendation: flux_dev_fp8 (best balance for most GPUs)",
+            ),
+        ),
     ),
     # Other install scripts (flux2 / qwen-image / qwen-2512 / hunyuan-21
     # / wan22) are intentionally absent from this map — they are
@@ -144,8 +217,6 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
     # family's release video drops. Definitions stay in the internal
     # working copy and rotate back in here on each video launch.
 }
-
-ORCHESTRATOR_NAME: str = "setup-sdxl.bat"
 
 
 # ============================================================================
@@ -172,6 +243,28 @@ def _load_manifest(manifest_path: Path) -> dict[str, dict[str, Any]]:
             )
         indexed[entry["name"]] = entry
     return indexed
+
+
+def _load_videos(manifest_path: Path) -> dict[str, str]:
+    """Read the manifest ``videos:`` section as a slug→URL dict.
+
+    Returns an empty dict if the section is missing (legacy manifest).
+    Non-string values are coerced to empty strings — empty strings
+    propagate through ``_substitute_video_placeholders`` as
+    "Coming soon - watch the repo for updates".
+    """
+    data = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return {}
+    raw = data.get("videos", {}) or {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, str] = {}
+    for slug, url in raw.items():
+        if not isinstance(slug, str):
+            continue
+        out[slug] = url if isinstance(url, str) else ""
+    return out
 
 
 def _gib(total_bytes: int) -> str:
@@ -206,14 +299,34 @@ set "REPO_RAW={repo_raw}"
 set "CATEGORY={category}"
 
 REM ----- Pre-req: ComfyUI base install must exist -----
+REM The detailed ERROR block below is for users who downloaded this
+REM .bat without running 01-install-base.bat first. YouTube channel
+REM link restrictions (DA: external-channel links banned) mean the
+REM audience cannot navigate via playlists — so this block embeds the
+REM repo URL, the file name to fetch, and the Video #1 tutorial URL
+REM directly. {{INSTALL_BASE_URL}} is substituted at generation time
+REM from the manifest videos: section (empty => "Coming soon").
 if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\main.py" (
     echo.
-    echo ERROR: ComfyUI base install not found.
+    echo =========================================================================
+    echo   ERROR: ComfyUI base install not found
+    echo =========================================================================
     echo.
-    echo   Expected at: C:\\ComfyUI_windows_portable\\ComfyUI\\main.py
+    echo   This install needs ComfyUI base installed FIRST.
+    echo   Step 1 of the series - you skipped it.
     echo.
-    echo Run 01-install-base.bat first, then re-run this script.
+    echo   How to fix:
     echo.
+    echo    1. Open:           https://github.com/comfyworkflow/comfy-workflow
+    echo    2. Click folder:   setup-windows
+    echo    3. Download:       01-install-base.bat
+    echo    4. Run it          ^(installs ComfyUI portable + essential nodes^)
+    echo    5. Come back and run this script again
+    echo.
+    echo   Tutorial video ^(Video #1 - ComfyUI base^):
+    echo   {{{{INSTALL_BASE_URL}}}}
+    echo.
+    echo =========================================================================
     if not defined COMFY_NONINTERACTIVE pause
     exit /b 1
 )
@@ -345,27 +458,95 @@ if not exist "C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows\\C
 
 """
 
-# Footer: completion banner + next steps. ``{display_name}`` and
-# ``{workflow_hints}`` are substituted.
-_BAT_FOOTER_FMT = """
-echo.
-echo ========================================================
-echo  DONE - {display_name}
-echo ========================================================
-echo.
-echo  Next steps:
-echo    1. Run C:\\ComfyUI_windows_portable\\run_nvidia_gpu.bat
-echo    2. Open ComfyUI in browser, load workflow:
-{workflow_hints}
-echo.
-if not defined COMFY_NONINTERACTIVE pause
-endlocal
-exit /b 0
-"""
+# Per-script SUCCESS block at the .bat tail. Composed from the
+# ScriptDef.success_meta fields by :func:`_render_success_block` — the
+# audience-facing "X install complete!" panel that confirms what
+# landed on disk, points at the tutorial video, and previews the next
+# video in the series. {{<SLUG>_URL}} placeholders are substituted at
+# generation time from the manifest videos: section (empty =>
+# "Coming soon - watch the repo for updates").
+def _cmd_escape(text: str) -> str:
+    """Escape characters that cmd.exe ``echo`` would consume.
+
+    - ``>`` and ``<`` are redirection operators — escape as ``^>`` / ``^<``.
+    - ``!`` is delayed-expansion when ``setlocal EnableDelayedExpansion``
+      is active (every bat we generate enables it) — escape as ``^^!``.
+    - ``(`` / ``)`` inside an echo body need not be escaped since echo
+      isn't a parser-sensitive command for parens; but author-supplied
+      strings already use ``^(`` / ``^)`` where they want literals.
+    """
+    return text.replace(">", "^>").replace("<", "^<").replace("!", "^^!")
 
 
-def _bat_workflow_hint(wf: str) -> str:
-    return f"echo        ComfyUI -^> Workflows -^> {wf}"
+def _render_success_block(meta: SuccessBlockMeta) -> str:
+    """Compose the SUCCESS block at the .bat tail from ScriptDef metadata."""
+    lines: list[str] = [
+        "",
+        "echo.",
+        "echo =========================================================================",
+        f"echo   {_cmd_escape(meta.title)}",
+        "echo =========================================================================",
+        "echo.",
+    ]
+    for line in meta.installed_summary:
+        lines.append(f"echo   {_cmd_escape(line)}")
+    if meta.sidebar_summary:
+        if meta.installed_summary:
+            lines.append("echo.")
+        for line in meta.sidebar_summary:
+            lines.append(f"echo   {_cmd_escape(line)}")
+    if meta.extra_after_installed:
+        lines.append("echo.")
+        for line in meta.extra_after_installed:
+            lines.append(f"echo   {_cmd_escape(line)}")
+    lines.append("echo.")
+    lines.append(
+        f"echo   Tutorial video ^({_cmd_escape(meta.current_video_label)}^):"
+    )
+    lines.append(
+        f"echo   {{{{{meta.current_video_slug.upper()}_URL}}}}"
+    )
+    if meta.next_video_slug:
+        lines.append("echo.")
+        lines.append(
+            f"echo   Next in series ^({_cmd_escape(meta.next_video_label)}^):"
+        )
+        lines.append(
+            f"echo   {{{{{meta.next_video_slug.upper()}_URL_OR_COMING_SOON}}}}"
+        )
+    lines.append("echo.")
+    lines.append("echo   Repo ^(all installs^):")
+    lines.append("echo   https://github.com/comfyworkflow/comfy-workflow")
+    lines.append("echo.")
+    lines.append(
+        "echo ========================================================================="
+    )
+    lines.append("echo.")
+    lines.append("if not defined COMFY_NONINTERACTIVE pause")
+    lines.append("endlocal")
+    lines.append("exit /b 0")
+    return "\n".join(lines) + "\n"
+
+
+def _substitute_video_placeholders(
+    text: str, videos: dict[str, str],
+) -> str:
+    """Replace ``{{<SLUG>_URL}}`` / ``{{<SLUG>_URL_OR_COMING_SOON}}`` in ``text``.
+
+    Looks up the lowercased slug in the manifest ``videos:`` section.
+    Empty / missing values render as
+    ``(Coming soon - watch the repo for updates)`` so the .bat never
+    emits a blank URL line.
+    """
+    def repl(match: re.Match[str]) -> str:
+        slug = match.group(1).lower()
+        url = videos.get(slug, "")
+        if isinstance(url, str):
+            url = url.strip()
+        else:
+            url = ""
+        return url if url else _COMING_SOON
+    return _VIDEO_PLACEHOLDER_RE.sub(repl, text)
 
 
 def _build_bat(
@@ -456,120 +637,29 @@ def _build_bat(
     for wf in expanded_workflows:
         parts.append(f'call :ship_workflow "{wf}"\n')
 
-    workflow_hints = "\n".join(
-        _bat_workflow_hint(wf) for wf in expanded_workflows
-    )
-    parts.append(
-        _BAT_FOOTER_FMT.format(
-            display_name=script_def.display_name,
-            workflow_hints=workflow_hints,
-        )
-    )
+    parts.append(_render_success_block(script_def.success_meta))
 
     return "".join(parts)
 
 
-_ORCHESTRATOR_TEMPLATE = """\
-@echo off
-REM ============================================================================
-REM Comfy Workflow - SDXL fresh setup (Install SDXL mini-series)
-REM ============================================================================
-REM Generated by installer/benchmark/generate_install_scripts.py
-REM DO NOT EDIT BY HAND. Re-generate via:
-REM   python -m installer.benchmark.generate_install_scripts
-REM ============================================================================
-REM Master orchestrator: runs 01-install-base.bat + install-sdxl.bat in
-REM sequence to deliver a fresh SDXL-ready ComfyUI install in one shot.
-REM For SSH dispatch, set COMFY_NONINTERACTIVE=1 (or pass --unattended /
-REM -u as first arg) to suppress pauses and the FIRST LAUNCH manual step
-REM in 01-install-base.bat.
-REM
-REM Note: "Install SDXL" is a video from the install mini-series, which
-REM is distinct from the Benchmark Pillar mini-series. The sidecar
-REM README next to each workflow JSON tracks both cross-references.
-REM ============================================================================
-setlocal EnableDelayedExpansion
+# 01-install-base.bat template processing. Source lives under
+# installer/benchmark/templates/01-install-base.bat (hand-edited;
+# carries the same {{<SLUG>_URL}} placeholders as install-X.bat
+# success blocks). The generator copies the template into
+# setup-windows/ with placeholders substituted from videos:.
+_BASE_TEMPLATE_NAME: str = "01-install-base.bat"
 
-REM ----- Parse --unattended / -u flag (sets COMFY_NONINTERACTIVE) -----
-if /i "%~1"=="--unattended" set "COMFY_NONINTERACTIVE=1"
-if /i "%~1"=="-u" set "COMFY_NONINTERACTIVE=1"
 
-REM ----- Locate script directory (so we can call sibling .bat files) -----
-set "SCRIPT_DIR=%~dp0"
-if "!SCRIPT_DIR:~-1!"=="\\" set "SCRIPT_DIR=!SCRIPT_DIR:~0,-1!"
-
-echo.
-echo ========================================================
-echo  Comfy Workflow - SDXL fresh setup (SDXL Base 1.0)
-echo ========================================================
-echo.
-echo  This will run, in sequence:
-echo    [1/2] 01-install-base.bat  (ComfyUI portable + essential nodes)
-echo    [2/2] install-sdxl.bat     (SDXL 1.0 model + workflow)
-echo.
-echo  Hardware minimo (SDXL): 16 GB RAM, 8 GB VRAM
-echo  Total download: ~10 GiB (3 GiB ComfyUI portable + 7 GiB SDXL)
-echo.
-if defined COMFY_NONINTERACTIVE (
-    echo  Running unattended ^(COMFY_NONINTERACTIVE=1^).
-) else (
-    echo  Press any key to continue, or close window to abort.
-    pause
-)
-
-echo.
-echo === [1/2] Running 01-install-base.bat ===
-echo.
-if not exist "!SCRIPT_DIR!\\01-install-base.bat" (
-    echo ERROR: 01-install-base.bat not found next to setup-sdxl.bat.
-    echo Expected: !SCRIPT_DIR!\\01-install-base.bat
-    if not defined COMFY_NONINTERACTIVE pause
-    exit /b 1
-)
-call "!SCRIPT_DIR!\\01-install-base.bat"
-if !ERRORLEVEL! NEQ 0 (
-    echo.
-    echo ERROR: 01-install-base.bat failed ^(exit !ERRORLEVEL!^).
-    if not defined COMFY_NONINTERACTIVE pause
-    exit /b 1
-)
-
-echo.
-echo === [2/2] Running install-sdxl.bat ===
-echo.
-if not exist "!SCRIPT_DIR!\\install-sdxl.bat" (
-    echo ERROR: install-sdxl.bat not found next to setup-sdxl.bat.
-    echo Expected: !SCRIPT_DIR!\\install-sdxl.bat
-    if not defined COMFY_NONINTERACTIVE pause
-    exit /b 1
-)
-call "!SCRIPT_DIR!\\install-sdxl.bat"
-if !ERRORLEVEL! NEQ 0 (
-    echo.
-    echo ERROR: install-sdxl.bat failed ^(exit !ERRORLEVEL!^).
-    if not defined COMFY_NONINTERACTIVE pause
-    exit /b 1
-)
-
-echo.
-echo ========================================================
-echo  SDXL SETUP COMPLETE
-echo ========================================================
-echo.
-echo  Installed:
-echo    - ComfyUI Portable (Python 3.13 + CUDA 13.0)
-echo    - Essential custom nodes: Manager, rgthree, Crystools
-echo    - SDXL Base 1.0 model
-echo    - sdxl_base.json workflow + sidecar README
-echo.
-echo  Next steps:
-echo    1. Run C:\\ComfyUI_windows_portable\\run_nvidia_gpu.bat
-echo    2. Open workflow: ComfyUI -^> Workflows -^> sdxl_base.json
-echo.
-if not defined COMFY_NONINTERACTIVE pause
-endlocal
-exit /b 0
-"""
+def _build_base_bat(template_dir: Path) -> str:
+    """Read the 01-install-base.bat template (placeholders unresolved)."""
+    template_path = template_dir / _BASE_TEMPLATE_NAME
+    if not template_path.is_file():
+        raise SystemExit(
+            f"template not found: {template_path}. "
+            "Expected the hand-edited 01-install-base.bat source under "
+            f"{template_dir}."
+        )
+    return template_path.read_text(encoding="utf-8")
 
 
 # ============================================================================
@@ -611,6 +701,17 @@ def _build_argparser() -> argparse.ArgumentParser:
         help=f"output dir (default: {DEFAULT_SETUP_DIR}).",
     )
     parser.add_argument(
+        "--template-dir",
+        default=str(DEFAULT_TEMPLATE_DIR),
+        help=(
+            "hand-edited .bat templates dir "
+            f"(default: {DEFAULT_TEMPLATE_DIR}). "
+            "Currently holds 01-install-base.bat — generator substitutes "
+            "{{<SLUG>_URL}} placeholders from manifest videos: and writes "
+            "to setup-dir."
+        ),
+    )
+    parser.add_argument(
         "--repo-raw-base",
         default=DEFAULT_RAW_BASE,
         help=(
@@ -635,15 +736,22 @@ def main() -> None:
 
     manifest_path = Path(args.manifest)
     setup_dir = Path(args.setup_dir)
+    template_dir = Path(args.template_dir)
     if not manifest_path.is_file():
         raise SystemExit(f"manifest not found: {manifest_path}")
     if not setup_dir.is_dir():
         raise SystemExit(f"--setup-dir does not exist: {setup_dir}")
+    if not template_dir.is_dir():
+        raise SystemExit(f"--template-dir does not exist: {template_dir}")
 
     manifest = _load_manifest(manifest_path)
+    videos = _load_videos(manifest_path)
+    set_video_slugs = sorted(s for s, u in videos.items() if u)
     logger.info(
-        "loaded manifest %s (%d model entries)",
+        "loaded manifest %s (%d model entries, %d/%d video slugs set: %s)",
         manifest_path, len(manifest),
+        len(set_video_slugs), len(videos),
+        ", ".join(set_video_slugs) if set_video_slugs else "(none)",
     )
 
     n_written = 0
@@ -684,9 +792,13 @@ def main() -> None:
             manifest=manifest,
             repo_raw=args.repo_raw_base,
         )
+        content = _substitute_video_placeholders(content, videos)
         _emit(setup_dir / script_name, content)
 
-    _emit(setup_dir / ORCHESTRATOR_NAME, _ORCHESTRATOR_TEMPLATE)
+    # 01-install-base.bat: read template, substitute placeholders, emit.
+    base_content = _build_base_bat(template_dir)
+    base_content = _substitute_video_placeholders(base_content, videos)
+    _emit(setup_dir / _BASE_TEMPLATE_NAME, base_content)
 
     summary_tag = "DRY-RUN SUMMARY" if args.dry_run else "DONE"
     logger.info(

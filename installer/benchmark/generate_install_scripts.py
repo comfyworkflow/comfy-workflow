@@ -69,7 +69,16 @@ class ScriptDef:
 
     ``category`` is the ComfyUI sidebar subfolder under
     ``Comfy Workflow/`` where the distributed workflow JSON lands —
-    e.g. ``"Image"`` for t2i workflows, ``"Video"`` for i2v workflows.
+    e.g. ``"Image\\SDXL"`` for SDXL t2i, ``"Image\\FLUX"`` for FLUX t2i,
+    ``"Video"`` for i2v workflows. Use backslashes — the generated .bat
+    converts to forward slashes for the GitHub raw URL inside
+    ``ship_workflow``.
+
+    ``cleanup_glob`` is a Windows glob (e.g. ``"sdxl_*.json"``) of
+    flat-layout workflow files to delete from the legacy
+    ``Comfy Workflow\\Image\\`` folder before shipping the new
+    subfolder layout. Empty string skips the cleanup step (legacy
+    flat scripts that never moved into a subfolder).
     """
     display_name: str
     pillars: tuple[int, ...]
@@ -79,6 +88,7 @@ class ScriptDef:
     ram_min: str
     vram_min: str
     category: str
+    cleanup_glob: str = ""
 
 
 # Mirrors PILLAR_MAPPING / HARDWARE_TIERS in update_workflow_links.py —
@@ -93,13 +103,16 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         workflows=("sdxl_base.json",),
         ram_min="16 GB",
         vram_min="8 GB",
-        category="Image",
+        category="Image\\SDXL",
+        cleanup_glob="sdxl_*.json",
     ),
     "install-flux1.bat": ScriptDef(
-        # Phase 1.5 audit: ship 5 variants × 3 aspect workflows. Default
-        # is V2 fp8 (universal production default per the cross-GPU audit).
-        # Q8/Q4 GGUF variants require the city96 ComfyUI-GGUF custom node.
-        display_name="FLUX.1 (5 variants × 3 aspect workflows)",
+        # Phase 1.5 audit (e70572c): ship 5 separate variant workflows
+        # (one per loader/dtype combo) instead of an aggregate. Each
+        # variant opens-and-runs with the correct loader pre-wired —
+        # no node swaps for the audience. Q8/Q4 use UnetLoaderGGUF
+        # (requires the city96 ComfyUI-GGUF custom node).
+        display_name="FLUX.1 (5 variants pre-wired)",
         pillars=(2, 1),
         models=(
             "flux_dev_fp8",
@@ -113,83 +126,23 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         custom_nodes=(
             ("ComfyUI-GGUF", "https://github.com/city96/ComfyUI-GGUF.git"),
         ),
-        workflows=("flux_base.json",),
-        ram_min="64 GB",
-        vram_min="12 GB",
-        category="Image",
-    ),
-    "install-flux2.bat": ScriptDef(
-        display_name="FLUX.2 dev GGUF (Q4_K_M)",
-        pillars=(2, 4),
-        models=(
-            "flux_2_dev_q4km",
-            "flux_2_shared_encoder",
-            "flux_2_shared_vae",
+        workflows=(
+            "flux_dev_fp16.json",
+            "flux_dev_fp8.json",
+            "flux_schnell_fp8.json",
+            "flux_dev_Q8.json",
+            "flux_dev_Q4.json",
         ),
-        custom_nodes=(
-            ("ComfyUI-GGUF", "https://github.com/city96/ComfyUI-GGUF.git"),
-        ),
-        workflows=("flux2_dev_gguf.json",),
-        ram_min="48 GB",
-        vram_min="12 GB",
-        category="Image",
+        ram_min="32 GB",
+        vram_min="10 GB",
+        category="Image\\FLUX",
+        cleanup_glob="flux_*.json",
     ),
-    "install-qwen-image.bat": ScriptDef(
-        display_name="Qwen-Image fp8",
-        pillars=(1,),
-        models=(
-            "qwen_image_fp8",
-            "qwen_shared_encoders",
-            "qwen_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=("qwen_image_fp8.json",),
-        ram_min="64 GB",
-        vram_min="12 GB",
-        category="Image",
-    ),
-    "install-qwen-2512.bat": ScriptDef(
-        display_name="Qwen-Image 2512 fp8",
-        pillars=(2,),
-        models=(
-            "qwen_image_2512_fp8",
-            "qwen_shared_encoders",
-            "qwen_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=("qwen_image_2512.json",),
-        ram_min="64 GB",
-        vram_min="12 GB",
-        category="Image",
-    ),
-    "install-hunyuan-21.bat": ScriptDef(
-        display_name="Hunyuan-Image 2.1 bf16",
-        pillars=(2, 3),
-        models=(
-            "hunyuan_image_21_bf16",
-            "hunyuan_shared_encoders",
-            "hunyuan_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=("hunyuan_image_21.json",),
-        ram_min="96 GB",
-        vram_min="16 GB",
-        category="Image",
-    ),
-    "install-wan22.bat": ScriptDef(
-        display_name="WAN 2.2 i2v fp8 dual-expert",
-        pillars=(5,),
-        models=(
-            "wan22_i2v_14b_fp8",
-            "wan_shared_encoder",
-            "wan_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=("wan22_i2v_fp8.json",),
-        ram_min="96 GB",
-        vram_min="16 GB",
-        category="Video",
-    ),
+    # Other install scripts (flux2 / qwen-image / qwen-2512 / hunyuan-21
+    # / wan22) are intentionally absent from this map — they are
+    # withheld from the public setup-windows/ tree until each model
+    # family's release video drops. Definitions stay in the internal
+    # working copy and rotate back in here on each video launch.
 }
 
 ORCHESTRATOR_NAME: str = "setup-sdxl.bat"
@@ -324,22 +277,50 @@ goto :eof
 REM ============================================================================
 REM Subroutine: ship_workflow
 REM   %1 = workflow filename (e.g. sdxl_base.json)
-REM Downloads the Format B distribute version into the
-REM "Comfy Workflow\\!CATEGORY!\\" sidebar subfolder. The .md sidecar is
-REM NOT shipped — its content is embedded as a Note node inside the
-REM Format B workflow, so the audience sees the bula directly on the
-REM canvas (sidebar Workflows -> Comfy Workflow -> !CATEGORY! -> click).
+REM Downloads the Format B distribute version from
+REM "workflows_distribute/!CATEGORY_URL!/!WF_JSON!" (URL form: forward
+REM slashes) into the matching local sidebar subfolder
+REM "Comfy Workflow\\!CATEGORY!\\" (Windows form: backslashes). The
+REM repo source path and the user-visible category share the same
+REM hierarchy, so audience and repo browsers see the same structure.
+REM The .md sidecar is NOT shipped — its content is embedded as a Note
+REM node inside the Format B workflow, so the audience sees the bula
+REM directly on the canvas (sidebar Workflows -> Comfy Workflow ->
+REM !CATEGORY! -> click).
 REM ============================================================================
 :ship_workflow
 set "WF_JSON=%~1"
 set "DEST_BASE=C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows\\Comfy Workflow"
 set "DEST_DIR=!DEST_BASE!\\!CATEGORY!"
+set "CATEGORY_URL=!CATEGORY:\\=/!"
 if not exist "!DEST_DIR!" mkdir "!DEST_DIR!"
 echo   Shipping workflow: !WF_JSON! ^(category: !CATEGORY!^)
-curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!WF_JSON!"
+curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!CATEGORY_URL!/!WF_JSON!"
 if !ERRORLEVEL! NEQ 0 (
     echo   ERROR: download failed for !WF_JSON!
     exit /b 1
+)
+goto :eof
+
+REM ============================================================================
+REM Subroutine: cleanup_flat_workflows
+REM   %1 = glob pattern (e.g. sdxl_*.json)
+REM Removes flat-layout workflow files from the legacy
+REM "Comfy Workflow\\Image\\" folder. The new layout lives under
+REM "Comfy Workflow\\Image\\<FAMILY>\\" so installs from this script
+REM will populate the family subfolder; this subroutine prunes
+REM stale flat siblings left over from prior installs to avoid
+REM duplicate workflows showing up in the audience's sidebar.
+REM ============================================================================
+:cleanup_flat_workflows
+set "PATTERN=%~1"
+set "FLAT_DIR=C:\\ComfyUI_windows_portable\\ComfyUI\\user\\default\\workflows\\Comfy Workflow\\Image"
+if not exist "!FLAT_DIR!" goto :eof
+for %%F in ("!FLAT_DIR!\\!PATTERN!") do (
+    if exist "%%F" (
+        echo   Removing legacy flat workflow: %%~nxF
+        del "%%F" >nul 2>&1
+    )
 )
 goto :eof
 
@@ -413,7 +394,12 @@ def _build_bat(
                 f'{size}'
             )
 
-    total_steps = 1 + (1 if script_def.custom_nodes else 0) + 1
+    total_steps = (
+        1
+        + (1 if script_def.custom_nodes else 0)
+        + (1 if script_def.cleanup_glob else 0)
+        + 1
+    )
     pillar_summary = ", ".join(f"#{p}" for p in script_def.pillars)
     model_names = ", ".join(script_def.models)
     total_gib = _gib(total_bytes)
@@ -445,6 +431,16 @@ def _build_bat(
         )
         for folder, repo in script_def.custom_nodes:
             parts.append(f'call :ensure_custom_node "{folder}" "{repo}"\n')
+
+    if script_def.cleanup_glob:
+        step += 1
+        parts.append(
+            f"\necho [{step}/{total_steps}] Pruning legacy flat-layout "
+            f"workflow files ({script_def.cleanup_glob})...\n"
+        )
+        parts.append(
+            f'call :cleanup_flat_workflows "{script_def.cleanup_glob}"\n'
+        )
 
     step += 1
     # Expand each base workflow into per-variant filenames (see

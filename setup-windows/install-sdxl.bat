@@ -14,7 +14,7 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 set "REPO_RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main"
-set "CATEGORY=Image"
+set "CATEGORY=Image\SDXL"
 
 REM ----- Pre-req: ComfyUI base install must exist -----
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\main.py" (
@@ -88,22 +88,50 @@ goto :eof
 REM ============================================================================
 REM Subroutine: ship_workflow
 REM   %1 = workflow filename (e.g. sdxl_base.json)
-REM Downloads the Format B distribute version into the
-REM "Comfy Workflow\!CATEGORY!\" sidebar subfolder. The .md sidecar is
-REM NOT shipped — its content is embedded as a Note node inside the
-REM Format B workflow, so the audience sees the bula directly on the
-REM canvas (sidebar Workflows -> Comfy Workflow -> !CATEGORY! -> click).
+REM Downloads the Format B distribute version from
+REM "workflows_distribute/!CATEGORY_URL!/!WF_JSON!" (URL form: forward
+REM slashes) into the matching local sidebar subfolder
+REM "Comfy Workflow\!CATEGORY!\" (Windows form: backslashes). The
+REM repo source path and the user-visible category share the same
+REM hierarchy, so audience and repo browsers see the same structure.
+REM The .md sidecar is NOT shipped — its content is embedded as a Note
+REM node inside the Format B workflow, so the audience sees the bula
+REM directly on the canvas (sidebar Workflows -> Comfy Workflow ->
+REM !CATEGORY! -> click).
 REM ============================================================================
 :ship_workflow
 set "WF_JSON=%~1"
 set "DEST_BASE=C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow"
 set "DEST_DIR=!DEST_BASE!\!CATEGORY!"
+set "CATEGORY_URL=!CATEGORY:\=/!"
 if not exist "!DEST_DIR!" mkdir "!DEST_DIR!"
 echo   Shipping workflow: !WF_JSON! ^(category: !CATEGORY!^)
-curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!WF_JSON!"
+curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!CATEGORY_URL!/!WF_JSON!"
 if !ERRORLEVEL! NEQ 0 (
     echo   ERROR: download failed for !WF_JSON!
     exit /b 1
+)
+goto :eof
+
+REM ============================================================================
+REM Subroutine: cleanup_flat_workflows
+REM   %1 = glob pattern (e.g. sdxl_*.json)
+REM Removes flat-layout workflow files from the legacy
+REM "Comfy Workflow\Image\" folder. The new layout lives under
+REM "Comfy Workflow\Image\<FAMILY>\" so installs from this script
+REM will populate the family subfolder; this subroutine prunes
+REM stale flat siblings left over from prior installs to avoid
+REM duplicate workflows showing up in the audience's sidebar.
+REM ============================================================================
+:cleanup_flat_workflows
+set "PATTERN=%~1"
+set "FLAT_DIR=C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow\Image"
+if not exist "!FLAT_DIR!" goto :eof
+for %%F in ("!FLAT_DIR!\!PATTERN!") do (
+    if exist "%%F" (
+        echo   Removing legacy flat workflow: %%~nxF
+        del "%%F" >nul 2>&1
+    )
 )
 goto :eof
 
@@ -126,10 +154,13 @@ if not exist "C:\ComfyUI_windows_portable\ComfyUI\models\text_encoders"    mkdir
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\models\vae"              mkdir "C:\ComfyUI_windows_portable\ComfyUI\models\vae"
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow" mkdir "C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow"
 
-echo [1/2] Downloading model files (total: ~6.46 GiB)...
+echo [1/3] Downloading model files (total: ~6.46 GiB)...
 call :download_or_skip "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors" "C:\ComfyUI_windows_portable\ComfyUI\models\checkpoints\sd_xl_base_1.0.safetensors" 6938078334
 
-echo [2/2] Shipping 5 workflow file(s)...
+echo [2/3] Pruning legacy flat-layout workflow files (sdxl_*.json)...
+call :cleanup_flat_workflows "sdxl_*.json"
+
+echo [3/3] Shipping 5 workflow file(s)...
 call :ship_workflow "sdxl_base.json"
 call :ship_workflow "sdxl_base_landscape.json"
 call :ship_workflow "sdxl_base_portrait.json"

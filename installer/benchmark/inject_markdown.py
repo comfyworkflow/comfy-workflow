@@ -173,83 +173,137 @@ _SDXL_VARIANTS: tuple[VariantSpec, ...] = (
 )
 
 
-_FLUX_VARIANTS: tuple[VariantSpec, ...] = (
-    # Phase 1.5 audit (commit e70572c) showed FLUX native at HD outperforms
-    # the SDXL-style LatentUpscaleBy + refiner path on every GPU tier we
-    # tested. Per Rafael's rule "upscale só justifica se tem speed gain",
-    # FLUX ships native-HD only — no HD upscale variants.
-    VariantSpec(
-        slug="",
-        aspect_id="1x1",
-        aspect_label="1:1 square (1024×1024)",
-        width=1024,
-        height=1024,
-        hd=False,
-    ),
-    VariantSpec(
-        slug="_landscape",
-        aspect_id="16x9",
-        aspect_label="16:9 landscape (1920×1080 native HD)",
-        width=1920,
-        height=1080,
-        hd=False,
-    ),
-    VariantSpec(
-        slug="_portrait",
-        aspect_id="9x16",
-        aspect_label="9:16 portrait (1080×1920 native HD)",
-        width=1080,
-        height=1920,
-        hd=False,
-    ),
-)
-
-
 ASPECT_VARIANTS: dict[str, tuple[VariantSpec, ...]] = {
     "sdxl_base": _SDXL_VARIANTS,
-    "flux_base": _FLUX_VARIANTS,
+    # FLUX no longer aspect-expands: each model variant (fp16 / fp8 /
+    # schnell / Q8 / Q4) is its own Format A workflow with the correct
+    # loader pre-wired. Aspect-ratio swap is documented in the Note
+    # text per variant (edit EmptySD3LatentImage width/height) — FLUX
+    # is natively resolution-flexible so no extra files needed.
     # Future: qwen / hunyuan / wan variants land here when their
     # quality audits clear.
 }
 
 
 # Per-workflow "extra Note text" appended to the audience-facing Note
-# body. Used for variant-swap guides on bases where the ScriptDef ships
-# multiple model variants (FLUX 5-variant pack, etc.). Keys are stems
-# (e.g. ``"flux_base"``), values are markdown strings inserted between
-# the params/hardware lines and the sibling aspect-ratios list.
+# body. Each FLUX variant gets its own positioning + sibling cross-ref +
+# Phase 1.5 timing block. Keys are stems (e.g. ``"flux_dev_fp8"``).
+#
+# Phase 1.5 numbers below are P1 (Mustang) × 1024² × seed 42 cells —
+# i.e. the exact prompt/seed/resolution the shipped workflow runs out
+# of the box, so the audience can reproduce the timing directly.
+# Source: internal_docs/quality_audit/20260516T141731Z/flux_phase1_5/
+# (commit e70572c).
+_FLUX_SIBLINGS_GUIDE: str = (
+    "\n"
+    "🔀 Other FLUX variants in this install — open the matching workflow:\n"
+    "- `flux_dev_fp16.json` — V1 fp16, max precision. ~22 GB model.\n"
+    "- `flux_dev_fp8.json` — V2 fp8, default production. Best balance.\n"
+    "- `flux_schnell_fp8.json` — V3 schnell, 4-step draft. Fastest.\n"
+    "- `flux_dev_Q8.json` — V4 Q8 GGUF, near-fp8 quality, ~12 GB.\n"
+    "- `flux_dev_Q4.json` — V5 Q4 GGUF, low VRAM, ~7 GB.\n"
+)
+
+_FLUX_RESOLUTION_HINT: str = (
+    "\n"
+    "📐 Resolution — FLUX is natively flexible: edit `EmptySD3LatentImage` "
+    "width/height for other aspects. 16:9 HD: 1920×1080. 9:16 HD: "
+    "1080×1920. (Native HD beat SDXL-style upscale-then-refine on every "
+    "GPU in Phase 1.5.)\n"
+)
+
+
+def _flux_timing_block(cg_3060_s: int, cg_4090_s: int, cg_5090_s: int) -> str:
+    return (
+        "\n"
+        "📊 Phase 1.5 timing (1024² · same prompt + seed):\n"
+        f"- RTX 3060 — {cg_3060_s} s\n"
+        f"- RTX 4090 — {cg_4090_s} s\n"
+        f"- RTX 5090 — {cg_5090_s} s\n"
+    )
+
+
 EXTRA_NOTE_TEXT: dict[str, str] = {
-    "flux_base": (
+    "flux_dev_fp16": (
         "\n"
-        "🔀 Swap to a different FLUX variant — edit the loader node:\n"
-        "- **V1 fp16 (max precision)**: keep UNETLoader, set "
-        "`unet_name` to `flux1-dev.safetensors`, `weight_dtype` "
-        "`default`. ~22 GB model. Slower than fp8, marginal quality lift.\n"
-        "- **V2 fp8 (default, production)**: ships out-of-the-box. "
-        "Best balance of VRAM / speed / quality per Phase 1.5 audit.\n"
-        "- **V3 schnell (4-step draft)**: keep UNETLoader, set "
-        "`unet_name` to `flux1-schnell-fp8.safetensors`. In KSampler, "
-        "set `steps=4`. In FluxGuidance, set `guidance=0`. Fastest "
-        "variant (~2× dev speed); aesthetic differs from dev.\n"
-        "- **V4 Q8 GGUF**: replace UNETLoader with **UnetLoaderGGUF** "
-        "(requires ComfyUI-GGUF custom node, installed by "
-        "install-flux1.bat), set `unet_name` to `flux1-dev-Q8_0.gguf`. "
-        "~12 GB model, near-fp8 quality, slightly slower (dequant).\n"
-        "- **V5 Q4 GGUF (low-VRAM)**: same as V4 but "
-        "`flux1-dev-Q4_K_S.gguf`. ~7 GB. Visible quality cost; ship "
-        "only when VRAM is the bind.\n"
+        "🎯 **V1 fp16 — max precision.** UNETLoader at `default` dtype, "
+        "20 steps, guidance 3.5. ~22 GB model on disk; slower than fp8 "
+        "with marginal visible quality lift. Ship this when you need "
+        "the reference signal (eval, fine-tune ground truth).\n"
+        + _FLUX_SIBLINGS_GUIDE
+        + _FLUX_RESOLUTION_HINT
+        + _flux_timing_block(96, 47, 26)
+    ),
+    "flux_dev_fp8": (
         "\n"
-        "📐 Resolution — FLUX is natively flexible: edit "
-        "`EmptySD3LatentImage` width/height to any size. Native HD "
-        "(1920×1080 or 1080×1920) outperformed the SDXL-style latent "
-        "upscale + refiner path on every GPU we tested (Phase 1.5).\n"
+        "🎯 **V2 fp8 — default production.** UNETLoader at "
+        "`fp8_e4m3fn` dtype, 20 steps, guidance 3.5. ~16 GB model. "
+        "Best balance of VRAM / speed / quality per Phase 1.5 — this "
+        "is the recommended out-of-the-box workflow.\n"
+        + _FLUX_SIBLINGS_GUIDE
+        + _FLUX_RESOLUTION_HINT
+        + _flux_timing_block(84, 32, 21)
+    ),
+    "flux_schnell_fp8": (
         "\n"
-        "📊 Phase 1.5 timing reference (V2 fp8 · 1024² · seed 42):\n"
-        "- RTX 3060 — 74 s\n"
-        "- RTX 4090 — 18 s\n"
-        "- RTX 5090 — 12 s\n"
+        "🎯 **V3 schnell — 4-step draft.** UNETLoader at `fp8_e4m3fn` "
+        "dtype, only 4 steps, FluxGuidance set to 0. ~16 GB model. "
+        "Fastest FLUX variant (~2× dev speed); aesthetic differs from "
+        "dev — better for ideation passes than final renders.\n"
+        + _FLUX_SIBLINGS_GUIDE
+        + _FLUX_RESOLUTION_HINT
+        + _flux_timing_block(31, 16, 12)
+    ),
+    "flux_dev_Q8": (
+        "\n"
+        "🎯 **V4 Q8 GGUF — near-fp8 quality.** UnetLoaderGGUF (requires "
+        "the ComfyUI-GGUF custom node, installed by install-flux1.bat), "
+        "20 steps, guidance 3.5. ~12 GB model — smaller than fp8 with "
+        "near-identical output. Slightly slower than fp8 (dequant on "
+        "load). Ship when disk space matters more than load time.\n"
+        + _FLUX_SIBLINGS_GUIDE
+        + _FLUX_RESOLUTION_HINT
+        + _flux_timing_block(96, 26, 21)
+    ),
+    "flux_dev_Q4": (
+        "\n"
+        "🎯 **V5 Q4 GGUF — low VRAM.** UnetLoaderGGUF, 20 steps, "
+        "guidance 3.5. ~7 GB model. Visible quality cost vs fp8/Q8; "
+        "ship only when VRAM is the binding constraint (12 GB cards "
+        "running other workloads alongside FLUX).\n"
+        + _FLUX_SIBLINGS_GUIDE
+        + _FLUX_RESOLUTION_HINT
+        + _flux_timing_block(96, 31, 21)
     ),
 }
+
+
+# Per-workflow distribute subfolder under ``workflows_distribute/``.
+# Mirrors the audience-facing ComfyUI sidebar category exposed by the
+# install scripts. Workflows not listed land at the flat root (legacy
+# behavior preserved for not-yet-shipped models). Uses forward slashes
+# so the same string concatenates cleanly into the GitHub raw URL the
+# install .bat composes in ``ship_workflow``.
+WORKFLOW_DIST_SUBDIR: dict[str, str] = {
+    "sdxl_base": "Image/SDXL",
+    "flux_dev_fp16": "Image/FLUX",
+    "flux_dev_fp8": "Image/FLUX",
+    "flux_schnell_fp8": "Image/FLUX",
+    "flux_dev_Q8": "Image/FLUX",
+    "flux_dev_Q4": "Image/FLUX",
+}
+
+
+def _resolve_output_path(
+    output_dir: Path, workflow_filename: str,
+) -> Path:
+    """Map a workflow filename to its Format B output path (with subdir)."""
+    stem = workflow_filename.removesuffix(".json")
+    # Aspect-variant slug strip: sibling files share the base's subdir.
+    for base_stem in WORKFLOW_DIST_SUBDIR:
+        if stem == base_stem or stem.startswith(base_stem + "_"):
+            return output_dir / WORKFLOW_DIST_SUBDIR[base_stem] / workflow_filename
+    return output_dir / workflow_filename
 
 
 def _extra_workflow_notes(workflow_name: str) -> str:
@@ -912,13 +966,19 @@ def _compose_note_markdown(
     install_urls: dict[str, str],
     pillar_urls: dict[int, str],
 ) -> str:
-    """Build the Note's markdown body using the same composer as the .md sidecar."""
+    """Build the Note's markdown body using the same composer as the .md sidecar.
+
+    Appends the optional per-workflow ``EXTRA_NOTE_TEXT`` block (e.g. the
+    FLUX variant positioning + Phase 1.5 timing) so single-output
+    workflows get the same audience-facing context that variant-aware
+    bases get via :func:`_compose_variant_note_markdown`.
+    """
     install_entry = INSTALL_VIDEO_MAPPING[workflow_name]
     pillar_entry = PILLAR_MAPPING[workflow_name]
     hardware = HARDWARE_TIERS[workflow_name]
     params = _extract_params(workflow_a)
     setup_base = f"{DEFAULT_GITHUB_BASE_URL}/tree/main/setup-windows"
-    return _build_readme_text(
+    body = _build_readme_text(
         workflow_name=workflow_name,
         install_entry=install_entry,
         pillar_entry=pillar_entry,
@@ -929,6 +989,10 @@ def _compose_note_markdown(
         github_base=DEFAULT_GITHUB_BASE_URL,
         setup_base=setup_base,
     )
+    extra = _extra_workflow_notes(workflow_name)
+    if extra:
+        body = body + extra
+    return body
 
 
 def build_one(
@@ -952,7 +1016,7 @@ def build_one(
     workflow_b = convert_a_to_b(workflow_a, schema)
     workflow_b = inject_note(workflow_b, note_md)
 
-    out_path = output_dir / workflow_name
+    out_path = _resolve_output_path(output_dir, workflow_name)
     new_text = json.dumps(workflow_b, indent=2, ensure_ascii=False) + "\n"
     if dry_run:
         existing = out_path.read_text(encoding="utf-8") if out_path.is_file() else ""
@@ -996,7 +1060,8 @@ def build_one_variant(
     workflow_b = inject_note(workflow_b, note_md)
 
     stem = workflow_name.removesuffix(".json")
-    out_path = output_dir / f"{stem}{variant.slug}.json"
+    variant_filename = f"{stem}{variant.slug}.json"
+    out_path = _resolve_output_path(output_dir, variant_filename)
     new_text = json.dumps(workflow_b, indent=2, ensure_ascii=False) + "\n"
     if dry_run:
         existing = (

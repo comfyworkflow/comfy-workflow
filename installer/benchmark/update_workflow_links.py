@@ -126,10 +126,33 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
         "scripts": ["install-sdxl.bat"],
         "display_name": "SDXL Base 1.0",
     },
-    "flux_base.json": {
+    # FLUX.1 ships as 5 separate variant workflows (one per loader/dtype combo).
+    # No flux_base aggregate — each variant is its own canvas with the correct
+    # loader pre-wired so the audience opens-and-runs without node swaps.
+    "flux_dev_fp16.json": {
         "install_slug": "flux-family",
         "scripts": ["install-flux1.bat"],
-        "display_name": "FLUX.1 (5 variants, V2 fp8 default)",
+        "display_name": "FLUX.1 dev fp16 (max precision)",
+    },
+    "flux_dev_fp8.json": {
+        "install_slug": "flux-family",
+        "scripts": ["install-flux1.bat"],
+        "display_name": "FLUX.1 dev fp8 (default, production)",
+    },
+    "flux_schnell_fp8.json": {
+        "install_slug": "flux-family",
+        "scripts": ["install-flux1.bat"],
+        "display_name": "FLUX.1 schnell fp8 (4-step draft)",
+    },
+    "flux_dev_Q8.json": {
+        "install_slug": "flux-family",
+        "scripts": ["install-flux1.bat"],
+        "display_name": "FLUX.1 dev Q8 GGUF (near-fp8 quality)",
+    },
+    "flux_dev_Q4.json": {
+        "install_slug": "flux-family",
+        "scripts": ["install-flux1.bat"],
+        "display_name": "FLUX.1 dev Q4 GGUF (low VRAM)",
     },
     "qwen_image_fp8.json": {
         "install_slug": "qwen-family",
@@ -170,7 +193,11 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
 # though its headline slot is Pillar #4).
 PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "sdxl_base.json": {"primary": 1, "secondary": []},
-    "flux_base.json": {"primary": 2, "secondary": [1]},
+    "flux_dev_fp16.json": {"primary": 2, "secondary": [1]},
+    "flux_dev_fp8.json": {"primary": 2, "secondary": [1]},
+    "flux_schnell_fp8.json": {"primary": 2, "secondary": [1]},
+    "flux_dev_Q8.json": {"primary": 2, "secondary": [1]},
+    "flux_dev_Q4.json": {"primary": 2, "secondary": [1]},
     "qwen_image_fp8.json": {"primary": 1, "secondary": []},
     "flux2_dev_gguf.json": {"primary": 2, "secondary": []},
     "qwen_image_2512.json": {"primary": 3, "secondary": [2]},
@@ -185,7 +212,12 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
 # even on hosts with 24 GiB VRAM).
 HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "sdxl_base.json": {"ram": "16 GB", "vram": "8 GB"},
-    "flux_base.json": {"ram": "32 GB", "vram": "12 GB"},
+    # Per Phase 1.5 (e70572c) peak-VRAM matrix at 1024² (P1 Mustang).
+    "flux_dev_fp16.json": {"ram": "32 GB", "vram": "16 GB"},
+    "flux_dev_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
+    "flux_schnell_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
+    "flux_dev_Q8.json": {"ram": "32 GB", "vram": "12 GB"},
+    "flux_dev_Q4.json": {"ram": "32 GB", "vram": "10 GB"},
     "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
     "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
     "qwen_image_2512.json": {"ram": "64 GB", "vram": "12 GB"},

@@ -320,6 +320,84 @@ EXTRA_NOTE_TEXT: dict[str, str] = {
 }
 
 
+# Qwen-Image install (vídeo #4). Phase 1.5 audit (commit b313b96) drove
+# the ship list down to 2 variants — V2 fp8 default + V3 Lightning
+# 4-step — because V1 bf16, V4 GGUF Q8, V5 GGUF Q4, V6 base fp8 all
+# failed the "real gain or mandatory fallback" rule:
+#   - V1 bf16: 2× slower than V2 fp8 with invisible quality lift
+#   - V4/V5 GGUF (base, not 2512): Q-dequant tax beats offload savings
+#     on cg-3060 (215 s warm for Q8 vs 150 s for fp8); Q4 even slower
+#     than Q8 (dequant inversion).
+#   - V6 base fp8: same speed as V2 but inferior composition (2512 is
+#     a meaningful checkpoint update, not just a re-quantization).
+#
+# Phase 1.5 timing below is warm-mean (mean of seeds 43+44) at 1024²
+# with P1 Mustang. Source: internal_docs/quality_audit/20260519T020647Z/
+# qwen_image_phase1_5/.
+_QWEN_SIBLINGS_GUIDE: str = (
+    "\n"
+    "🔀 Other Qwen-Image variant in this install — open the matching workflow:\n"
+    "- `qwen_image_2512.json` — V2 fp8, 20-step default. Best balance.\n"
+    "- `qwen_image_2512_lightning4.json` — V3 Lightning, 4 steps. 7.9× faster.\n"
+)
+
+_QWEN_RESOLUTION_HINT: str = (
+    "\n"
+    "📐 Resolution — Qwen-Image-2512 is natively flexible: edit "
+    "`EmptySD3LatentImage` width/height for other aspects. 16:9 HD: "
+    "1920×1080. 9:16 HD: 1080×1920. (Phase 1.5: native HD renders clean "
+    "on every GPU — no duplication artifacts, no upscale path needed.)\n"
+)
+
+_QWEN_FP8_TRAP_HINT: str = (
+    "\n"
+    "⚠️ Loader detail: this workflow uses `UNETLoader` with "
+    "`weight_dtype: \"default\"` — NOT `fp8_e4m3fn_fast`. The fast-GEMM "
+    "path produces pure noise for Qwen-Image fp8 (silent failure — no "
+    "error, just unrecognizable output). Stay on `default`.\n"
+)
+
+
+def _qwen_timing_block(cg_3060_s: int, cg_4090_s: int, cg_5090_s: int) -> str:
+    return (
+        "\n"
+        "📊 Phase 1.5 timing (1024² · same prompt + seed · warm-mean):\n"
+        f"- RTX 3060 — {cg_3060_s} s\n"
+        f"- RTX 4090 — {cg_4090_s} s\n"
+        f"- RTX 5090 — {cg_5090_s} s\n"
+    )
+
+
+EXTRA_NOTE_TEXT.update({
+    "qwen_image_2512": (
+        "\n"
+        "🎯 **V2 fp8 — default production.** UNETLoader at `default` "
+        "dtype, 20 steps, guidance 2.5, ModelSamplingAuraFlow shift 3.1. "
+        "~19 GB model. Visually identical to bf16 reference at ~70 % of "
+        "its time per Phase 1.5 — this is the recommended out-of-the-box "
+        "workflow for any RTX card with 12 GB+ VRAM.\n"
+        + _QWEN_SIBLINGS_GUIDE
+        + _QWEN_RESOLUTION_HINT
+        + _QWEN_FP8_TRAP_HINT
+        + _qwen_timing_block(150, 25, 19)
+    ),
+    "qwen_image_2512_lightning4": (
+        "\n"
+        "🎯 **V3 Lightning 4-step — fast draft.** UNETLoader (V2 fp8) + "
+        "LoraLoaderModelOnly applying the Lightning-2512 4-step LoRA at "
+        "strength 1.0. 4 steps, guidance 1.0. ~21 GB total (V2 + LoRA). "
+        "7.9× faster than V2 fp8 — Lightning equalizes the spread across "
+        "GPU tiers: a 3060 + Lightning renders in 19 s, same as a 5090 + "
+        "V2 fp8. Aesthetic differs slightly from V2 (4-step trajectory) — "
+        "ideal for ideation passes and first-time tests.\n"
+        + _QWEN_SIBLINGS_GUIDE
+        + _QWEN_RESOLUTION_HINT
+        + _QWEN_FP8_TRAP_HINT
+        + _qwen_timing_block(19, 3, 3)
+    ),
+})
+
+
 # Per-workflow distribute subfolder under ``workflows_distribute/``.
 # Mirrors the audience-facing ComfyUI sidebar category exposed by the
 # install scripts. Workflows not listed land at the flat root (legacy
@@ -333,6 +411,8 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "flux_schnell_fp8": "Image/FLUX",
     "flux_dev_Q8": "Image/FLUX",
     "flux_dev_Q4": "Image/FLUX",
+    "qwen_image_2512": "Image/Qwen",
+    "qwen_image_2512_lightning4": "Image/Qwen",
 }
 
 

@@ -31,7 +31,7 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "qwen_image_fp8_e4m3fn.safetensors",
+        "qwen_image_2512_fp8_e4m3fn.safetensors",
         "default"
       ]
     },
@@ -169,8 +169,8 @@
         "Node name for S&R": "EmptySD3LatentImage"
       },
       "widgets_values": [
-        1328,
-        1328,
+        1024,
+        1024,
         1
       ]
     },
@@ -376,7 +376,7 @@
         "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "qwen_image_fp8"
+        "qwen_image_2512"
       ]
     },
     {
@@ -398,7 +398,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# Qwen-Image fp8\n\n📺 Install video #4: [Install Qwen-Image (2512 fp8 + Lightning 4-step)](https://github.com/comfyworkflow/comfy-workflow#install-qwen-family-pending)\n🔬 Benchmark Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-qwen-image.bat`\n\n⚙️ Params: 20 steps, CFG 2.5, euler/simple, 1328×1328\n💾 Hardware mínimo: 64 GB RAM · 12 GB VRAM"
+        "# Qwen-Image 2512 fp8 (V2 default)\n\n📺 Install video #4: [Install Qwen-Image (2512 fp8 + Lightning 4-step)](https://github.com/comfyworkflow/comfy-workflow#install-qwen-family-pending)\n🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-qwen-image.bat`\n\n⚙️ Params: 20 steps, CFG 2.5, euler/simple, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 12 GB VRAM\n🎯 **V2 fp8 — default production.** UNETLoader at `default` dtype, 20 steps, guidance 2.5, ModelSamplingAuraFlow shift 3.1. ~19 GB model. Visually identical to bf16 reference at ~70 % of its time per Phase 1.5 — this is the recommended out-of-the-box workflow for any RTX card with 12 GB+ VRAM.\n\n🔀 Other Qwen-Image variant in this install — open the matching workflow:\n- `qwen_image_2512.json` — V2 fp8, 20-step default. Best balance.\n- `qwen_image_2512_lightning4.json` — V3 Lightning, 4 steps. 7.9× faster.\n\n📐 Resolution — Qwen-Image-2512 is natively flexible: edit `EmptySD3LatentImage` width/height for other aspects. 16:9 HD: 1920×1080. 9:16 HD: 1080×1920. (Phase 1.5: native HD renders clean on every GPU — no duplication artifacts, no upscale path needed.)\n\n⚠️ Loader detail: this workflow uses `UNETLoader` with `weight_dtype: \"default\"` — NOT `fp8_e4m3fn_fast`. The fast-GEMM path produces pure noise for Qwen-Image fp8 (silent failure — no error, just unrecognizable output). Stay on `default`.\n\n📊 Phase 1.5 timing (1024² · same prompt + seed · warm-mean):\n- RTX 3060 — 150 s\n- RTX 4090 — 25 s\n- RTX 5090 — 19 s\n"
       ],
       "color": "#432",
       "bgcolor": "#653"

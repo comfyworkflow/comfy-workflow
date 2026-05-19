@@ -222,7 +222,7 @@ INSTALL_VIDEO_LABEL: dict[str, str] = {
     "base": "ComfyUI base install (Windows portable)",
     "sdxl": "Install SDXL ComfyUI",
     "flux-family": "Install FLUX family (1 & 2)",
-    "qwen-family": "Install Qwen-Image family (legacy + 2512)",
+    "qwen-family": "Install Qwen-Image (2512 fp8 + Lightning 4-step)",
     "hunyuan": "Install Hunyuan-Image 2.1",
     "wan": "Install WAN 2.2 i2v",
 }
@@ -297,8 +297,13 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
     },
     "qwen_image_2512.json": {
         "install_slug": "qwen-family",
-        "scripts": ["install-qwen-2512.bat"],
-        "display_name": "Qwen-Image 2512 fp8",
+        "scripts": ["install-qwen-image.bat"],
+        "display_name": "Qwen-Image 2512 fp8 (V2 default)",
+    },
+    "qwen_image_2512_lightning4.json": {
+        "install_slug": "qwen-family",
+        "scripts": ["install-qwen-image.bat"],
+        "display_name": "Qwen-Image 2512 + Lightning 4-step (V3 fast)",
     },
     "hunyuan_image_21.json": {
         "install_slug": "hunyuan",
@@ -331,7 +336,8 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "flux_dev_Q4.json": {"primary": 2, "secondary": [1]},
     "qwen_image_fp8.json": {"primary": 1, "secondary": []},
     "flux2_dev_gguf.json": {"primary": 2, "secondary": []},
-    "qwen_image_2512.json": {"primary": 3, "secondary": [2]},
+    "qwen_image_2512.json": {"primary": 3, "secondary": []},
+    "qwen_image_2512_lightning4.json": {"primary": 3, "secondary": []},
     "hunyuan_image_21.json": {"primary": 3, "secondary": [2]},
     "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
 }
@@ -351,7 +357,8 @@ HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "flux_dev_Q4.json": {"ram": "32 GB", "vram": "10 GB"},
     "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
     "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
-    "qwen_image_2512.json": {"ram": "64 GB", "vram": "12 GB"},
+    "qwen_image_2512.json": {"ram": "32 GB", "vram": "12 GB"},
+    "qwen_image_2512_lightning4.json": {"ram": "32 GB", "vram": "12 GB"},
     "hunyuan_image_21.json": {"ram": "96 GB", "vram": "16 GB"},
     "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},
 }

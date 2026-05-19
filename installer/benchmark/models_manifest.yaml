@@ -187,6 +187,13 @@ models:
         url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_2512_bf16.safetensors
         size_bytes: 40861031488
 
+  - name: qwen_lightning_lora_2512_4step
+    tier: basic
+    files:
+      - path: loras/Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors
+        url: https://huggingface.co/lightx2v/Qwen-Image-2512-Lightning/resolve/main/Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors
+        size_bytes: 1698951104
+
   - name: wan22_i2v_14b_fp16
     tier: basic
     files:

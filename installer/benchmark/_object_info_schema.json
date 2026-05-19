@@ -19,6 +19,12 @@
     "output": ["MODEL"],
     "output_name": ["MODEL"]
   },
+  "LoraLoaderModelOnly": {
+    "input": {"required": {"model": ["MODEL"], "lora_name": [[]], "strength_model": ["FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}]}},
+    "input_order": {"required": ["model", "lora_name", "strength_model"]},
+    "output": ["MODEL"],
+    "output_name": ["MODEL"]
+  },
   "CLIPLoader": {
     "input": {"required": {"clip_name": [[]], "type": [["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream", "chroma", "ace", "hunyuan_image", "qwen_image"]], "device": [["default", "cpu"]]}},
     "input_order": {"required": ["clip_name", "type", "device"]},

@@ -111,9 +111,9 @@ models:
   - name: qwen_shared_encoders
     tier: shared
     files:
-      - path: text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
-        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
-        size_bytes: 9384670680
+      - path: text_encoders/qwen_2.5_vl_7b.safetensors
+        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b.safetensors
+        size_bytes: 16584415576
 
   - name: qwen_shared_vae
     tier: shared

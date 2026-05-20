@@ -215,15 +215,63 @@ _SDXL_VARIANTS: tuple[VariantSpec, ...] = (
 )
 
 
+_QWEN_2512_VARIANTS: tuple[VariantSpec, ...] = (
+    VariantSpec(
+        slug="_1x1",
+        aspect_id="1x1",
+        aspect_label="1:1 square (1328×1328 native bucket)",
+        width=1328,
+        height=1328,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_landscape",
+        aspect_id="16x9",
+        aspect_label="16:9 landscape (1664×928 native bucket)",
+        width=1664,
+        height=928,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_portrait",
+        aspect_id="9x16",
+        aspect_label="9:16 portrait (928×1664 native bucket)",
+        width=928,
+        height=1664,
+        hd=False,
+    ),
+    VariantSpec(
+        slug="_landscape_hd",
+        aspect_id="landscape_hd",
+        aspect_label="16:9 HD (1664×928 native → ~1926×1074 via latent upscale)",
+        width=1664,
+        height=928,
+        hd=True,
+        scale_by=1.157,
+    ),
+    VariantSpec(
+        slug="_portrait_hd",
+        aspect_id="portrait_hd",
+        aspect_label="9:16 HD (928×1664 native → ~1080×1935 via latent upscale)",
+        width=928,
+        height=1664,
+        hd=True,
+        scale_by=1.163,
+    ),
+)
+
+
 ASPECT_VARIANTS: dict[str, tuple[VariantSpec, ...]] = {
     "sdxl_base": _SDXL_VARIANTS,
+    "qwen_2512_fp8": _QWEN_2512_VARIANTS,
+    "qwen_2512_bf16": _QWEN_2512_VARIANTS,
     # FLUX no longer aspect-expands: each model variant (fp16 / fp8 /
     # schnell / Q8 / Q4) is its own Format A workflow with the correct
     # loader pre-wired. Aspect-ratio swap is documented in the Note
     # text per variant (edit EmptySD3LatentImage width/height) — FLUX
     # is natively resolution-flexible so no extra files needed.
-    # Future: qwen / hunyuan / wan variants land here when their
-    # quality audits clear.
+    # Future: hunyuan / wan variants land here when their quality
+    # audits clear.
 }
 
 
@@ -334,6 +382,63 @@ EXTRA_NOTE_TEXT: dict[str, str] = {
 # Phase 1.5 timing below is warm-mean (mean of seeds 43+44) at 1024²
 # with P1 Mustang. Source: internal_docs/quality_audit/20260519T020647Z/
 # qwen_image_phase1_5/.
+_QWEN_2512_SIBLINGS_GUIDE: str = (
+    "\n"
+    "🔀 Other Qwen-Image 2512 workflows in this install (10 total):\n"
+    "- `qwen_2512_fp8_1x1.json` / `_landscape.json` / `_portrait.json` / `_landscape_hd.json` / `_portrait_hd.json`\n"
+    "- `qwen_2512_bf16_1x1.json` / `_landscape.json` / `_portrait.json` / `_landscape_hd.json` / `_portrait_hd.json`\n"
+    "fp8 = 19 GB UNET (default production). bf16 = 38 GB UNET (max precision).\n"
+)
+
+_QWEN_2512_NATIVE_BUCKETS: str = (
+    "\n"
+    "📐 Qwen-Image 2512 native aspect buckets — edit `EmptySD3LatentImage` "
+    "width/height to switch within a workflow:\n"
+    "- 1:1   →  1328×1328\n"
+    "- 16:9  →  1664× 928 (landscape)\n"
+    "- 9:16  →   928×1664 (portrait)\n"
+    "- 4:3   →  1472×1104\n"
+    "- 3:4   →  1104×1472\n"
+    "- 3:2   →  1584×1056\n"
+    "- 2:3   →  1056×1584\n"
+)
+
+_QWEN_2512_LIGHTNING_HOWTO: str = (
+    "\n"
+    "⚡ **Lightning 4-step mode** — 4× faster than Quality (50 steps), "
+    "slight quality trade-off. To enable:\n"
+    "1. Add a `LoraLoaderModelOnly` node between `UNETLoader` and "
+    "`ModelSamplingAuraFlow` (right-click canvas → Add Node → loaders → "
+    "LoraLoaderModelOnly).\n"
+    "2. Wire `UNETLoader.MODEL` → `LoraLoaderModelOnly.model` → "
+    "`ModelSamplingAuraFlow.model`.\n"
+    "3. Set `lora_name` = `Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors`, "
+    "`strength_model` = `1.0`.\n"
+    "4. On `KSampler`: set `steps` = `4`, `cfg` = `1.0` (keep `euler` / `simple`).\n"
+    "5. Run.\n"
+)
+
+_QWEN_2512_NEGATIVE_BILINGUAL: str = (
+    "\n"
+    "🚫 **Negative prompt (Chinese default).** The `CLIPTextEncode (Negative Prompt)` "
+    "node ships with the canonical 12-clause guard:\n"
+    "`低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲`\n"
+    "\n"
+    "Equivalent in English (if you prefer to swap):\n"
+    "`low resolution, low quality, distorted limbs, distorted fingers, "
+    "oversaturated, waxy texture, no facial detail, overly smooth, "
+    "AI-looking, chaotic composition, blurry text, distorted`\n"
+)
+
+_QWEN_2512_FP8_TRAP_HINT: str = (
+    "\n"
+    "⚠️ **fp8 loader detail**: this workflow uses `UNETLoader` with "
+    "`weight_dtype: \"default\"` — NOT `fp8_e4m3fn_fast`. The fast-GEMM "
+    "path produces pure noise for Qwen-Image fp8 (silent failure — no "
+    "error, just unrecognizable output). Keep `default`.\n"
+)
+
+
 _QWEN_SIBLINGS_GUIDE: str = (
     "\n"
     "🔀 Other Qwen-Image variant in this install — open the matching workflow:\n"
@@ -369,31 +474,33 @@ def _qwen_timing_block(cg_3060_s: int, cg_4090_s: int, cg_5090_s: int) -> str:
 
 
 EXTRA_NOTE_TEXT.update({
-    "qwen_image_2512": (
+    "qwen_2512_fp8": (
         "\n"
-        "🎯 **V2 fp8 — default production.** UNETLoader at `default` "
-        "dtype, 20 steps, guidance 2.5, ModelSamplingAuraFlow shift 3.1. "
-        "~19 GB model. Visually identical to bf16 reference at ~70 % of "
-        "its time per Phase 1.5 — this is the recommended out-of-the-box "
-        "workflow for any RTX card with 12 GB+ VRAM.\n"
-        + _QWEN_SIBLINGS_GUIDE
-        + _QWEN_RESOLUTION_HINT
-        + _QWEN_FP8_TRAP_HINT
-        + _qwen_timing_block(150, 25, 19)
+        "🎯 **Qwen-Image 2512 fp8 — default production.** UNETLoader at "
+        "`default` dtype loading `qwen_image_2512_fp8_e4m3fn.safetensors` "
+        "(~19 GB). 50 steps, CFG 4.0, euler/simple, ModelSamplingAuraFlow "
+        "shift 3.1. FULL bf16 CLIP (`qwen_2.5_vl_7b.safetensors`, 16.6 GB). "
+        "Quality match with bf16 UNET at ~50 % of its time per Phase 1.7 "
+        "— recommended out-of-the-box workflow for any RTX card with "
+        "12 GB+ VRAM.\n"
+        + _QWEN_2512_SIBLINGS_GUIDE
+        + _QWEN_2512_NATIVE_BUCKETS
+        + _QWEN_2512_LIGHTNING_HOWTO
+        + _QWEN_2512_NEGATIVE_BILINGUAL
+        + _QWEN_2512_FP8_TRAP_HINT
     ),
-    "qwen_image_2512_lightning4": (
+    "qwen_2512_bf16": (
         "\n"
-        "🎯 **V3 Lightning 4-step — fast draft.** UNETLoader (V2 fp8) + "
-        "LoraLoaderModelOnly applying the Lightning-2512 4-step LoRA at "
-        "strength 1.0. 4 steps, guidance 1.0. ~21 GB total (V2 + LoRA). "
-        "7.9× faster than V2 fp8 — Lightning equalizes the spread across "
-        "GPU tiers: a 3060 + Lightning renders in 19 s, same as a 5090 + "
-        "V2 fp8. Aesthetic differs slightly from V2 (4-step trajectory) — "
-        "ideal for ideation passes and first-time tests.\n"
-        + _QWEN_SIBLINGS_GUIDE
-        + _QWEN_RESOLUTION_HINT
-        + _QWEN_FP8_TRAP_HINT
-        + _qwen_timing_block(19, 3, 3)
+        "🎯 **Qwen-Image 2512 bf16 — max precision.** UNETLoader at "
+        "`default` dtype loading `qwen_image_2512_bf16.safetensors` "
+        "(~38 GB). Same sampler config as fp8 (50 steps, CFG 4.0, "
+        "euler/simple, shift 3.1, FULL bf16 CLIP). bf16 is the reference "
+        "weight precision — slightly higher fidelity than fp8 at ~2× the "
+        "render time. Recommended for hero shots / print / archive masters.\n"
+        + _QWEN_2512_SIBLINGS_GUIDE
+        + _QWEN_2512_NATIVE_BUCKETS
+        + _QWEN_2512_LIGHTNING_HOWTO
+        + _QWEN_2512_NEGATIVE_BILINGUAL
     ),
 })
 
@@ -411,8 +518,8 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "flux_schnell_fp8": "Image/FLUX",
     "flux_dev_Q8": "Image/FLUX",
     "flux_dev_Q4": "Image/FLUX",
-    "qwen_image_2512": "Image/Qwen",
-    "qwen_image_2512_lightning4": "Image/Qwen",
+    "qwen_2512_fp8": "Image/Qwen",
+    "qwen_2512_bf16": "Image/Qwen",
 }
 
 
@@ -905,13 +1012,19 @@ def _apply_variant_to_workflow_a(
     if not variant.hd:
         return out
 
-    # HD pipeline injection. Find the primary KSampler and its sampler
-    # config so the refiner mirrors it.
+    # HD pipeline injection. Find the primary KSampler and copy its
+    # config + input wires so the refiner mirrors it. Topology-agnostic:
+    # the refiner re-uses the primary KSampler's model/positive/negative
+    # refs (works for SDXL CheckpointLoader at "4" AND Qwen split-loader
+    # topology where model passes through ModelSamplingAuraFlow).
     primary_ksampler_id: str | None = None
     primary_sampler = "dpmpp_2m"
     primary_scheduler = "karras"
     primary_cfg = 7.0
     primary_seed = 42
+    primary_model_ref: list[Any] | None = None
+    primary_positive_ref: list[Any] | None = None
+    primary_negative_ref: list[Any] | None = None
     for nid, node in out.items():
         if not isinstance(node, dict):
             continue
@@ -923,10 +1036,23 @@ def _apply_variant_to_workflow_a(
                 primary_scheduler = str(inputs.get("scheduler", primary_scheduler))
                 primary_cfg = float(inputs.get("cfg", primary_cfg))
                 primary_seed = int(inputs.get("seed", primary_seed))
+                m = inputs.get("model")
+                p = inputs.get("positive")
+                n = inputs.get("negative")
+                if isinstance(m, list):
+                    primary_model_ref = list(m)
+                if isinstance(p, list):
+                    primary_positive_ref = list(p)
+                if isinstance(n, list):
+                    primary_negative_ref = list(n)
             break
     if primary_ksampler_id is None:
         raise ValueError(
             "HD variant requires a KSampler node in the base workflow"
+        )
+    if primary_model_ref is None or primary_positive_ref is None or primary_negative_ref is None:
+        raise ValueError(
+            "HD variant requires the primary KSampler to have model/positive/negative wires"
         )
 
     # LatentUpscaleBy (id "10")
@@ -938,7 +1064,7 @@ def _apply_variant_to_workflow_a(
             "scale_by": variant.scale_by,
         },
     }
-    # KSampler refiner (id "11")
+    # KSampler refiner (id "11") — re-uses primary's model/positive/negative wires.
     out["11"] = {
         "class_type": "KSampler",
         "inputs": {
@@ -948,9 +1074,9 @@ def _apply_variant_to_workflow_a(
             "sampler_name": primary_sampler,
             "scheduler": primary_scheduler,
             "denoise": variant.refiner_denoise,
-            "model": ["4", 0],
-            "positive": ["6", 0],
-            "negative": ["7", 0],
+            "model": primary_model_ref,
+            "positive": primary_positive_ref,
+            "negative": primary_negative_ref,
             "latent_image": ["10", 0],
         },
     }

@@ -1,6 +1,6 @@
 {
   "last_node_id": 67,
-  "last_link_id": 11,
+  "last_link_id": 15,
   "nodes": [
     {
       "id": 37,
@@ -31,47 +31,8 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "qwen_image_2512_fp8_e4m3fn.safetensors",
+        "qwen_image_2512_bf16.safetensors",
         "default"
-      ]
-    },
-    {
-      "id": 40,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        360,
-        440
-      ],
-      "size": [
-        320,
-        140
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            2
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
-        1.0
       ]
     },
     {
@@ -94,8 +55,8 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            3,
-            4
+            2,
+            3
           ],
           "slot_index": 0
         }
@@ -104,7 +65,7 @@
         "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+        "qwen_2.5_vl_7b.safetensors",
         "qwen_image",
         "default"
       ]
@@ -129,7 +90,7 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            10
+            9
           ],
           "slot_index": 0
         }
@@ -145,8 +106,8 @@
       "id": 66,
       "type": "ModelSamplingAuraFlow",
       "pos": [
-        720,
-        0
+        360,
+        440
       ],
       "size": [
         320,
@@ -159,7 +120,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 2
+          "link": 1
         }
       ],
       "outputs": [
@@ -167,7 +128,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            5
+            4,
+            12
           ],
           "slot_index": 0
         }
@@ -199,7 +161,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            8
+            7
           ],
           "slot_index": 0
         }
@@ -208,8 +170,8 @@
         "Node name for S&R": "EmptySD3LatentImage"
       },
       "widgets_values": [
-        1024,
-        1024,
+        928,
+        1664,
         1
       ]
     },
@@ -231,7 +193,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 3
+          "link": 2
         }
       ],
       "outputs": [
@@ -239,7 +201,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            6
+            5,
+            13
           ],
           "slot_index": 0
         }
@@ -269,7 +232,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 4
+          "link": 3
         }
       ],
       "outputs": [
@@ -277,7 +240,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            7
+            6,
+            14
           ],
           "slot_index": 0
         }
@@ -286,14 +250,14 @@
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        " "
+        "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲"
       ]
     },
     {
       "id": 3,
       "type": "KSampler",
       "pos": [
-        1080,
+        720,
         0
       ],
       "size": [
@@ -307,22 +271,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 5
+          "link": 4
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 6
+          "link": 5
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 7
+          "link": 6
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 8
+          "link": 7
         }
       ],
       "outputs": [
@@ -330,7 +294,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            9
+            11
           ],
           "slot_index": 0
         }
@@ -341,8 +305,8 @@
       "widgets_values": [
         42,
         "randomize",
-        4,
-        1.0,
+        50,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -351,47 +315,6 @@
     {
       "id": 8,
       "type": "VAEDecode",
-      "pos": [
-        1440,
-        0
-      ],
-      "size": [
-        320,
-        140
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 9
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 10
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            11
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 60,
-      "type": "SaveImage",
       "pos": [
         1800,
         0
@@ -405,9 +328,50 @@
       "mode": 0,
       "inputs": [
         {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 60,
+      "type": "SaveImage",
+      "pos": [
+        2160,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
           "name": "images",
           "type": "IMAGE",
-          "link": 11
+          "link": 10
         }
       ],
       "outputs": [],
@@ -415,14 +379,112 @@
         "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
-        "qwen_image_2512_lightning4"
+        "qwen_2512_bf16"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "LatentUpscaleBy",
+      "pos": [
+        1080,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LatentUpscaleBy"
+      },
+      "widgets_values": [
+        "nearest-exact",
+        1.163
+      ]
+    },
+    {
+      "id": 11,
+      "type": "KSampler",
+      "pos": [
+        1440,
+        0
+      ],
+      "size": [
+        320,
+        364
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 12
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 14
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        42,
+        "randomize",
+        15,
+        4.0,
+        "euler",
+        "simple",
+        0.45
       ]
     },
     {
       "id": 67,
       "type": "Note",
       "pos": [
-        2160,
+        2520,
         -360
       ],
       "size": [
@@ -437,7 +499,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# Qwen-Image 2512 + Lightning 4-step (V3 fast)\n\n📺 Install video #4: [Install Qwen-Image (2512 fp8 + Lightning 4-step)](https://github.com/comfyworkflow/comfy-workflow#install-qwen-family-pending)\n🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-qwen-image.bat`\n\n⚙️ Params: 4 steps, CFG 1.0, euler/simple, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 12 GB VRAM\n🎯 **V2 fp8 — default production.** UNETLoader at `default` dtype, 20 steps, guidance 2.5, ModelSamplingAuraFlow shift 3.1. ~19 GB model. Visually identical to bf16 reference at ~70 % of its time per Phase 1.5 — this is the recommended out-of-the-box workflow for any RTX card with 12 GB+ VRAM.\n\n🔀 Other Qwen-Image variant in this install — open the matching workflow:\n- `qwen_image_2512.json` — V2 fp8, 20-step default. Best balance.\n- `qwen_image_2512_lightning4.json` — V3 Lightning, 4 steps. 7.9× faster.\n\n📐 Resolution — Qwen-Image-2512 is natively flexible: edit `EmptySD3LatentImage` width/height for other aspects. 16:9 HD: 1920×1080. 9:16 HD: 1080×1920. (Phase 1.5: native HD renders clean on every GPU — no duplication artifacts, no upscale path needed.)\n\n⚠️ Loader detail: this workflow uses `UNETLoader` with `weight_dtype: \"default\"` — NOT `fp8_e4m3fn_fast`. The fast-GEMM path produces pure noise for Qwen-Image fp8 (silent failure — no error, just unrecognizable output). Stay on `default`.\n\n📊 Phase 1.5 timing (1024² · same prompt + seed · warm-mean):\n- RTX 3060 — 150 s\n- RTX 4090 — 25 s\n- RTX 5090 — 19 s\n"
+        "# Qwen-Image 2512 bf16 (5 aspect variants) — 9:16 HD (928×1664 native → ~1080×1935 via latent upscale)\n\n📺 Install video #4: [Install Qwen-Image (2512 fp8 + Lightning 4-step)](https://github.com/comfyworkflow/comfy-workflow#install-qwen-family-pending)\n🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-qwen-image.bat`\n\n⚙️ Config:\n- Resolution: 928×1664 native → ~1079×1935 after latent upscale\n- Sampler: `euler` / `simple`\n- 50 steps · CFG 4.0\n- Refiner: 15 steps, denoise 0.45, `nearest-exact` upscale\n\n📐 Outras aspect ratios neste install:\n- `qwen_2512_bf16_1x1.json` — 1:1 square (1328×1328 native bucket)\n- `qwen_2512_bf16_landscape.json` — 16:9 landscape (1664×928 native bucket)\n- `qwen_2512_bf16_portrait.json` — 9:16 portrait (928×1664 native bucket)\n- `qwen_2512_bf16_landscape_hd.json` — 16:9 HD (1664×928 native → ~1926×1074 via latent upscale)\n\n💾 Hardware mínimo: 48 GB RAM · 12 GB VRAM\n\n🎯 **Qwen-Image 2512 bf16 — max precision.** UNETLoader at `default` dtype loading `qwen_image_2512_bf16.safetensors` (~38 GB). Same sampler config as fp8 (50 steps, CFG 4.0, euler/simple, shift 3.1, FULL bf16 CLIP). bf16 is the reference weight precision — slightly higher fidelity than fp8 at ~2× the render time. Recommended for hero shots / print / archive masters.\n\n🔀 Other Qwen-Image 2512 workflows in this install (10 total):\n- `qwen_2512_fp8_1x1.json` / `_landscape.json` / `_portrait.json` / `_landscape_hd.json` / `_portrait_hd.json`\n- `qwen_2512_bf16_1x1.json` / `_landscape.json` / `_portrait.json` / `_landscape_hd.json` / `_portrait_hd.json`\nfp8 = 19 GB UNET (default production). bf16 = 38 GB UNET (max precision).\n\n📐 Qwen-Image 2512 native aspect buckets — edit `EmptySD3LatentImage` width/height to switch within a workflow:\n- 1:1   →  1328×1328\n- 16:9  →  1664× 928 (landscape)\n- 9:16  →   928×1664 (portrait)\n- 4:3   →  1472×1104\n- 3:4   →  1104×1472\n- 3:2   →  1584×1056\n- 2:3   →  1056×1584\n\n⚡ **Lightning 4-step mode** — 4× faster than Quality (50 steps), slight quality trade-off. To enable:\n1. Add a `LoraLoaderModelOnly` node between `UNETLoader` and `ModelSamplingAuraFlow` (right-click canvas → Add Node → loaders → LoraLoaderModelOnly).\n2. Wire `UNETLoader.MODEL` → `LoraLoaderModelOnly.model` → `ModelSamplingAuraFlow.model`.\n3. Set `lora_name` = `Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors`, `strength_model` = `1.0`.\n4. On `KSampler`: set `steps` = `4`, `cfg` = `1.0` (keep `euler` / `simple`).\n5. Run.\n\n🚫 **Negative prompt (Chinese default).** The `CLIPTextEncode (Negative Prompt)` node ships with the canonical 12-clause guard:\n`低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲`\n\nEquivalent in English (if you prefer to swap):\n`low resolution, low quality, distorted limbs, distorted fingers, oversaturated, waxy texture, no facial detail, overly smooth, AI-looking, chaotic composition, blurry text, distorted`\n"
       ],
       "color": "#432",
       "bgcolor": "#653"
@@ -448,20 +510,12 @@
       1,
       37,
       0,
-      40,
-      0,
-      "MODEL"
-    ],
-    [
-      2,
-      40,
-      0,
       66,
       0,
       "MODEL"
     ],
     [
-      3,
+      2,
       38,
       0,
       6,
@@ -469,7 +523,7 @@
       "CLIP"
     ],
     [
-      4,
+      3,
       38,
       0,
       7,
@@ -477,7 +531,7 @@
       "CLIP"
     ],
     [
-      5,
+      4,
       66,
       0,
       3,
@@ -485,7 +539,7 @@
       "MODEL"
     ],
     [
-      6,
+      5,
       6,
       0,
       3,
@@ -493,7 +547,7 @@
       "CONDITIONING"
     ],
     [
-      7,
+      6,
       7,
       0,
       3,
@@ -501,7 +555,7 @@
       "CONDITIONING"
     ],
     [
-      8,
+      7,
       58,
       0,
       3,
@@ -509,15 +563,15 @@
       "LATENT"
     ],
     [
-      9,
-      3,
+      8,
+      11,
       0,
       8,
       0,
       "LATENT"
     ],
     [
-      10,
+      9,
       39,
       0,
       8,
@@ -525,12 +579,52 @@
       "VAE"
     ],
     [
-      11,
+      10,
       8,
       0,
       60,
       0,
       "IMAGE"
+    ],
+    [
+      11,
+      3,
+      0,
+      10,
+      0,
+      "LATENT"
+    ],
+    [
+      12,
+      66,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      13,
+      6,
+      0,
+      11,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      7,
+      0,
+      11,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      15,
+      10,
+      0,
+      11,
+      3,
+      "LATENT"
     ]
   ],
   "groups": [],

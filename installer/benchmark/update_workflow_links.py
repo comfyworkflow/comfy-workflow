@@ -295,15 +295,15 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
         "scripts": ["install-flux2.bat"],
         "display_name": "FLUX.2 dev GGUF (Q4_K_M default)",
     },
-    "qwen_image_2512.json": {
+    "qwen_2512_fp8.json": {
         "install_slug": "qwen-family",
         "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image 2512 fp8 (V2 default)",
+        "display_name": "Qwen-Image 2512 fp8 (5 aspect variants)",
     },
-    "qwen_image_2512_lightning4.json": {
+    "qwen_2512_bf16.json": {
         "install_slug": "qwen-family",
         "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image 2512 + Lightning 4-step (V3 fast)",
+        "display_name": "Qwen-Image 2512 bf16 (5 aspect variants)",
     },
     "hunyuan_image_21.json": {
         "install_slug": "hunyuan",
@@ -336,8 +336,8 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "flux_dev_Q4.json": {"primary": 2, "secondary": [1]},
     "qwen_image_fp8.json": {"primary": 1, "secondary": []},
     "flux2_dev_gguf.json": {"primary": 2, "secondary": []},
-    "qwen_image_2512.json": {"primary": 3, "secondary": []},
-    "qwen_image_2512_lightning4.json": {"primary": 3, "secondary": []},
+    "qwen_2512_fp8.json": {"primary": 3, "secondary": []},
+    "qwen_2512_bf16.json": {"primary": 3, "secondary": []},
     "hunyuan_image_21.json": {"primary": 3, "secondary": [2]},
     "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
 }
@@ -357,8 +357,8 @@ HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "flux_dev_Q4.json": {"ram": "32 GB", "vram": "10 GB"},
     "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
     "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
-    "qwen_image_2512.json": {"ram": "32 GB", "vram": "12 GB"},
-    "qwen_image_2512_lightning4.json": {"ram": "32 GB", "vram": "12 GB"},
+    "qwen_2512_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
+    "qwen_2512_bf16.json": {"ram": "48 GB", "vram": "12 GB"},
     "hunyuan_image_21.json": {"ram": "96 GB", "vram": "16 GB"},
     "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},
 }

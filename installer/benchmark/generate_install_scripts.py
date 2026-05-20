@@ -212,25 +212,30 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         ),
     ),
     "install-qwen-image.bat": ScriptDef(
-        # Phase 1.5 audit (b313b96) ship list collapsed to 2 variants:
-        # V2 fp8 default (the only fp8 dtype that produces clean output —
-        # NOT fp8_e4m3fn_fast) + V3 Lightning 4-step (7.9× speedup,
-        # equalizes 3060→5090 spread). V1 bf16 / V4 Q8 GGUF / V5 Q4 GGUF
-        # / V6 base fp8 all dropped under the "real gain or mandatory
-        # fallback" rule — see internal_docs/quality_audit/20260519T020647Z/
-        # qwen_image_phase1_5/REPORT_phase1.5.md.
-        display_name="Qwen-Image 2512 (V2 fp8 + V3 Lightning)",
+        # Phase 1.7 refactor — ship list expanded to 10 workflows
+        # (2 model variants × 5 aspect-variants), matching Rafael's
+        # canonical working JSON. Critical hyperparams that the broken
+        # ship (commit 9bc7af9) got wrong, now corrected:
+        # - CLIP = FULL bf16 `qwen_2.5_vl_7b.safetensors` (16.6 GB), NOT
+        #   the fp8_scaled variant. Required for clean output.
+        # - KSampler steps=50 / cfg=4.0 (was 20 / 2.5).
+        # - ModelSamplingAuraFlow shift=3.1 (was unset).
+        # - Negative = Chinese canonical 12-clause guard (was empty).
+        # - Resolution = 5 native Qwen-Image-2512 buckets (was 1024²).
+        # See internal_docs/research/qwen_image_2512_canonical/.
+        display_name="Qwen-Image 2512 (fp8 + bf16 × 5 aspects = 10 workflows)",
         pillars=(3,),
         models=(
             "qwen_image_2512_fp8",
+            "qwen_image_2512_bf16",
             "qwen_lightning_lora_2512_4step",
             "qwen_shared_encoders",
             "qwen_shared_vae",
         ),
         custom_nodes=(),
         workflows=(
-            "qwen_image_2512.json",
-            "qwen_image_2512_lightning4.json",
+            "qwen_2512_fp8.json",
+            "qwen_2512_bf16.json",
         ),
         ram_min="32 GB",
         vram_min="12 GB",
@@ -239,19 +244,20 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         success_meta=SuccessBlockMeta(
             title="Qwen-Image install complete!",
             installed_summary=(
-                "Models installed: 2512 fp8 + Lightning 4-step LoRA",
+                "Models installed: 2512 fp8 (19 GB) + 2512 bf16 (38 GB) + Lightning 4-step LoRA (1.7 GB) + full bf16 CLIP (16.6 GB) + VAE (0.3 GB)",
             ),
             sidebar_summary=(
                 "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > Qwen > (2 variants)",
+                "  Comfy Workflow > Image > Qwen > (10 variants: 2 model × 5 aspect)",
             ),
             current_video_slug="install_qwen_image",
             current_video_label="Video #4 - Qwen-Image install + benchmark",
             next_video_slug="install_hunyuan_21",
             next_video_label="Video #5 - Hunyuan-Image 2.1",
             extra_after_installed=(
-                "Default recommendation: qwen_image_2512.json (V2 fp8)",
-                "For fast drafts: qwen_image_2512_lightning4.json (4 steps, 7.9x faster)",
+                "Default recommendation: qwen_2512_fp8_1x1.json (best balance, native 1328×1328)",
+                "For max precision: qwen_2512_bf16_1x1.json (reference quality, ~2× slower)",
+                "For fast Lightning 4-step: see Note inside any workflow — add a LoraLoaderModelOnly + tweak KSampler",
             ),
         ),
     ),

@@ -263,6 +263,11 @@ _QWEN_2512_VARIANTS: tuple[VariantSpec, ...] = (
 
 ASPECT_VARIANTS: dict[str, tuple[VariantSpec, ...]] = {
     "sdxl_base": _SDXL_VARIANTS,
+    # qwen_2512_fp8 source SWAPPED Comfy-Org → unsloth. The Comfy-Org
+    # official fp8 mis-dequantizes under the v0.19+ comfy-kitchen kernel
+    # dispatcher; unsloth/Qwen-Image-2512-FP8 is compatible. Visual matrix
+    # 14/14 PASS validated. See
+    # internal_docs/fp8_noise_fix/REPORT_fp8_noise_root_cause.md.
     "qwen_2512_fp8": _QWEN_2512_VARIANTS,
     "qwen_2512_bf16": _QWEN_2512_VARIANTS,
     # FLUX no longer aspect-expands: each model variant (fp16 / fp8 /
@@ -384,10 +389,17 @@ EXTRA_NOTE_TEXT: dict[str, str] = {
 # qwen_image_phase1_5/.
 _QWEN_2512_SIBLINGS_GUIDE: str = (
     "\n"
-    "🔀 Other Qwen-Image 2512 workflows in this install (10 total):\n"
-    "- `qwen_2512_fp8_1x1.json` / `_landscape.json` / `_portrait.json` / `_landscape_hd.json` / `_portrait_hd.json`\n"
-    "- `qwen_2512_bf16_1x1.json` / `_landscape.json` / `_portrait.json` / `_landscape_hd.json` / `_portrait_hd.json`\n"
-    "fp8 = 19 GB UNET (default production). bf16 = 38 GB UNET (max precision).\n"
+    "🔀 Other Qwen-Image 2512 workflows in this install (10 total — fp8 + bf16 × 5 aspects):\n"
+    "- `qwen_2512_fp8_1x1.json` (1328×1328 · ~19 GB model · fits 16 GB VRAM)\n"
+    "- `qwen_2512_fp8_landscape.json` (1664×928 · fp8)\n"
+    "- `qwen_2512_fp8_portrait.json` (928×1664 · fp8)\n"
+    "- `qwen_2512_fp8_landscape_hd.json` (1664×928 → 1920×1080 upscale · fp8)\n"
+    "- `qwen_2512_fp8_portrait_hd.json` (928×1664 → 1080×1920 upscale · fp8)\n"
+    "- `qwen_2512_bf16_1x1.json` (1328×1328 · ~38 GB model · reference precision)\n"
+    "- `qwen_2512_bf16_landscape.json` (1664×928 · bf16)\n"
+    "- `qwen_2512_bf16_portrait.json` (928×1664 · bf16)\n"
+    "- `qwen_2512_bf16_landscape_hd.json` (1664×928 → 1920×1080 upscale · bf16)\n"
+    "- `qwen_2512_bf16_portrait_hd.json` (928×1664 → 1080×1920 upscale · bf16)\n"
 )
 
 _QWEN_2512_NATIVE_BUCKETS: str = (
@@ -476,31 +488,46 @@ def _qwen_timing_block(cg_3060_s: int, cg_4090_s: int, cg_5090_s: int) -> str:
 EXTRA_NOTE_TEXT.update({
     "qwen_2512_fp8": (
         "\n"
-        "🎯 **Qwen-Image 2512 fp8 — default production.** UNETLoader at "
-        "`default` dtype loading `qwen_image_2512_fp8_e4m3fn.safetensors` "
-        "(~19 GB). 50 steps, CFG 4.0, euler/simple, ModelSamplingAuraFlow "
-        "shift 3.1. FULL bf16 CLIP (`qwen_2.5_vl_7b.safetensors`, 16.6 GB). "
-        "Quality match with bf16 UNET at ~50 % of its time per Phase 1.7 "
-        "— recommended out-of-the-box workflow for any RTX card with "
-        "12 GB+ VRAM.\n"
+        "🎯 **Qwen-Image 2512 fp8 — production default.** UNETLoader "
+        "loading `qwen-image-2512-fp8.safetensors` (~19 GB, unsloth build). "
+        "50 steps, CFG 4.0, euler/simple, ModelSamplingAuraFlow shift 3.1. "
+        "FULL bf16 CLIP (`qwen_2.5_vl_7b.safetensors`, 16.6 GB). Fits "
+        "16 GB VRAM with room for offload — runs on RTX 4060 Ti / 4070 / "
+        "3060 12 GB tier and up.\n"
         + _QWEN_2512_SIBLINGS_GUIDE
         + _QWEN_2512_NATIVE_BUCKETS
         + _QWEN_2512_LIGHTNING_HOWTO
         + _QWEN_2512_NEGATIVE_BILINGUAL
-        + _QWEN_2512_FP8_TRAP_HINT
+        + "\n"
+        "⚠️ **fp8 source detail**: this install ships unsloth's "
+        "`qwen-image-2512-fp8.safetensors`. Comfy-Org's official fp8 "
+        "(filename `qwen_image_2512_fp8_e4m3fn.safetensors`) is BROKEN "
+        "under the ComfyUI v0.19+ `comfy-kitchen` kernel dispatcher → "
+        "silent pure-noise output. Upstream open issues #11665, #11662, "
+        "#11255, #12648. Do NOT manually swap to the Comfy-Org file. The "
+        "unsloth quantization is compatible with current dispatcher.\n"
     ),
     "qwen_2512_bf16": (
         "\n"
-        "🎯 **Qwen-Image 2512 bf16 — max precision.** UNETLoader at "
+        "🎯 **Qwen-Image 2512 bf16 — reference precision.** UNETLoader at "
         "`default` dtype loading `qwen_image_2512_bf16.safetensors` "
-        "(~38 GB). Same sampler config as fp8 (50 steps, CFG 4.0, "
-        "euler/simple, shift 3.1, FULL bf16 CLIP). bf16 is the reference "
-        "weight precision — slightly higher fidelity than fp8 at ~2× the "
-        "render time. Recommended for hero shots / print / archive masters.\n"
+        "(~38 GB). 50 steps, CFG 4.0, euler/simple, ModelSamplingAuraFlow "
+        "shift 3.1. FULL bf16 CLIP (`qwen_2.5_vl_7b.safetensors`, 16.6 GB). "
+        "No quantization losses — recommended when output precision "
+        "matters (eval, hero shots, ground truth). Needs 24 GB+ VRAM for "
+        "comfortable iteration; 16 GB works with aggressive offload.\n"
         + _QWEN_2512_SIBLINGS_GUIDE
         + _QWEN_2512_NATIVE_BUCKETS
         + _QWEN_2512_LIGHTNING_HOWTO
         + _QWEN_2512_NEGATIVE_BILINGUAL
+        + "\n"
+        "⚠️ **fp8 source detail (if you load a sibling `qwen_2512_fp8_*` "
+        "workflow)**: this install ships the unsloth quantization "
+        "(`qwen-image-2512-fp8.safetensors` — HYPHENS). Do NOT manually "
+        "swap to Comfy-Org's official `qwen_image_2512_fp8_e4m3fn.safetensors` "
+        "(UNDERSCORES) — that file is BROKEN on ComfyUI v0.19+ due to a "
+        "kernel dispatcher regression (silent pure-noise output). Upstream "
+        "open issues #11665, #11662, #11255, #12648.\n"
     ),
 })
 

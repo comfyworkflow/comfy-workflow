@@ -2,7 +2,7 @@
   "37": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+      "unet_name": "qwen-image-2512-fp8.safetensors",
       "weight_dtype": "default"
     }
   },

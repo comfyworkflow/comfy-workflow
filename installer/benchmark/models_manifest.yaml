@@ -173,12 +173,19 @@ models:
         url: https://huggingface.co/Comfy-Org/flux2-dev/resolve/main/split_files/vae/flux2-vae.safetensors
         size_bytes: 336213556
 
+  # qwen_image_2512_fp8 — source SWAPPED Comfy-Org → unsloth.
+  # Comfy-Org's official fp8 file ships scales the v0.19+ `comfy-kitchen`
+  # dispatcher silently mis-dequantizes → pure noise output on ComfyUI
+  # v0.20.1 + v0.21.1 (upstream issues #11665, #11662, #11255, #12648 open).
+  # unsloth/Qwen-Image-2512-FP8 quantization is compatible with the
+  # current dispatcher and renders correctly on _user_mirror v0.21.1.
+  # Visual matrix 14/14 PASS across cg-5090 / cg-4090 / cg-3060.
   - name: qwen_image_2512_fp8
     tier: basic
     files:
-      - path: diffusion_models/qwen_image_2512_fp8_e4m3fn.safetensors
-        url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_2512_fp8_e4m3fn.safetensors
-        size_bytes: 20430679144
+      - path: diffusion_models/qwen-image-2512-fp8.safetensors
+        url: https://huggingface.co/unsloth/Qwen-Image-2512-FP8/resolve/main/qwen-image-2512-fp8.safetensors
+        size_bytes: 20476710240
 
   - name: qwen_image_2512_bf16
     tier: basic

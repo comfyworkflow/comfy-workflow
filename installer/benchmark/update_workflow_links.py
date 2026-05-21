@@ -298,12 +298,12 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
     "qwen_2512_fp8.json": {
         "install_slug": "qwen-family",
         "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image 2512 fp8 (5 aspect variants)",
+        "display_name": "Qwen-Image 2512 fp8 (5 aspect variants — unsloth build, ComfyUI v0.21.1 compatible)",
     },
     "qwen_2512_bf16.json": {
         "install_slug": "qwen-family",
         "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image 2512 bf16 (5 aspect variants)",
+        "display_name": "Qwen-Image 2512 bf16 (5 aspect variants — reference precision)",
     },
     "hunyuan_image_21.json": {
         "install_slug": "hunyuan",
@@ -357,7 +357,7 @@ HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "flux_dev_Q4.json": {"ram": "32 GB", "vram": "10 GB"},
     "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
     "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
-    "qwen_2512_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
+    "qwen_2512_fp8.json": {"ram": "32 GB", "vram": "8 GB"},
     "qwen_2512_bf16.json": {"ram": "48 GB", "vram": "12 GB"},
     "hunyuan_image_21.json": {"ram": "96 GB", "vram": "16 GB"},
     "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},

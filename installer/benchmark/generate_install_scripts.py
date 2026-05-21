@@ -212,18 +212,16 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         ),
     ),
     "install-qwen-image.bat": ScriptDef(
-        # Phase 1.7 refactor — ship list expanded to 10 workflows
-        # (2 model variants × 5 aspect-variants), matching Rafael's
-        # canonical working JSON. Critical hyperparams that the broken
-        # ship (commit 9bc7af9) got wrong, now corrected:
-        # - CLIP = FULL bf16 `qwen_2.5_vl_7b.safetensors` (16.6 GB), NOT
-        #   the fp8_scaled variant. Required for clean output.
-        # - KSampler steps=50 / cfg=4.0 (was 20 / 2.5).
-        # - ModelSamplingAuraFlow shift=3.1 (was unset).
-        # - Negative = Chinese canonical 12-clause guard (was empty).
-        # - Resolution = 5 native Qwen-Image-2512 buckets (was 1024²).
-        # See internal_docs/research/qwen_image_2512_canonical/.
-        display_name="Qwen-Image 2512 (fp8 + bf16 × 5 aspects = 10 workflows)",
+        # Stage 1.C — fp8 source SWAPPED Comfy-Org → unsloth due to
+        # ComfyUI v0.21.1 dispatcher regression. Comfy-Org's official
+        # qwen_image_2512_fp8_e4m3fn ships scales the v0.19+ comfy-kitchen
+        # kernel dispatcher silently mis-dequantizes → pure noise output.
+        # Upstream open issues #11665, #11662, #11255, #12648.
+        # unsloth/Qwen-Image-2512-FP8 quantization is compatible with the
+        # current dispatcher; visual matrix 14/14 PASS validated across
+        # cg-5090 / cg-4090 / cg-3060 in _user_mirror v0.21.1.
+        # See internal_docs/fp8_noise_fix/REPORT_fp8_noise_root_cause.md.
+        display_name="Qwen-Image 2512 (10 workflows: fp8 + bf16 x 5 aspects)",
         pillars=(3,),
         models=(
             "qwen_image_2512_fp8",
@@ -237,27 +235,28 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
             "qwen_2512_fp8.json",
             "qwen_2512_bf16.json",
         ),
-        ram_min="32 GB",
+        ram_min="48 GB",
         vram_min="12 GB",
         category="Image\\Qwen",
         cleanup_glob="qwen_*.json",
         success_meta=SuccessBlockMeta(
             title="Qwen-Image install complete!",
             installed_summary=(
-                "Models installed: 2512 fp8 (19 GB) + 2512 bf16 (38 GB) + Lightning 4-step LoRA (1.7 GB) + full bf16 CLIP (16.6 GB) + VAE (0.3 GB)",
+                "Models installed: 2512 fp8 (unsloth, 19 GB) + 2512 bf16 (38 GB) + Lightning 4-step LoRA (1.7 GB) + full bf16 CLIP (16.6 GB) + VAE (0.3 GB) - total ~74 GB",
             ),
             sidebar_summary=(
                 "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > Qwen > (10 variants: 2 model × 5 aspect)",
+                "  Comfy Workflow > Image > Qwen > (10 workflows: fp8 + bf16 x 5 aspects each)",
             ),
             current_video_slug="install_qwen_image",
             current_video_label="Video #4 - Qwen-Image install + benchmark",
             next_video_slug="install_hunyuan_21",
             next_video_label="Video #5 - Hunyuan-Image 2.1",
             extra_after_installed=(
-                "Default recommendation: qwen_2512_fp8_1x1.json (best balance, native 1328×1328)",
-                "For max precision: qwen_2512_bf16_1x1.json (reference quality, ~2× slower)",
-                "For fast Lightning 4-step: see Note inside any workflow — add a LoraLoaderModelOnly + tweak KSampler",
+                "Default recommendation: qwen_2512_fp8_1x1.json (1328x1328 native, fits 16 GB VRAM)",
+                "For reference precision: qwen_2512_bf16_1x1.json (24 GB+ VRAM recommended)",
+                "For 4x faster drafts: enable the Lightning LoRA toggle inside any workflow (see Note for steps=4 cfg=1.0)",
+                "fp8 source: unsloth/Qwen-Image-2512-FP8 (Comfy-Org build broken on ComfyUI v0.21.1 dispatcher - issues #11665 / #11662)",
             ),
         ),
     ),

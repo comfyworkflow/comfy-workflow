@@ -163,31 +163,29 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         ),
     ),
     "install-flux1.bat": ScriptDef(
-        # Phase 1.5 audit (e70572c): ship 5 separate variant workflows
+        # Phase 1.5 audit (e70572c): ship per-variant Format A workflows
         # (one per loader/dtype combo) instead of an aggregate. Each
         # variant opens-and-runs with the correct loader pre-wired —
-        # no node swaps for the audience. Q8/Q4 use UnetLoaderGGUF
-        # (requires the city96 ComfyUI-GGUF custom node).
-        display_name="FLUX.1 (5 variants pre-wired)",
+        # no node swaps for the audience.
+        #
+        # Operator constraint "no Q-quants": Q8/Q4 GGUF variants dropped
+        # — GGUF dequant tax beats fp8 on every audience-tier GPU
+        # (>= 12 GB VRAM). Ship list 5 -> 3 (fp16 / fp8 / schnell).
+        # ComfyUI-GGUF custom node removed (no consumer remaining).
+        display_name="FLUX.1 (3 variants pre-wired)",
         pillars=(2, 1),
         models=(
             "flux_dev_fp8",
             "flux_dev_fp16",
             "flux_schnell_fp8",
-            "flux_dev_Q8_gguf",
-            "flux_dev_Q4_gguf",
             "flux_shared_encoders",
             "flux_shared_vae",
         ),
-        custom_nodes=(
-            ("ComfyUI-GGUF", "https://github.com/city96/ComfyUI-GGUF.git"),
-        ),
+        custom_nodes=(),
         workflows=(
             "flux_dev_fp16.json",
             "flux_dev_fp8.json",
             "flux_schnell_fp8.json",
-            "flux_dev_Q8.json",
-            "flux_dev_Q4.json",
         ),
         ram_min="32 GB",
         vram_min="10 GB",
@@ -196,11 +194,11 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
         success_meta=SuccessBlockMeta(
             title="FLUX install complete!",
             installed_summary=(
-                "Models installed: fp16, fp8, schnell, Q8, Q4 (5 variants)",
+                "Models installed: fp16, fp8, schnell (3 variants)",
             ),
             sidebar_summary=(
                 "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > FLUX > (5 variants)",
+                "  Comfy Workflow > Image > FLUX > (3 variants)",
             ),
             current_video_slug="install_flux1",
             current_video_label="Video #3 - FLUX install + benchmark",
@@ -208,6 +206,7 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
             next_video_label="Video #4 - Qwen-Image",
             extra_after_installed=(
                 "Default recommendation: flux_dev_fp8 (best balance for most GPUs)",
+                "Q4/Q8 GGUF variants dropped - slower than fp8 on every audience-tier GPU (>= 12 GB VRAM)",
             ),
         ),
     ),

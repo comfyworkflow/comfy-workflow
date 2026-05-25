@@ -60,19 +60,11 @@ models:
         url: https://huggingface.co/Comfy-Org/flux1-schnell/resolve/main/flux1-schnell-fp8.safetensors
         size_bytes: 17236328572
 
-  - name: flux_dev_Q8_gguf
-    tier: basic
-    files:
-      - path: diffusion_models/flux1-dev-Q8_0.gguf
-        url: https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1-dev-Q8_0.gguf
-        size_bytes: 12708281504
-
-  - name: flux_dev_Q4_gguf
-    tier: basic
-    files:
-      - path: diffusion_models/flux1-dev-Q4_K_S.gguf
-        url: https://huggingface.co/city96/FLUX.1-dev-gguf/resolve/main/flux1-dev-Q4_K_S.gguf
-        size_bytes: 6805988640
+  # flux_dev_Q8_gguf / flux_dev_Q4_gguf DROPPED — operator constraint
+  # "no Q-quants" — GGUF variants slower than fp8 on every audience-tier
+  # GPU (>= 12 GB VRAM). Ship list reduced 5 -> 3 (fp16/fp8/schnell).
+  # ComfyUI-GGUF custom node also removed from install-flux1.bat (no
+  # consumer remaining).
 
   - name: qwen_image_fp8
     tier: basic

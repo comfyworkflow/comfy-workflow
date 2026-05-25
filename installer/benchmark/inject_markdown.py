@@ -295,8 +295,6 @@ _FLUX_SIBLINGS_GUIDE: str = (
     "- `flux_dev_fp16.json` — V1 fp16, max precision. ~22 GB model.\n"
     "- `flux_dev_fp8.json` — V2 fp8, default production. Best balance.\n"
     "- `flux_schnell_fp8.json` — V3 schnell, 4-step draft. Fastest.\n"
-    "- `flux_dev_Q8.json` — V4 Q8 GGUF, near-fp8 quality, ~12 GB.\n"
-    "- `flux_dev_Q4.json` — V5 Q4 GGUF, low VRAM, ~7 GB.\n"
 )
 
 _FLUX_RESOLUTION_HINT: str = (
@@ -349,27 +347,9 @@ EXTRA_NOTE_TEXT: dict[str, str] = {
         + _FLUX_RESOLUTION_HINT
         + _flux_timing_block(31, 16, 12)
     ),
-    "flux_dev_Q8": (
-        "\n"
-        "🎯 **V4 Q8 GGUF — near-fp8 quality.** UnetLoaderGGUF (requires "
-        "the ComfyUI-GGUF custom node, installed by install-flux1.bat), "
-        "20 steps, guidance 3.5. ~12 GB model — smaller than fp8 with "
-        "near-identical output. Slightly slower than fp8 (dequant on "
-        "load). Ship when disk space matters more than load time.\n"
-        + _FLUX_SIBLINGS_GUIDE
-        + _FLUX_RESOLUTION_HINT
-        + _flux_timing_block(96, 26, 21)
-    ),
-    "flux_dev_Q4": (
-        "\n"
-        "🎯 **V5 Q4 GGUF — low VRAM.** UnetLoaderGGUF, 20 steps, "
-        "guidance 3.5. ~7 GB model. Visible quality cost vs fp8/Q8; "
-        "ship only when VRAM is the binding constraint (12 GB cards "
-        "running other workloads alongside FLUX).\n"
-        + _FLUX_SIBLINGS_GUIDE
-        + _FLUX_RESOLUTION_HINT
-        + _flux_timing_block(96, 31, 21)
-    ),
+    # Q4/Q8 GGUF EXTRA_NOTE_TEXT entries dropped — see install-flux1.bat
+    # comment in generate_install_scripts.py (operator constraint
+    # "no Q-quants"). ComfyUI-GGUF custom node also removed.
 }
 
 
@@ -543,8 +523,6 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "flux_dev_fp16": "Image/FLUX",
     "flux_dev_fp8": "Image/FLUX",
     "flux_schnell_fp8": "Image/FLUX",
-    "flux_dev_Q8": "Image/FLUX",
-    "flux_dev_Q4": "Image/FLUX",
     "qwen_2512_fp8": "Image/Qwen",
     "qwen_2512_bf16": "Image/Qwen",
 }

@@ -1,0 +1,81 @@
+{
+  "37": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "hunyuanimage2.1_fp8_e4m3fn.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    }
+  },
+  "38": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "qwen_2.5_vl_7b.safetensors",
+      "clip_name2": "byt5_small_glyphxl_fp16.safetensors",
+      "type": "hunyuan_image"
+    }
+  },
+  "39": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "hunyuan_image_2.1_vae_fp16.safetensors"
+    }
+  },
+  "66": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "shift": 5.0,
+      "model": ["37", 0]
+    }
+  },
+  "58": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 2048,
+      "height": 2048,
+      "batch_size": 1
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "a photograph of a serene mountain landscape at sunrise, hyperrealistic, 4k",
+      "clip": ["38", 0]
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["38", 0]
+    }
+  },
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 42,
+      "steps": 50,
+      "cfg": 3.5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1.0,
+      "model": ["66", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["58", 0]
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["39", 0]
+    }
+  },
+  "60": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["8", 0],
+      "filename_prefix": "hunyuan_image_21_fp8"
+    }
+  }
+}

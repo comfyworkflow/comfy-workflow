@@ -259,11 +259,65 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
             ),
         ),
     ),
-    # Other install scripts (flux2 / hunyuan-21 / wan22) are intentionally
-    # absent from this map — they are withheld from the public
-    # setup-windows/ tree until each model family's release video drops.
-    # Definitions stay in the internal working copy and rotate back in
-    # here on each video launch.
+    "install-hunyuan-image.bat": ScriptDef(
+        # Phase 0+ Canal audit 2026-05-26: 8 cg-5090 cells PASS visual on
+        # KB ComfyUI v0.21.1 with native PR #9792 support. fp8 + bf16 +
+        # distilled fp8. Refiner downloaded but ComfyUI native workflow
+        # for 2-stage refiner is TBD per fact sheet — NOT shipped this
+        # cycle. Cross-GPU (cg-4090, cg-3060) defers to v2 audit.
+        # Anti-patterns from fact sheet APPLIED:
+        # - euler / normal scheduler (NOT karras — blurry artifact)
+        # - ModelSamplingSD3 shift 5 full / shift 4 distilled
+        # - CFG 3.5 full / 3.25 distilled
+        # - native 2K bucket (NOT 1K — artifact)
+        # - dual text encoder (qwen 2.5 VL 7B + byt5 glyph)
+        # - weight_dtype default for bf16, fp8_e4m3fn for fp8
+        # - flash-attn NOT enabled (sdpa baseline per windows policy)
+        # GGUF Q-quants REJECTED per model_precision_policy.md.
+        display_name="Hunyuan-Image 2.1 (3 variants: fp8 + bf16 + distilled fp8)",
+        pillars=(3,),
+        models=(
+            "hunyuan_image_21_fp8",
+            "hunyuan_image_21_bf16",
+            "hunyuan_image_21_distilled_fp8",
+            "hunyuan_shared_encoders",
+            "hunyuan_shared_vae",
+        ),
+        custom_nodes=(),
+        workflows=(
+            "hunyuan_image_21_fp8.json",
+            "hunyuan_image_21_bf16.json",
+            "hunyuan_image_21_distilled_fp8.json",
+        ),
+        ram_min="48 GB",
+        vram_min="16 GB",
+        category="Image\\Hunyuan",
+        cleanup_glob="hunyuan_*.json",
+        success_meta=SuccessBlockMeta(
+            title="Hunyuan-Image 2.1 install complete!",
+            installed_summary=(
+                "Models installed: 2.1 fp8 (17.4 GB) + 2.1 bf16 (34.9 GB) + 2.1 distilled fp8 (17.5 GB) + dual encoders (qwen + byt5, 17 GB) + VAE (0.8 GB) - total ~88 GB",
+            ),
+            sidebar_summary=(
+                "Workflows in ComfyUI sidebar:",
+                "  Comfy Workflow > Image > Hunyuan > (3 variants: fp8 / bf16 / distilled-8-step)",
+            ),
+            current_video_slug="install_hunyuan_21",
+            current_video_label="Video #5 - Hunyuan-Image 2.1 install + benchmark",
+            next_video_slug="install_wan22",
+            next_video_label="Video #6 - WAN 2.2",
+            extra_after_installed=(
+                "Default recommendation: hunyuan_image_21_fp8.json (Quality 50-step, ~60s on RTX 5090, 16 GB VRAM)",
+                "For fast iteration: hunyuan_image_21_distilled_fp8.json (8-step meanflow, ~10s warm)",
+                "For reference precision: hunyuan_image_21_bf16.json (24 GB+ VRAM recommended)",
+                "Native 2K only - do NOT generate at 1024x1024 (model produces artifacts). See workflow Note for 2K aspect buckets.",
+            ),
+        ),
+    ),
+    # Other install scripts (flux2 / wan22) are intentionally absent from
+    # this map - they are withheld from the public setup-windows/ tree
+    # until each model family's release video drops. Definitions stay in
+    # the internal working copy and rotate back in here on each video launch.
 }
 
 

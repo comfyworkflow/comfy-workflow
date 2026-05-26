@@ -217,6 +217,13 @@ models:
         url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/diffusion_models/hunyuanimage2.1_fp8_e4m3fn.safetensors
         size_bytes: 17425920656
 
+  - name: hunyuan_image_21_distilled_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/hunyuanimage2.1_distilled_fp8_e4m3fn.safetensors
+        url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/diffusion_models/hunyuanimage2.1_distilled_fp8_e4m3fn.safetensors
+        size_bytes: 17453462000
+
   - name: hunyuan_shared_encoders
     tier: shared
     files:

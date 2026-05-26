@@ -297,8 +297,23 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
     },
     "hunyuan_image_21.json": {
         "install_slug": "hunyuan",
-        "scripts": ["install-hunyuan-21.bat"],
-        "display_name": "Hunyuan-Image 2.1 bf16",
+        "scripts": ["install-hunyuan-image.bat"],
+        "display_name": "Hunyuan-Image 2.1 (legacy single-file stub — see fp8/bf16/distilled siblings)",
+    },
+    "hunyuan_image_21_fp8.json": {
+        "install_slug": "hunyuan",
+        "scripts": ["install-hunyuan-image.bat"],
+        "display_name": "Hunyuan-Image 2.1 fp8 (Quality 50-step, native 2K, dual-CLIP)",
+    },
+    "hunyuan_image_21_bf16.json": {
+        "install_slug": "hunyuan",
+        "scripts": ["install-hunyuan-image.bat"],
+        "display_name": "Hunyuan-Image 2.1 bf16 (Quality 50-step, reference precision)",
+    },
+    "hunyuan_image_21_distilled_fp8.json": {
+        "install_slug": "hunyuan",
+        "scripts": ["install-hunyuan-image.bat"],
+        "display_name": "Hunyuan-Image 2.1 distilled fp8 (8-step meanflow, ~5x faster)",
     },
     "wan22_i2v_fp8.json": {
         "install_slug": "wan",
@@ -327,6 +342,9 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "qwen_2512_fp8.json": {"primary": 3, "secondary": []},
     "qwen_2512_bf16.json": {"primary": 3, "secondary": []},
     "hunyuan_image_21.json": {"primary": 3, "secondary": [2]},
+    "hunyuan_image_21_fp8.json": {"primary": 3, "secondary": [2]},
+    "hunyuan_image_21_bf16.json": {"primary": 3, "secondary": [2]},
+    "hunyuan_image_21_distilled_fp8.json": {"primary": 3, "secondary": [2]},
     "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
 }
 
@@ -346,6 +364,9 @@ HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "qwen_2512_fp8.json": {"ram": "32 GB", "vram": "8 GB"},
     "qwen_2512_bf16.json": {"ram": "48 GB", "vram": "12 GB"},
     "hunyuan_image_21.json": {"ram": "96 GB", "vram": "16 GB"},
+    "hunyuan_image_21_fp8.json": {"ram": "32 GB", "vram": "16 GB"},
+    "hunyuan_image_21_bf16.json": {"ram": "64 GB", "vram": "24 GB"},
+    "hunyuan_image_21_distilled_fp8.json": {"ram": "32 GB", "vram": "16 GB"},
     "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},
 }
 

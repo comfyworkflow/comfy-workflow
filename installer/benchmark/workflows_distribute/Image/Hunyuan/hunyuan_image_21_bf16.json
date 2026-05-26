@@ -1,0 +1,494 @@
+{
+  "last_node_id": 67,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 37,
+      "type": "UNETLoader",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "hunyuanimage2.1_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 38,
+      "type": "DualCLIPLoader",
+      "pos": [
+        0,
+        220
+      ],
+      "size": [
+        320,
+        168
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2,
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DualCLIPLoader"
+      },
+      "widgets_values": [
+        "qwen_2.5_vl_7b.safetensors",
+        "byt5_small_glyphxl_fp16.safetensors",
+        "hunyuan_image",
+        ""
+      ]
+    },
+    {
+      "id": 39,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        440
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "hunyuan_image_2.1_vae_fp16.safetensors"
+      ]
+    },
+    {
+      "id": 66,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        360,
+        440
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        5.0
+      ]
+    },
+    {
+      "id": 58,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        0,
+        660
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "widgets_values": [
+        2048,
+        2048,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        360,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "a photograph of a serene mountain landscape at sunrise, hyperrealistic, 4k"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        360,
+        220
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": [
+        720,
+        0
+      ],
+      "size": [
+        320,
+        364
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        42,
+        "randomize",
+        50,
+        3.5,
+        "euler",
+        "normal",
+        1.0
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1080,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 60,
+      "type": "SaveImage",
+      "pos": [
+        1440,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "hunyuan_image_21_bf16"
+      ]
+    },
+    {
+      "id": 67,
+      "type": "Note",
+      "pos": [
+        1800,
+        -360
+      ],
+      "size": [
+        480,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "About this workflow",
+      "properties": {},
+      "widgets_values": [
+        "# Hunyuan-Image 2.1 bf16 (Quality 50-step, reference precision)\n\n📺 Install video #5: [Install Hunyuan-Image 2.1](https://github.com/comfyworkflow/comfy-workflow#install-hunyuan-pending)\n🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)\n🔬 Também em Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-hunyuan-image.bat`\n\n⚙️ Params: 50 steps, CFG 3.5, euler/normal, 2048×2048\n💾 Hardware mínimo: 64 GB RAM · 24 GB VRAM\n🎯 **Hunyuan-Image 2.1 bf16 — reference precision.** UNETLoader at `default` dtype loading `hunyuanimage2.1_bf16.safetensors` (~34.9 GB). 50 steps, CFG 3.5, euler/normal, shift 5. Same config as fp8 with reference-precision UNET. Needs RTX 5090 (32 GB) with block-swap; lower-VRAM cards fall back to fp8.\n\n🔀 Other Hunyuan-Image 2.1 variants in this install:\n- `hunyuan_image_21_fp8.json` — fp8 Quality, 50 steps, recommended default (16 GB VRAM)\n- `hunyuan_image_21_bf16.json` — bf16 Quality, 50 steps, reference precision (32 GB VRAM)\n- `hunyuan_image_21_distilled_fp8.json` — 8-step distilled fp8, ~5× faster for iteration\n\n📐 Hunyuan-Image 2.1 is NATIVE 2K — do NOT generate at 1K (artifacts).\nEdit `EmptySD3LatentImage` width/height for other aspects:\n- 1:1   →  2048×2048\n- 16:9  →  2560×1536\n- 9:16  →  1536×2560\n- 4:3   →  2304×1792\n- 3:4   →  1792×2304\n- 3:2   →  2304×1536\n- 2:3   →  1536×2304\n\n⚙️ **Canonical config** (research-validated):\n- Sampler: `euler` · Scheduler: **`normal`** (Karras causes blurry artifacts on this model)\n- `ModelSamplingSD3` shift: **5** for full Quality, **4** for distilled\n- CFG: **3.5** for Quality, **3.25** for distilled\n- Dual text encoder: `qwen_2.5_vl_7b` (MLLM) + `byt5_small_glyphxl_fp16` (glyph-aware)\n- Negative prompt: leave empty (model doesn't use classifier-free guidance like SDXL)\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      37,
+      0,
+      66,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      38,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      38,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      66,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
+      6,
+      0,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      7,
+      0,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      58,
+      0,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      8,
+      3,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
+      39,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      10,
+      8,
+      0,
+      60,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

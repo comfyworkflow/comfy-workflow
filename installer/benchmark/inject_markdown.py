@@ -512,6 +512,76 @@ EXTRA_NOTE_TEXT.update({
 })
 
 
+_HUNYUAN_21_SIBLINGS_GUIDE: str = (
+    "\n"
+    "🔀 Other Hunyuan-Image 2.1 variants in this install:\n"
+    "- `hunyuan_image_21_fp8.json` — fp8 Quality, 50 steps, recommended default (16 GB VRAM)\n"
+    "- `hunyuan_image_21_bf16.json` — bf16 Quality, 50 steps, reference precision (32 GB VRAM)\n"
+    "- `hunyuan_image_21_distilled_fp8.json` — 8-step distilled fp8, ~5× faster for iteration\n"
+)
+
+_HUNYUAN_21_NATIVE_BUCKETS: str = (
+    "\n"
+    "📐 Hunyuan-Image 2.1 is NATIVE 2K — do NOT generate at 1K (artifacts).\n"
+    "Edit `EmptySD3LatentImage` width/height for other aspects:\n"
+    "- 1:1   →  2048×2048\n"
+    "- 16:9  →  2560×1536\n"
+    "- 9:16  →  1536×2560\n"
+    "- 4:3   →  2304×1792\n"
+    "- 3:4   →  1792×2304\n"
+    "- 3:2   →  2304×1536\n"
+    "- 2:3   →  1536×2304\n"
+)
+
+_HUNYUAN_21_CONFIG_NOTE: str = (
+    "\n"
+    "⚙️ **Canonical config** (research-validated):\n"
+    "- Sampler: `euler` · Scheduler: **`normal`** (Karras causes blurry artifacts on this model)\n"
+    "- `ModelSamplingSD3` shift: **5** for full Quality, **4** for distilled\n"
+    "- CFG: **3.5** for Quality, **3.25** for distilled\n"
+    "- Dual text encoder: `qwen_2.5_vl_7b` (MLLM) + `byt5_small_glyphxl_fp16` (glyph-aware)\n"
+    "- Negative prompt: leave empty (model doesn't use classifier-free guidance like SDXL)\n"
+)
+
+
+EXTRA_NOTE_TEXT.update({
+    "hunyuan_image_21_fp8": (
+        "\n"
+        "🎯 **Hunyuan-Image 2.1 fp8 — production default.** UNETLoader at "
+        "`fp8_e4m3fn` dtype loading `hunyuanimage2.1_fp8_e4m3fn.safetensors` "
+        "(~17.4 GB). 50 steps, CFG 3.5, euler/normal, ModelSamplingSD3 shift 5. "
+        "Dual text encoder pipeline (Qwen-2.5-VL MLLM + ByT5 glyph). Strength: "
+        "rendering legible text directly on objects (signs, mugs, posters).\n"
+        + _HUNYUAN_21_SIBLINGS_GUIDE
+        + _HUNYUAN_21_NATIVE_BUCKETS
+        + _HUNYUAN_21_CONFIG_NOTE
+    ),
+    "hunyuan_image_21_bf16": (
+        "\n"
+        "🎯 **Hunyuan-Image 2.1 bf16 — reference precision.** UNETLoader at "
+        "`default` dtype loading `hunyuanimage2.1_bf16.safetensors` "
+        "(~34.9 GB). 50 steps, CFG 3.5, euler/normal, shift 5. Same config "
+        "as fp8 with reference-precision UNET. Needs RTX 5090 (32 GB) with "
+        "block-swap; lower-VRAM cards fall back to fp8.\n"
+        + _HUNYUAN_21_SIBLINGS_GUIDE
+        + _HUNYUAN_21_NATIVE_BUCKETS
+        + _HUNYUAN_21_CONFIG_NOTE
+    ),
+    "hunyuan_image_21_distilled_fp8": (
+        "\n"
+        "🎯 **Hunyuan-Image 2.1 distilled fp8 — 8-step meanflow.** UNETLoader "
+        "at `fp8_e4m3fn` dtype loading "
+        "`hunyuanimage2.1_distilled_fp8_e4m3fn.safetensors` (~17.5 GB). "
+        "**8 steps**, CFG 3.25, euler/normal, **shift 4** (NOT 5). ~5× "
+        "faster than Quality on RTX 5090 (~10 s warm vs ~60 s). Use for "
+        "rapid iteration; promote winners to Quality for final renders.\n"
+        + _HUNYUAN_21_SIBLINGS_GUIDE
+        + _HUNYUAN_21_NATIVE_BUCKETS
+        + _HUNYUAN_21_CONFIG_NOTE
+    ),
+})
+
+
 # Per-workflow distribute subfolder under ``workflows_distribute/``.
 # Mirrors the audience-facing ComfyUI sidebar category exposed by the
 # install scripts. Workflows not listed land at the flat root (legacy
@@ -525,6 +595,9 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "flux_schnell_fp8": "Image/FLUX",
     "qwen_2512_fp8": "Image/Qwen",
     "qwen_2512_bf16": "Image/Qwen",
+    "hunyuan_image_21_fp8": "Image/Hunyuan",
+    "hunyuan_image_21_bf16": "Image/Hunyuan",
+    "hunyuan_image_21_distilled_fp8": "Image/Hunyuan",
 }
 
 

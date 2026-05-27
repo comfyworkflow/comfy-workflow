@@ -11,7 +11,8 @@
     "inputs": {
       "clip_name1": "qwen_2.5_vl_7b.safetensors",
       "clip_name2": "byt5_small_glyphxl_fp16.safetensors",
-      "type": "hunyuan_image"
+      "type": "hunyuan_image",
+      "device": "default"
     }
   },
   "39": {

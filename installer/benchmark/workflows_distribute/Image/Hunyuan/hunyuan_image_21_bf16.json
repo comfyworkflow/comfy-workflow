@@ -68,7 +68,7 @@
         "qwen_2.5_vl_7b.safetensors",
         "byt5_small_glyphxl_fp16.safetensors",
         "hunyuan_image",
-        ""
+        "default"
       ]
     },
     {

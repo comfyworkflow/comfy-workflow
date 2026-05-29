@@ -1,0 +1,67 @@
+{
+  "1": {
+    "class_type": "QuadrupleCLIPLoader",
+    "inputs": {
+      "clip_name1": "clip_l_hidream.safetensors",
+      "clip_name2": "clip_g_hidream.safetensors",
+      "clip_name3": "t5xxl_fp8_e4m3fn_scaled.safetensors",
+      "clip_name4": "llama_3.1_8b_instruct_fp8_scaled.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "hidream_i1_full_fp8.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "3": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {"model": ["2", 0], "shift": 3.0}
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "cinematic elderly fisherman portrait, weathered face, dramatic lighting, 1024x1024",
+      "clip": ["1", 0]
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {"text": "", "clip": ["1", 0]}
+  },
+  "6": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {"width": 1024, "height": 1024, "batch_size": 1}
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["3", 0],
+      "positive": ["4", 0],
+      "negative": ["5", 0],
+      "latent_image": ["6", 0],
+      "seed": 42,
+      "steps": 50,
+      "cfg": 5.0,
+      "sampler_name": "uni_pc",
+      "scheduler": "simple",
+      "denoise": 1.0
+    }
+  },
+  "10": {
+    "class_type": "VAELoader",
+    "inputs": {"vae_name": "ae.safetensors"}
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {"samples": ["7", 0], "vae": ["10", 0]}
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["8", 0],
+      "filename_prefix": "hidream_i1_full_fp8"
+    }
+  }
+}

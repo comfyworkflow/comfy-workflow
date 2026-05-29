@@ -37,6 +37,12 @@
     "output": ["CLIP"],
     "output_name": ["CLIP"]
   },
+  "QuadrupleCLIPLoader": {
+    "input": {"required": {"clip_name1": [[]], "clip_name2": [[]], "clip_name3": [[]], "clip_name4": [[]]}},
+    "input_order": {"required": ["clip_name1", "clip_name2", "clip_name3", "clip_name4"]},
+    "output": ["CLIP"],
+    "output_name": ["CLIP"]
+  },
   "VAELoader": {
     "input": {"required": {"vae_name": [[]]}},
     "input_order": {"required": ["vae_name"]},

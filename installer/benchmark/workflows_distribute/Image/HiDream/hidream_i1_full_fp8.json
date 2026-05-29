@@ -1,0 +1,494 @@
+{
+  "last_node_id": 11,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "QuadrupleCLIPLoader",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        320,
+        168
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2,
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QuadrupleCLIPLoader"
+      },
+      "widgets_values": [
+        "clip_l_hidream.safetensors",
+        "clip_g_hidream.safetensors",
+        "t5xxl_fp8_e4m3fn_scaled.safetensors",
+        "llama_3.1_8b_instruct_fp8_scaled.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "UNETLoader",
+      "pos": [
+        0,
+        220
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "hidream_i1_full_fp8.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        360,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        3.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CLIPTextEncode",
+      "pos": [
+        360,
+        220
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "cinematic elderly fisherman portrait, weathered face, dramatic lighting, 1024x1024"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [
+        360,
+        440
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 6,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        0,
+        440
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        720,
+        0
+      ],
+      "size": [
+        320,
+        364
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        42,
+        "randomize",
+        50,
+        5.0,
+        "uni_pc",
+        "simple",
+        1.0
+      ]
+    },
+    {
+      "id": 10,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        660
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ae.safetensors"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1080,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        1440,
+        0
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "hidream_i1_full_fp8"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "Note",
+      "pos": [
+        1800,
+        -360
+      ],
+      "size": [
+        480,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "About this workflow",
+      "properties": {},
+      "widgets_values": [
+        "# HiDream-I1 full fp8 (Quality 50-step, uni_pc, native 1MP)\n\n📺 Install video #7: [Install HiDream-I1 (full / dev / fast fp8)](https://github.com/comfyworkflow/comfy-workflow#install-hidream-pending)\n🔬 Benchmark Pillar #5: [Pillar #5](https://github.com/comfyworkflow/comfy-workflow#video-pillar-5-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-hidream-image.bat`\n\n⚙️ Params: 50 steps, CFG 5.0, uni_pc/simple, 1024×1024\n💾 Hardware mínimo: 48 GB RAM · 12 GB VRAM\n🎯 **HiDream-I1 full fp8 — Quality default.** `UNETLoader` at `default` dtype loading `hidream_i1_full_fp8.safetensors` (~17 GB). **50 steps, CFG 5.0, uni_pc / simple**, ModelSamplingSD3 shift 3.0. Negative prompt optional (empty is fine on full). Highest fidelity of the three tiers — use for final/hero renders.\n\n🔀 Other HiDream-I1 tiers in this install (eixo distillation — same model, fewer steps):\n- `hidream_i1_full_fp8.json` — full Quality, 50 steps, uni_pc/simple, CFG 5.0. Best fidelity.\n- `hidream_i1_dev_fp8.json` — dev, 28 steps, lcm/normal, CFG 1.0. Balanced.\n- `hidream_i1_fast_fp8.json` — fast, 16 steps, lcm/normal, CFG 1.0. Fastest.\n\n📐 HiDream-I1 is NATIVE 1 MP (1024×1024) — NOT 2K (contrast Hunyuan-Image 2.1).\nEdit `EmptySD3LatentImage` width/height for the supported native buckets:\n- 1:1        →  1024×1024\n- 9:16 tall  →   768×1360\n- 16:9 wide  →  1360× 768\n- 3:4        →   880×1168\n- 4:3        →  1168× 880\n- 3:2        →  1248× 832\n- 2:3        →   832×1248\n\n⚙️ **Canonical config** (peer-verified — see anti-patterns):\n- `QuadrupleCLIPLoader` slot order: 1=`clip_l_hidream` · 2=`clip_g_hidream` · 3=`t5xxl_fp8_e4m3fn_scaled` · 4=`llama_3.1_8b_instruct_fp8_scaled`\n- `UNETLoader` weight_dtype: **`default`** (fp8 single-file already quantized)\n- VAE: `ae.safetensors` (FLUX VAE, shared)\n- full tier scheduler: **`simple`** (NOT normal) · dev/fast: `normal`\n- dev/fast CFG: **1.0** (distilled — no classifier-free guidance)\n\n🚫 Anti-patterns (do NOT do these):\n- Do NOT swap t5xxl to the non-scaled file — the **_scaled** variant is required.\n- Do NOT add a `type` parameter to `QuadrupleCLIPLoader` (not a valid input).\n- No GGUF Q-quants; no sageattention/bitsandbytes/triton wrappers.\n\n📊 KB benchmark (1024² · seed 42 cold / seed 43 warm · Phase 0+ 2026-05-29):\n- full — RTX 3060: 407s · RTX 4090: 81s · RTX 5090: 73s (cold)\n- dev  — RTX 3060: 130s · RTX 4090: 77s · RTX 5090: 44s (cold)\n- fast — RTX 3060:  89s · RTX 4090: 32s · RTX 5090: 40s (cold)\n(RTX 3060 12 GB pays cold-ish cost every run — model offloads to RAM, no resident warm path.)\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      1,
+      0,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      1,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      3,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
+      4,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      5,
+      0,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      6,
+      0,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      8,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
+      10,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      10,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

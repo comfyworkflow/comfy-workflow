@@ -1,4 +1,4 @@
-# Hunyuan-Image 2.1 (legacy single-file stub — see fp8/bf16/distilled siblings)
+# Hunyuan-Image 2.1 bf16 (Quality 50-step, reference precision)
 
 📺 Install video #5: [Install Hunyuan-Image 2.1](https://github.com/comfyworkflow/comfy-workflow#install-hunyuan-pending)
 🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)
@@ -7,5 +7,5 @@
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)
 - `install-hunyuan-image.bat`
 
-⚙️ Params: 20 steps, CFG 3.5, euler/simple, 1024×1024
-💾 Hardware mínimo: 96 GB RAM · 16 GB VRAM
+⚙️ Params: 50 steps, CFG 3.5, euler/normal, 2048×2048
+💾 Hardware mínimo: 64 GB RAM · 24 GB VRAM

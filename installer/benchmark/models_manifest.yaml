@@ -21,6 +21,7 @@ videos:
   install_qwen_2512: ""
   install_hunyuan_21: ""
   install_wan22: ""
+  install_hidream_i1: ""
   pillar_1: "https://youtu.be/sC7cwc-mocw"
   pillar_2: ""
   pillar_3: ""
@@ -240,3 +241,52 @@ models:
       - path: vae/hunyuan_image_2.1_vae_fp16.safetensors
         url: https://huggingface.co/Comfy-Org/HunyuanImage_2.1_ComfyUI/resolve/main/split_files/vae/hunyuan_image_2.1_vae_fp16.safetensors
         size_bytes: 811184822
+
+  # HiDream-I1 fp8 — Pillar #5 (category Image\HiDream). 17B hybrid
+  # transformer + LLaMA 3.1 text encoder, three quality tiers. Native
+  # 1024x1024 (1 MP). Sizes byte-exact from C:\KB\models\hidream-i1.md
+  # (deployed all 3 GPUs 2026-05-29, Phase 0+ benchmark PASS). The three
+  # diffusion-model tiers are byte-identical in size (same fp8 packaging).
+  # Encoders are SHARED across the 3 tiers (one download serves all).
+  # VAE reuses the existing flux_shared_vae entry (ae.safetensors, FLUX
+  # VAE) — NOT duplicated here.
+  - name: hidream_i1_full_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/hidream_i1_full_fp8.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/diffusion_models/hidream_i1_full_fp8.safetensors
+        size_bytes: 17105946040
+
+  - name: hidream_i1_dev_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/hidream_i1_dev_fp8.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/diffusion_models/hidream_i1_dev_fp8.safetensors
+        size_bytes: 17105946040
+
+  - name: hidream_i1_fast_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/hidream_i1_fast_fp8.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/diffusion_models/hidream_i1_fast_fp8.safetensors
+        size_bytes: 17105946040
+
+  # HiDream shared text encoders (4-way QuadrupleCLIPLoader):
+  # clip_l (long) + clip_g (long) + t5xxl SCALED + LLaMA 3.1 8B scaled.
+  # ANTI-PATTERN: t5xxl MUST be the _scaled variant — do NOT swap to the
+  # non-scaled t5xxl_fp8_e4m3fn.safetensors.
+  - name: hidream_shared_encoders
+    tier: shared
+    files:
+      - path: text_encoders/clip_l_hidream.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/text_encoders/clip_l_hidream.safetensors
+        size_bytes: 247586528
+      - path: text_encoders/clip_g_hidream.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/text_encoders/clip_g_hidream.safetensors
+        size_bytes: 1389743104
+      - path: text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors
+        size_bytes: 5157348688
+      - path: text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors
+        url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors
+        size_bytes: 9081258056

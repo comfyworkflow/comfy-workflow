@@ -582,6 +582,102 @@ EXTRA_NOTE_TEXT.update({
 })
 
 
+# HiDream-I1 install (vídeo #7 / Benchmark Pillar #5). 17B hybrid
+# transformer + LLaMA 3.1 text encoder, three distillation tiers sharing
+# one 4-way QuadrupleCLIPLoader. Native 1024×1024 (1 MP) — contrast
+# Hunyuan-Image 2.1 (native 2K). Recipe + anti-patterns are
+# peer-verified in C:\KB\models\hidream-i1.md (Phase 0+ unified
+# benchmark 2026-05-29, fp8 all-tiers PASS on cg-5090 / cg-4090 /
+# cg-3060). Timing below is the KB benchmark (1024² · seed 42 cold /
+# seed 43 warm), the exact prompt/seed/res the shipped workflow runs.
+_HIDREAM_I1_SIBLINGS_GUIDE: str = (
+    "\n"
+    "🔀 Other HiDream-I1 tiers in this install (eixo distillation — same model, fewer steps):\n"
+    "- `hidream_i1_full_fp8.json` — full Quality, 50 steps, uni_pc/simple, CFG 5.0. Best fidelity.\n"
+    "- `hidream_i1_dev_fp8.json` — dev, 28 steps, lcm/normal, CFG 1.0. Balanced.\n"
+    "- `hidream_i1_fast_fp8.json` — fast, 16 steps, lcm/normal, CFG 1.0. Fastest.\n"
+)
+
+_HIDREAM_I1_NATIVE_BUCKETS: str = (
+    "\n"
+    "📐 HiDream-I1 is NATIVE 1 MP (1024×1024) — NOT 2K (contrast Hunyuan-Image 2.1).\n"
+    "Edit `EmptySD3LatentImage` width/height for the supported native buckets:\n"
+    "- 1:1        →  1024×1024\n"
+    "- 9:16 tall  →   768×1360\n"
+    "- 16:9 wide  →  1360× 768\n"
+    "- 3:4        →   880×1168\n"
+    "- 4:3        →  1168× 880\n"
+    "- 3:2        →  1248× 832\n"
+    "- 2:3        →   832×1248\n"
+)
+
+_HIDREAM_I1_CONFIG_NOTE: str = (
+    "\n"
+    "⚙️ **Canonical config** (peer-verified — see anti-patterns):\n"
+    "- `QuadrupleCLIPLoader` slot order: 1=`clip_l_hidream` · 2=`clip_g_hidream` "
+    "· 3=`t5xxl_fp8_e4m3fn_scaled` · 4=`llama_3.1_8b_instruct_fp8_scaled`\n"
+    "- `UNETLoader` weight_dtype: **`default`** (fp8 single-file already quantized)\n"
+    "- VAE: `ae.safetensors` (FLUX VAE, shared)\n"
+    "- full tier scheduler: **`simple`** (NOT normal) · dev/fast: `normal`\n"
+    "- dev/fast CFG: **1.0** (distilled — no classifier-free guidance)\n"
+    "\n"
+    "🚫 Anti-patterns (do NOT do these):\n"
+    "- Do NOT swap t5xxl to the non-scaled file — the **_scaled** variant is required.\n"
+    "- Do NOT add a `type` parameter to `QuadrupleCLIPLoader` (not a valid input).\n"
+    "- No GGUF Q-quants; no sageattention/bitsandbytes/triton wrappers.\n"
+)
+
+_HIDREAM_I1_TIMING_NOTE: str = (
+    "\n"
+    "📊 KB benchmark (1024² · seed 42 cold / seed 43 warm · Phase 0+ 2026-05-29):\n"
+    "- full — RTX 3060: 407s · RTX 4090: 81s · RTX 5090: 73s (cold)\n"
+    "- dev  — RTX 3060: 130s · RTX 4090: 77s · RTX 5090: 44s (cold)\n"
+    "- fast — RTX 3060:  89s · RTX 4090: 32s · RTX 5090: 40s (cold)\n"
+    "(RTX 3060 12 GB pays cold-ish cost every run — model offloads to RAM, no resident warm path.)\n"
+)
+
+
+EXTRA_NOTE_TEXT.update({
+    "hidream_i1_full_fp8": (
+        "\n"
+        "🎯 **HiDream-I1 full fp8 — Quality default.** `UNETLoader` at "
+        "`default` dtype loading `hidream_i1_full_fp8.safetensors` (~17 GB). "
+        "**50 steps, CFG 5.0, uni_pc / simple**, ModelSamplingSD3 shift 3.0. "
+        "Negative prompt optional (empty is fine on full). Highest fidelity "
+        "of the three tiers — use for final/hero renders.\n"
+        + _HIDREAM_I1_SIBLINGS_GUIDE
+        + _HIDREAM_I1_NATIVE_BUCKETS
+        + _HIDREAM_I1_CONFIG_NOTE
+        + _HIDREAM_I1_TIMING_NOTE
+    ),
+    "hidream_i1_dev_fp8": (
+        "\n"
+        "🎯 **HiDream-I1 dev fp8 — balanced distilled.** `UNETLoader` at "
+        "`default` dtype loading `hidream_i1_dev_fp8.safetensors` (~17 GB). "
+        "**28 steps, CFG 1.0, lcm / normal**, ModelSamplingSD3 shift **6.0** "
+        "(NOT 3.0 — dev uses a higher shift). Distilled: leave negative "
+        "prompt empty (CFG 1.0 disables guidance). Faster than full with "
+        "close quality — good production middle ground.\n"
+        + _HIDREAM_I1_SIBLINGS_GUIDE
+        + _HIDREAM_I1_NATIVE_BUCKETS
+        + _HIDREAM_I1_CONFIG_NOTE
+        + _HIDREAM_I1_TIMING_NOTE
+    ),
+    "hidream_i1_fast_fp8": (
+        "\n"
+        "🎯 **HiDream-I1 fast fp8 — fastest distilled.** `UNETLoader` at "
+        "`default` dtype loading `hidream_i1_fast_fp8.safetensors` (~17 GB). "
+        "**16 steps, CFG 1.0, lcm / normal**, ModelSamplingSD3 shift 3.0. "
+        "Distilled: leave negative prompt empty. Fewest steps — use for "
+        "rapid iteration, promote winners to full for final renders.\n"
+        + _HIDREAM_I1_SIBLINGS_GUIDE
+        + _HIDREAM_I1_NATIVE_BUCKETS
+        + _HIDREAM_I1_CONFIG_NOTE
+        + _HIDREAM_I1_TIMING_NOTE
+    ),
+})
+
+
 # Per-workflow distribute subfolder under ``workflows_distribute/``.
 # Mirrors the audience-facing ComfyUI sidebar category exposed by the
 # install scripts. Workflows not listed land at the flat root (legacy
@@ -598,6 +694,9 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "hunyuan_image_21_fp8": "Image/Hunyuan",
     "hunyuan_image_21_bf16": "Image/Hunyuan",
     "hunyuan_image_21_distilled_fp8": "Image/Hunyuan",
+    "hidream_i1_full_fp8": "Image/HiDream",
+    "hidream_i1_dev_fp8": "Image/HiDream",
+    "hidream_i1_fast_fp8": "Image/HiDream",
 }
 
 

@@ -314,6 +314,60 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
             ),
         ),
     ),
+    "install-hidream-image.bat": ScriptDef(
+        # Pillar #5 / install video #7. HiDream-I1 fp8, 3 distillation
+        # tiers (full / dev / fast) sharing a 4-way QuadrupleCLIPLoader.
+        # Deployed all 3 GPUs 2026-05-29 (Phase 0+ unified benchmark,
+        # fp8 all-tiers PASS — see C:\KB\models\hidream-i1.md).
+        # Anti-patterns from fact sheet APPLIED:
+        # - QuadrupleCLIPLoader slot order: clip_l, clip_g, t5xxl SCALED, LLaMA
+        # - t5xxl MUST be the _scaled variant (non-scaled vetoed)
+        # - NO "type" param on QuadrupleCLIPLoader
+        # - UNETLoader weight_dtype = default (fp8 single-file)
+        # - full tier scheduler = simple (NOT normal)
+        # - dev/fast CFG = 1.0 (distilled, no CFG guidance)
+        # - native 1 MP (1024x1024) — NOT 2K
+        # - VAE reuses flux_shared_vae (ae.safetensors)
+        # GGUF Q-quants + sageattention/bitsandbytes/triton REJECTED per policy.
+        display_name="HiDream-I1 (3 tiers: full / dev / fast fp8)",
+        pillars=(5,),
+        models=(
+            "hidream_i1_full_fp8",
+            "hidream_i1_dev_fp8",
+            "hidream_i1_fast_fp8",
+            "hidream_shared_encoders",
+            "flux_shared_vae",
+        ),
+        custom_nodes=(),
+        workflows=(
+            "hidream_i1_full_fp8.json",
+            "hidream_i1_dev_fp8.json",
+            "hidream_i1_fast_fp8.json",
+        ),
+        ram_min="48 GB",
+        vram_min="12 GB",
+        category="Image\\HiDream",
+        cleanup_glob="hidream_*.json",
+        success_meta=SuccessBlockMeta(
+            title="HiDream-I1 install complete!",
+            installed_summary=(
+                "Models installed: full fp8 (17 GB) + dev fp8 (17 GB) + fast fp8 (17 GB) + 4 encoders (clip_l + clip_g + t5xxl scaled + LLaMA 3.1 8B, ~16 GB) + FLUX VAE (0.3 GB) - total ~67.5 GB (62.89 GiB)",
+            ),
+            sidebar_summary=(
+                "Workflows in ComfyUI sidebar:",
+                "  Comfy Workflow > Image > HiDream > (3 tiers: full / dev / fast)",
+            ),
+            current_video_slug="install_hidream_i1",
+            current_video_label="Video #7 - HiDream-I1 install + benchmark",
+            extra_after_installed=(
+                "Default recommendation: hidream_i1_full_fp8.json (Quality 50-step, uni_pc/simple, CFG 5.0 - best fidelity)",
+                "For balanced speed: hidream_i1_dev_fp8.json (28-step lcm, CFG 1.0, shift 6.0)",
+                "For fastest drafts: hidream_i1_fast_fp8.json (16-step lcm, CFG 1.0)",
+                "Native 1 MP (1024x1024) - NOT 2K. See workflow Note for native aspect buckets.",
+                "Runs on RTX 3060 12 GB via RAM offload (all 3 tiers PASS, no OOM).",
+            ),
+        ),
+    ),
     # Other install scripts (flux2 / wan22) are intentionally absent from
     # this map - they are withheld from the public setup-windows/ tree
     # until each model family's release video drops. Definitions stay in

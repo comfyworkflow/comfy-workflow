@@ -216,6 +216,7 @@ INSTALL_VIDEO_NUMBER: dict[str, int] = {
     "qwen-family": 4,
     "hunyuan": 5,
     "wan": 6,
+    "hidream": 7,
 }
 
 INSTALL_VIDEO_LABEL: dict[str, str] = {
@@ -225,6 +226,7 @@ INSTALL_VIDEO_LABEL: dict[str, str] = {
     "qwen-family": "Install Qwen-Image (2512 fp8 + Lightning 4-step)",
     "hunyuan": "Install Hunyuan-Image 2.1",
     "wan": "Install WAN 2.2 i2v",
+    "hidream": "Install HiDream-I1 (full / dev / fast fp8)",
 }
 
 
@@ -239,6 +241,7 @@ _INSTALL_VIDEO_YAML_KEY: dict[str, str] = {
     "qwen-family": "install_qwen_image",
     "hunyuan": "install_hunyuan_21",
     "wan": "install_wan22",
+    "hidream": "install_hidream_i1",
 }
 
 
@@ -323,6 +326,25 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
         ],
         "display_name": "WAN 2.2 i2v fp8 dual-expert (81 frames)",
     },
+    # HiDream-I1 ships as 3 separate tier workflows (full / dev / fast),
+    # each its own canvas with the correct UNET + recipe pre-wired so the
+    # audience opens-and-runs without node swaps. All three share the
+    # 4-way QuadrupleCLIPLoader (clip_l + clip_g + t5xxl scaled + LLaMA).
+    "hidream_i1_full_fp8.json": {
+        "install_slug": "hidream",
+        "scripts": ["install-hidream-image.bat"],
+        "display_name": "HiDream-I1 full fp8 (Quality 50-step, uni_pc, native 1MP)",
+    },
+    "hidream_i1_dev_fp8.json": {
+        "install_slug": "hidream",
+        "scripts": ["install-hidream-image.bat"],
+        "display_name": "HiDream-I1 dev fp8 (28-step distilled, lcm)",
+    },
+    "hidream_i1_fast_fp8.json": {
+        "install_slug": "hidream",
+        "scripts": ["install-hidream-image.bat"],
+        "display_name": "HiDream-I1 fast fp8 (16-step distilled, lcm, fastest)",
+    },
 }
 
 
@@ -346,6 +368,9 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "hunyuan_image_21_bf16.json": {"primary": 3, "secondary": [2]},
     "hunyuan_image_21_distilled_fp8.json": {"primary": 3, "secondary": [2]},
     "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
+    "hidream_i1_full_fp8.json": {"primary": 5, "secondary": []},
+    "hidream_i1_dev_fp8.json": {"primary": 5, "secondary": []},
+    "hidream_i1_fast_fp8.json": {"primary": 5, "secondary": []},
 }
 
 
@@ -368,6 +393,13 @@ HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "hunyuan_image_21_bf16.json": {"ram": "64 GB", "vram": "24 GB"},
     "hunyuan_image_21_distilled_fp8.json": {"ram": "32 GB", "vram": "16 GB"},
     "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},
+    # HiDream-I1: 17 GB fp8 UNET + ~16 GB encoder stack (clip_l + clip_g +
+    # t5xxl scaled + LLaMA 3.1 8B). Runs on RTX 3060 12 GB via RAM offload
+    # (Phase 0+ PASS all 3 tiers, no OOM) — warm~=cold on 3060 (full RAM
+    # offload). 24 GB+ VRAM gets true model-resident warm path.
+    "hidream_i1_full_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
+    "hidream_i1_dev_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
+    "hidream_i1_fast_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
 }
 
 

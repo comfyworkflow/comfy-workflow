@@ -361,7 +361,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# Hunyuan-Image 2.1 bf16\n\n📺 Install video #5: [Install Hunyuan-Image 2.1](https://github.com/comfyworkflow/comfy-workflow#install-hunyuan-pending)\n🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)\n🔬 Também em Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-hunyuan-21.bat`\n\n⚙️ Params: 20 steps, CFG 3.5, euler/simple, 1024×1024\n💾 Hardware mínimo: 96 GB RAM · 16 GB VRAM"
+        "# Hunyuan-Image 2.1 (legacy single-file stub — see fp8/bf16/distilled siblings)\n\n📺 Install video #5: [Install Hunyuan-Image 2.1](https://github.com/comfyworkflow/comfy-workflow#install-hunyuan-pending)\n🔬 Benchmark Pillar #3: [Pillar #3](https://github.com/comfyworkflow/comfy-workflow#video-pillar-3-pending)\n🔬 Também em Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-hunyuan-image.bat`\n\n⚙️ Params: 20 steps, CFG 3.5, euler/simple, 1024×1024\n💾 Hardware mínimo: 96 GB RAM · 16 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"

@@ -180,5 +180,11 @@
     "input_order": {"required": ["samples", "upscale_method", "scale_by"]},
     "output": ["LATENT"],
     "output_name": ["LATENT"]
+  },
+  "ConditioningZeroOut": {
+    "input": {"required": {"conditioning": ["CONDITIONING"]}},
+    "input_order": {"required": ["conditioning"]},
+    "output": ["CONDITIONING"],
+    "output_name": ["CONDITIONING"]
   }
 }

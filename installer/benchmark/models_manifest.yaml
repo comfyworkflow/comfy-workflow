@@ -22,11 +22,13 @@ videos:
   install_hunyuan_21: ""
   install_wan22: ""
   install_hidream_i1: ""
+  install_z_image: ""
   pillar_1: "https://youtu.be/sC7cwc-mocw"
   pillar_2: ""
   pillar_3: ""
   pillar_4: ""
   pillar_5: ""
+  pillar_6: ""
 
 # Each model entry maps a logical model name to one or more file downloads.
 # `tier` follows DA-008 matrix (basic/offload/high_vram); `files[].path` is
@@ -290,3 +292,43 @@ models:
       - path: text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors
         url: https://huggingface.co/Comfy-Org/HiDream-I1_ComfyUI/resolve/main/split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors
         size_bytes: 9081258056
+
+  # Z-Image Turbo — Pillar #6 (category Image\ZImage). Single-stream DiT
+  # 6B (Tongyi-MAI / Alibaba, Apache 2.0). 8-step distilled, CFG 1.0,
+  # native 1024². Uses ModelSamplingAuraFlow (shift=3) + res_multistep/
+  # simple. Single text encoder (Qwen3-4B, lumina2 routing) — NOT dual/
+  # quad CLIP. Two precision tiers ship: bf16 reference + fp8 E4M3FN
+  # (Kijai per-tensor scaled, anti-NaN). Channel comparative axis =
+  # DiT precision (bf16 vs fp8) with encoder constant.
+  # VAE reuses flux_shared_vae (ae.safetensors, FLUX VAE).
+  # Sizes byte-exact from HF Content-Length headers verified 2026-06-01.
+  - name: z_image_turbo_bf16
+    tier: basic
+    files:
+      - path: diffusion_models/z_image_turbo_bf16.safetensors
+        url: https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors
+        size_bytes: 12309866400
+
+  # fp8 E4M3FN — Kijai's per-tensor SCALED quant (canonical channel pick,
+  # anti-NaN on Ada/Ampere; Comfy-Org does not ship an fp8 for Z-Image).
+  # Source filename: z-image-turbo_fp8_scaled_e4m3fn_KJ.safetensors —
+  # renamed at install time to z_image_turbo_fp8_e4m3fn.safetensors to
+  # match the canonical workflow's UNET name.
+  - name: z_image_turbo_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/z_image_turbo_fp8_e4m3fn.safetensors
+        url: https://huggingface.co/Kijai/Z-Image_comfy_fp8_scaled/resolve/main/z-image-turbo_fp8_scaled_e4m3fn_KJ.safetensors
+        size_bytes: 6158115074
+
+  # Z-Image shared encoder (single Qwen3-4B, bf16 full precision —
+  # constant across bf16/fp8 runs so the comparative axis isolates the
+  # DiT precision). Comfy-Org also ships a qwen_3_4b_fp8_mixed.safetensors
+  # (5.63 GB) but the channel anchor uses the full bf16 (8.04 GB) for
+  # cleanest comparison.
+  - name: z_image_shared_encoder
+    tier: shared
+    files:
+      - path: text_encoders/qwen_3_4b.safetensors
+        url: https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors
+        size_bytes: 8044982048

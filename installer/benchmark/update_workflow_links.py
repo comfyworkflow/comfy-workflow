@@ -217,6 +217,7 @@ INSTALL_VIDEO_NUMBER: dict[str, int] = {
     "hunyuan": 5,
     "wan": 6,
     "hidream": 7,
+    "z-image": 8,
 }
 
 INSTALL_VIDEO_LABEL: dict[str, str] = {
@@ -227,6 +228,7 @@ INSTALL_VIDEO_LABEL: dict[str, str] = {
     "hunyuan": "Install Hunyuan-Image 2.1",
     "wan": "Install WAN 2.2 i2v",
     "hidream": "Install HiDream-I1 (full / dev / fast fp8)",
+    "z-image": "Install Z-Image Turbo (bf16 + fp8 E4M3FN)",
 }
 
 
@@ -345,6 +347,21 @@ INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
         "scripts": ["install-hidream-image.bat"],
         "display_name": "HiDream-I1 fast fp8 (16-step distilled, lcm, fastest)",
     },
+    # Z-Image Turbo ships as 2 precision-axis workflows (bf16 + fp8 E4M3FN
+    # Kijai scaled). Same recipe (8 steps, res_multistep/simple, shift=3,
+    # CFG 1.0, single Qwen3-4B encoder via CLIPLoader lumina2 routing) —
+    # only the UNET file changes. Comparative axis = DiT precision with
+    # encoder constant.
+    "z_image_turbo_bf16.json": {
+        "install_slug": "z-image",
+        "scripts": ["install-z-image.bat"],
+        "display_name": "Z-Image Turbo bf16 (reference precision, 8-step distilled)",
+    },
+    "z_image_turbo_fp8.json": {
+        "install_slug": "z-image",
+        "scripts": ["install-z-image.bat"],
+        "display_name": "Z-Image Turbo fp8 E4M3FN (Kijai scaled, 8-step distilled)",
+    },
 }
 
 
@@ -371,6 +388,8 @@ PILLAR_MAPPING: dict[str, dict[str, Any]] = {
     "hidream_i1_full_fp8.json": {"primary": 5, "secondary": []},
     "hidream_i1_dev_fp8.json": {"primary": 5, "secondary": []},
     "hidream_i1_fast_fp8.json": {"primary": 5, "secondary": []},
+    "z_image_turbo_bf16.json": {"primary": 6, "secondary": []},
+    "z_image_turbo_fp8.json": {"primary": 6, "secondary": []},
 }
 
 
@@ -400,6 +419,12 @@ HARDWARE_TIERS: dict[str, dict[str, str]] = {
     "hidream_i1_full_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
     "hidream_i1_dev_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
     "hidream_i1_fast_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
+    # Z-Image Turbo 6B distilled — fp8 (6 GB) fits 3060 natively (no
+    # offload). bf16 (12 GB DiT) requires offload on 12 GB cards but
+    # still runs. Encoder (8 GB qwen_3_4b) is offload-friendly between
+    # text-encode and KSampler phase.
+    "z_image_turbo_bf16.json": {"ram": "32 GB", "vram": "12 GB"},
+    "z_image_turbo_fp8.json": {"ram": "32 GB", "vram": "8 GB"},
 }
 
 
@@ -656,7 +681,7 @@ def _build_argparser() -> argparse.ArgumentParser:
             ),
         )
     # Benchmark Pillar URLs (5 cross-model editorial videos #1-#5).
-    for n in (1, 2, 3, 4, 5):
+    for n in (1, 2, 3, 4, 5, 6):
         parser.add_argument(
             f"--pillar-{n}-url",
             default=None,
@@ -744,7 +769,7 @@ def main() -> None:
         cli_val = getattr(args, cli_attr, None)
         if cli_val is not None:
             yaml_updates[_videos_yaml_key_for_install_slug(slug)] = cli_val
-    for n in (1, 2, 3, 4, 5):
+    for n in (1, 2, 3, 4, 5, 6):
         cli_val = getattr(args, f"pillar_{n}_url", None)
         if cli_val is not None:
             yaml_updates[f"pillar_{n}"] = cli_val
@@ -778,7 +803,7 @@ def main() -> None:
             slug, args.github_base_url.rstrip("/"),
         )
     pillar_urls: dict[int, str] = {}
-    for n in (1, 2, 3, 4, 5):
+    for n in (1, 2, 3, 4, 5, 6):
         url = videos_state.get(f"pillar_{n}", "")
         url = url.strip() if isinstance(url, str) else ""
         pillar_urls[n] = url or _placeholder_pillar_url(

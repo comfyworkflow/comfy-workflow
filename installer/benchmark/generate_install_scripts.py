@@ -368,6 +368,61 @@ SCRIPT_DEFS: dict[str, ScriptDef] = {
             ),
         ),
     ),
+    "install-z-image.bat": ScriptDef(
+        # Pillar #6 / install video #8. Z-Image Turbo (Tongyi-MAI /
+        # Alibaba, Apache 2.0). 6B single-stream DiT, 8-step distilled,
+        # CFG 1.0, native 1024x1024. Ships 2 precision tiers (bf16
+        # reference + fp8 E4M3FN Kijai per-tensor scaled). Comparative
+        # axis = DiT precision with encoder constant (single Qwen3-4B
+        # bf16, lumina2 routing). VAE reuses flux_shared_vae.
+        # Anti-patterns from canonical Comfy-Org template APPLIED:
+        # - CLIPLoader type = "lumina2" (NOT z_image / other)
+        # - sampler = res_multistep, scheduler = simple
+        # - ModelSamplingAuraFlow shift = 3 (NOT ModelSamplingSD3)
+        # - EmptySD3LatentImage (NOT EmptyLatentImage)
+        # - negative = ConditioningZeroOut of positive (single prompt)
+        # - UNETLoader weight_dtype = default
+        # - encoder = qwen_3_4b full bf16 (NOT qwen_3_4b_fp8_mixed,
+        #   so comparative isolates DiT precision)
+        # - fp8 from Kijai (per-tensor scaled anti-NaN; Comfy-Org does
+        #   NOT ship fp8 for Z-Image, only bf16 + nvfp4 - nvfp4 vetoed)
+        display_name="Z-Image Turbo (bf16 + fp8 E4M3FN)",
+        pillars=(6,),
+        models=(
+            "z_image_turbo_bf16",
+            "z_image_turbo_fp8",
+            "z_image_shared_encoder",
+            "flux_shared_vae",
+        ),
+        custom_nodes=(),
+        workflows=(
+            "z_image_turbo_bf16.json",
+            "z_image_turbo_fp8.json",
+        ),
+        ram_min="32 GB",
+        vram_min="8 GB",
+        category="Image\\ZImage",
+        cleanup_glob="z_image_*.json",
+        success_meta=SuccessBlockMeta(
+            title="Z-Image Turbo install complete!",
+            installed_summary=(
+                "Models installed: bf16 (12.3 GB) + fp8 E4M3FN (6.16 GB) + Qwen3-4B encoder (8.04 GB) + FLUX VAE (0.3 GB) - total ~26.8 GB",
+            ),
+            sidebar_summary=(
+                "Workflows in ComfyUI sidebar:",
+                "  Comfy Workflow > Image > ZImage > (bf16 + fp8 E4M3FN)",
+            ),
+            current_video_slug="install_z_image",
+            current_video_label="Video #8 - Z-Image Turbo install + benchmark",
+            extra_after_installed=(
+                "Default recommendation: z_image_turbo_fp8.json (6 GB DiT fits modest cards natively, no offload)",
+                "For reference precision: z_image_turbo_bf16.json (12 GB DiT, uses offload on 8-12 GB cards)",
+                "8-step distilled, CFG 1.0 - no negative prompt (ConditioningZeroOut zeros the positive).",
+                "Single Qwen3-4B encoder (bf16 full precision, constant across both tiers) - isolates DiT precision.",
+                "Native 1024x1024. Excellent text rendering EN + 中文 (Z-Image strength).",
+            ),
+        ),
+    ),
     # Other install scripts (flux2 / wan22) are intentionally absent from
     # this map - they are withheld from the public setup-windows/ tree
     # until each model family's release video drops. Definitions stay in

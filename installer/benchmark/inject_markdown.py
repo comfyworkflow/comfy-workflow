@@ -697,6 +697,8 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "hidream_i1_full_fp8": "Image/HiDream",
     "hidream_i1_dev_fp8": "Image/HiDream",
     "hidream_i1_fast_fp8": "Image/HiDream",
+    "z_image_turbo_bf16": "Image/ZImage",
+    "z_image_turbo_fp8": "Image/ZImage",
 }
 
 

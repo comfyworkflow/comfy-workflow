@@ -101,3 +101,6 @@ ComfyUI_windows_portable/
 !.env.example
 *.token
 hf_token.txt
+
+# === Internal audit/QA tooling (lives in private internal_docs; never ship public) ===
+installer/benchmark/quality_audit/

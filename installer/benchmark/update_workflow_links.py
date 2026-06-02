@@ -202,35 +202,74 @@ def _read_videos_yaml(manifest_path: Path) -> dict[str, str]:
 
 
 
+# ============================================================================
+# Install-video / Pillar / Hardware mappings — YAML-backed
+# ============================================================================
+# Authoritative source: ``installer/benchmark/install_video_mappings.yaml``.
+# Pre-video entries (Klein/etc.) live in
+# ``comfy-workflow-internal/staged/<slug>/constants_delta.yaml`` and merge
+# in via publish_due at premiere time (see publish_due.py).
+
+DEFAULT_INSTALL_VIDEO_MAPPINGS_PATH: Path = Path(
+    "installer/benchmark/install_video_mappings.yaml")
+
+
+def _load_install_video_mappings(
+    yaml_path: Path = DEFAULT_INSTALL_VIDEO_MAPPINGS_PATH,
+    *,
+    staged_paths: tuple[Path, ...] = (),
+) -> dict[str, dict[str, Any]]:
+    """Load the 6 install/pillar/hardware mapping dicts from YAML.
+
+    Returns a dict with keys: ``install_video_number``,
+    ``install_video_label``, ``install_video_yaml_key_aliases``,
+    ``install_video_mapping``, ``pillar_mapping``, ``hardware_tiers``.
+
+    Each staged_paths YAML may contribute additional entries to any of
+    the 6 sub-dicts (merged via shallow dict.update on each section).
+    Used by publish_due to test-render the public-after-merge state.
+    """
+    import yaml as _yaml
+    data = _yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    out: dict[str, dict[str, Any]] = {
+        "install_video_number": dict(data.get("install_video_number") or {}),
+        "install_video_label": dict(data.get("install_video_label") or {}),
+        "install_video_yaml_key_aliases": dict(
+            data.get("install_video_yaml_key_aliases") or {}),
+        "install_video_mapping": {
+            k: dict(v) for k, v in
+            (data.get("install_video_mapping") or {}).items()
+        },
+        "pillar_mapping": {
+            k: dict(v) for k, v in
+            (data.get("pillar_mapping") or {}).items()
+        },
+        "hardware_tiers": {
+            k: dict(v) for k, v in
+            (data.get("hardware_tiers") or {}).items()
+        },
+    }
+    for sp in staged_paths:
+        if not sp.exists():
+            continue
+        sd = _yaml.safe_load(sp.read_text(encoding="utf-8")) or {}
+        for section_key in out:
+            for k, v in (sd.get(section_key) or {}).items():
+                if isinstance(v, dict):
+                    out[section_key][k] = dict(v)
+                else:
+                    out[section_key][k] = v
+    return out
+
+
+_constants_data = _load_install_video_mappings()
+
 # Per-install-video-slug metadata. The install mini-series is a separate
 # editorial track from the Benchmark Pillar mini-series — the install
 # videos walk a user through one setup end-to-end (per model family),
 # while Pillar videos are cross-model comparisons.
-#
-# 5 install videos #2-#6 covering 8 production workflows (Flux1+Flux2
-# share a family video; Qwen-Image+Qwen-2512 likewise).
-INSTALL_VIDEO_NUMBER: dict[str, int] = {
-    "base": 1,
-    "sdxl": 2,
-    "flux-family": 3,
-    "qwen-family": 4,
-    "hunyuan": 5,
-    "wan": 6,
-    "hidream": 7,
-    "z-image": 8,
-}
-
-INSTALL_VIDEO_LABEL: dict[str, str] = {
-    "base": "ComfyUI base install (Windows portable)",
-    "sdxl": "Install SDXL ComfyUI",
-    "flux-family": "Install FLUX family (1 & 2)",
-    "qwen-family": "Install Qwen-Image (2512 fp8 + Lightning 4-step)",
-    "hunyuan": "Install Hunyuan-Image 2.1",
-    "wan": "Install WAN 2.2 i2v",
-    "hidream": "Install HiDream-I1 (full / dev / fast fp8)",
-    "z-image": "Install Z-Image Turbo (bf16 + fp8 E4M3FN)",
-}
-
+INSTALL_VIDEO_NUMBER: dict[str, int] = _constants_data["install_video_number"]
+INSTALL_VIDEO_LABEL: dict[str, str] = _constants_data["install_video_label"]
 
 # Slug aliasing for the YAML videos: section. The install-mini-series
 # slug ``flux-family`` (kebab in CLI args / display) maps to the YAML
@@ -238,13 +277,8 @@ INSTALL_VIDEO_LABEL: dict[str, str] = {
 # install-flux1.bat as the primary script. Slugs not listed here use
 # the default convention ``install_<slug_underscored>``
 # (e.g. sdxl → install_sdxl).
-_INSTALL_VIDEO_YAML_KEY: dict[str, str] = {
-    "flux-family": "install_flux1",
-    "qwen-family": "install_qwen_image",
-    "hunyuan": "install_hunyuan_21",
-    "wan": "install_wan22",
-    "hidream": "install_hidream_i1",
-}
+_INSTALL_VIDEO_YAML_KEY: dict[str, str] = _constants_data[
+    "install_video_yaml_key_aliases"]
 
 
 def _videos_yaml_key_for_install_slug(slug: str) -> str:
@@ -254,178 +288,24 @@ def _videos_yaml_key_for_install_slug(slug: str) -> str:
     return f"install_{slug.replace('-', '_')}"
 
 
-# Per-workflow install-mini-series mapping. Iteration order of this
-# dict drives the dry-run / report iteration order of the CLI.
-INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = {
-    "sdxl_base.json": {
-        "install_slug": "sdxl",
-        "scripts": ["install-sdxl.bat"],
-        "display_name": "SDXL Base 1.0",
-    },
-    # FLUX.1 ships as 5 separate variant workflows (one per loader/dtype combo).
-    # No flux_base aggregate — each variant is its own canvas with the correct
-    # loader pre-wired so the audience opens-and-runs without node swaps.
-    "flux_dev_fp16.json": {
-        "install_slug": "flux-family",
-        "scripts": ["install-flux1.bat"],
-        "display_name": "FLUX.1 dev fp16 (max precision)",
-    },
-    "flux_dev_fp8.json": {
-        "install_slug": "flux-family",
-        "scripts": ["install-flux1.bat"],
-        "display_name": "FLUX.1 dev fp8 (default, production)",
-    },
-    "flux_schnell_fp8.json": {
-        "install_slug": "flux-family",
-        "scripts": ["install-flux1.bat"],
-        "display_name": "FLUX.1 schnell fp8 (4-step draft)",
-    },
-    "qwen_image_fp8.json": {
-        "install_slug": "qwen-family",
-        "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image fp8",
-    },
-    "flux2_dev_gguf.json": {
-        "install_slug": "flux-family",
-        "scripts": ["install-flux2.bat"],
-        "display_name": "FLUX.2 dev GGUF (Q4_K_M default)",
-    },
-    "qwen_2512_fp8.json": {
-        "install_slug": "qwen-family",
-        "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image 2512 fp8 (5 aspect variants — unsloth build, ComfyUI v0.21.1 compatible)",
-    },
-    "qwen_2512_bf16.json": {
-        "install_slug": "qwen-family",
-        "scripts": ["install-qwen-image.bat"],
-        "display_name": "Qwen-Image 2512 bf16 (5 aspect variants — reference precision)",
-    },
-    "hunyuan_image_21.json": {
-        "install_slug": "hunyuan",
-        "scripts": ["install-hunyuan-image.bat"],
-        "display_name": "Hunyuan-Image 2.1 (legacy single-file stub — see fp8/bf16/distilled siblings)",
-    },
-    "hunyuan_image_21_fp8.json": {
-        "install_slug": "hunyuan",
-        "scripts": ["install-hunyuan-image.bat"],
-        "display_name": "Hunyuan-Image 2.1 fp8 (Quality 50-step, native 2K, dual-CLIP)",
-    },
-    "hunyuan_image_21_bf16.json": {
-        "install_slug": "hunyuan",
-        "scripts": ["install-hunyuan-image.bat"],
-        "display_name": "Hunyuan-Image 2.1 bf16 (Quality 50-step, reference precision)",
-    },
-    "hunyuan_image_21_distilled_fp8.json": {
-        "install_slug": "hunyuan",
-        "scripts": ["install-hunyuan-image.bat"],
-        "display_name": "Hunyuan-Image 2.1 distilled fp8 (8-step meanflow, ~5x faster)",
-    },
-    "wan22_i2v_fp8.json": {
-        "install_slug": "wan",
-        "scripts": [
-            "install-wan22.bat",
-            "install-sdxl.bat (gera input image)",
-        ],
-        "display_name": "WAN 2.2 i2v fp8 dual-expert (81 frames)",
-    },
-    # HiDream-I1 ships as 3 separate tier workflows (full / dev / fast),
-    # each its own canvas with the correct UNET + recipe pre-wired so the
-    # audience opens-and-runs without node swaps. All three share the
-    # 4-way QuadrupleCLIPLoader (clip_l + clip_g + t5xxl scaled + LLaMA).
-    "hidream_i1_full_fp8.json": {
-        "install_slug": "hidream",
-        "scripts": ["install-hidream-image.bat"],
-        "display_name": "HiDream-I1 full fp8 (Quality 50-step, uni_pc, native 1MP)",
-    },
-    "hidream_i1_dev_fp8.json": {
-        "install_slug": "hidream",
-        "scripts": ["install-hidream-image.bat"],
-        "display_name": "HiDream-I1 dev fp8 (28-step distilled, lcm)",
-    },
-    "hidream_i1_fast_fp8.json": {
-        "install_slug": "hidream",
-        "scripts": ["install-hidream-image.bat"],
-        "display_name": "HiDream-I1 fast fp8 (16-step distilled, lcm, fastest)",
-    },
-    # Z-Image Turbo ships as 2 precision-axis workflows (bf16 + fp8 E4M3FN
-    # Kijai scaled). Same recipe (8 steps, res_multistep/simple, shift=3,
-    # CFG 1.0, single Qwen3-4B encoder via CLIPLoader lumina2 routing) —
-    # only the UNET file changes. Comparative axis = DiT precision with
-    # encoder constant.
-    "z_image_turbo_bf16.json": {
-        "install_slug": "z-image",
-        "scripts": ["install-z-image.bat"],
-        "display_name": "Z-Image Turbo bf16 (reference precision, 8-step distilled)",
-    },
-    "z_image_turbo_fp8.json": {
-        "install_slug": "z-image",
-        "scripts": ["install-z-image.bat"],
-        "display_name": "Z-Image Turbo fp8 E4M3FN (Kijai scaled, 8-step distilled)",
-    },
-}
-
+# Per-workflow install-mini-series mapping. Iteration order of this dict
+# drives the dry-run / report iteration order of the CLI.
+INSTALL_VIDEO_MAPPING: dict[str, dict[str, Any]] = _constants_data[
+    "install_video_mapping"]
 
 # Per-workflow Benchmark Pillar mapping. The "Pillar" concept here is
-# the cross-model editorial mini-series (TBA #1..#5), NOT the install
+# the cross-model editorial mini-series (TBA #1..#6), NOT the install
 # mini-series. ``primary`` is the headline Pillar for the workflow;
 # ``secondary`` lists any additional Pillars where the workflow makes
 # a cameo (e.g., FLUX.1 fp8 plays a supporting role in Pillar #1 even
 # though its headline slot is Pillar #4).
-PILLAR_MAPPING: dict[str, dict[str, Any]] = {
-    "sdxl_base.json": {"primary": 1, "secondary": []},
-    "flux_dev_fp16.json": {"primary": 2, "secondary": [1]},
-    "flux_dev_fp8.json": {"primary": 2, "secondary": [1]},
-    "flux_schnell_fp8.json": {"primary": 2, "secondary": [1]},
-    "qwen_image_fp8.json": {"primary": 1, "secondary": []},
-    "flux2_dev_gguf.json": {"primary": 2, "secondary": []},
-    "qwen_2512_fp8.json": {"primary": 3, "secondary": []},
-    "qwen_2512_bf16.json": {"primary": 3, "secondary": []},
-    "hunyuan_image_21.json": {"primary": 3, "secondary": [2]},
-    "hunyuan_image_21_fp8.json": {"primary": 3, "secondary": [2]},
-    "hunyuan_image_21_bf16.json": {"primary": 3, "secondary": [2]},
-    "hunyuan_image_21_distilled_fp8.json": {"primary": 3, "secondary": [2]},
-    "wan22_i2v_fp8.json": {"primary": 5, "secondary": []},
-    "hidream_i1_full_fp8.json": {"primary": 5, "secondary": []},
-    "hidream_i1_dev_fp8.json": {"primary": 5, "secondary": []},
-    "hidream_i1_fast_fp8.json": {"primary": 5, "secondary": []},
-    "z_image_turbo_bf16.json": {"primary": 6, "secondary": []},
-    "z_image_turbo_fp8.json": {"primary": 6, "secondary": []},
-}
-
+PILLAR_MAPPING: dict[str, dict[str, Any]] = _constants_data["pillar_mapping"]
 
 # Conservative minimum hardware per workflow. RAM tier reflects the
 # observed offload pressure (Bloco 22d gallery V2: 93/99 cells in
 # offload-dominated regime — large workflows demand substantial RAM
 # even on hosts with 24 GiB VRAM).
-HARDWARE_TIERS: dict[str, dict[str, str]] = {
-    "sdxl_base.json": {"ram": "16 GB", "vram": "8 GB"},
-    # Per Phase 1.5 (e70572c) peak-VRAM matrix at 1024² (P1 Mustang).
-    "flux_dev_fp16.json": {"ram": "32 GB", "vram": "16 GB"},
-    "flux_dev_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
-    "flux_schnell_fp8.json": {"ram": "32 GB", "vram": "12 GB"},
-    "qwen_image_fp8.json": {"ram": "64 GB", "vram": "12 GB"},
-    "flux2_dev_gguf.json": {"ram": "48 GB", "vram": "12 GB"},
-    "qwen_2512_fp8.json": {"ram": "32 GB", "vram": "8 GB"},
-    "qwen_2512_bf16.json": {"ram": "48 GB", "vram": "12 GB"},
-    "hunyuan_image_21.json": {"ram": "96 GB", "vram": "16 GB"},
-    "hunyuan_image_21_fp8.json": {"ram": "32 GB", "vram": "16 GB"},
-    "hunyuan_image_21_bf16.json": {"ram": "64 GB", "vram": "24 GB"},
-    "hunyuan_image_21_distilled_fp8.json": {"ram": "32 GB", "vram": "16 GB"},
-    "wan22_i2v_fp8.json": {"ram": "96 GB", "vram": "16 GB"},
-    # HiDream-I1: 17 GB fp8 UNET + ~16 GB encoder stack (clip_l + clip_g +
-    # t5xxl scaled + LLaMA 3.1 8B). Runs on RTX 3060 12 GB via RAM offload
-    # (Phase 0+ PASS all 3 tiers, no OOM) — warm~=cold on 3060 (full RAM
-    # offload). 24 GB+ VRAM gets true model-resident warm path.
-    "hidream_i1_full_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
-    "hidream_i1_dev_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
-    "hidream_i1_fast_fp8.json": {"ram": "48 GB", "vram": "12 GB"},
-    # Z-Image Turbo 6B distilled — fp8 (6 GB) fits 3060 natively (no
-    # offload). bf16 (12 GB DiT) requires offload on 12 GB cards but
-    # still runs. Encoder (8 GB qwen_3_4b) is offload-friendly between
-    # text-encode and KSampler phase.
-    "z_image_turbo_bf16.json": {"ram": "32 GB", "vram": "12 GB"},
-    "z_image_turbo_fp8.json": {"ram": "32 GB", "vram": "8 GB"},
-}
+HARDWARE_TIERS: dict[str, dict[str, str]] = _constants_data["hardware_tiers"]
 
 
 # Class types that carry resolution inputs (mirrors gallery._inject_resolution).

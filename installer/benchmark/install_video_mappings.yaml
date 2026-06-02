@@ -1,0 +1,241 @@
+# Generated from update_workflow_links.py constants.
+# Edit this file (NOT the .py constants) to add/modify install/pillar/hardware
+# mappings. Loaded at runtime; deserialized to module-level constants.
+#
+# Pre-video entries (Klein/etc.) live in comfy-workflow-internal/staged/<slug>/
+# constants_delta.yaml and merge in via publish_due at premiere time.
+
+schema_version: 1
+install_video_number:
+  base: 1
+  sdxl: 2
+  flux-family: 3
+  qwen-family: 4
+  hunyuan: 5
+  wan: 6
+  hidream: 7
+  z-image: 8
+install_video_label:
+  base: ComfyUI base install (Windows portable)
+  sdxl: Install SDXL ComfyUI
+  flux-family: Install FLUX family (1 & 2)
+  qwen-family: Install Qwen-Image (2512 fp8 + Lightning 4-step)
+  hunyuan: Install Hunyuan-Image 2.1
+  wan: Install WAN 2.2 i2v
+  hidream: Install HiDream-I1 (full / dev / fast fp8)
+  z-image: Install Z-Image Turbo (bf16 + fp8 E4M3FN)
+install_video_yaml_key_aliases:
+  flux-family: install_flux1
+  qwen-family: install_qwen_image
+  hunyuan: install_hunyuan_21
+  wan: install_wan22
+  hidream: install_hidream_i1
+install_video_mapping:
+  sdxl_base.json:
+    install_slug: sdxl
+    scripts:
+    - install-sdxl.bat
+    display_name: SDXL Base 1.0
+  flux_dev_fp16.json:
+    install_slug: flux-family
+    scripts:
+    - install-flux1.bat
+    display_name: FLUX.1 dev fp16 (max precision)
+  flux_dev_fp8.json:
+    install_slug: flux-family
+    scripts:
+    - install-flux1.bat
+    display_name: FLUX.1 dev fp8 (default, production)
+  flux_schnell_fp8.json:
+    install_slug: flux-family
+    scripts:
+    - install-flux1.bat
+    display_name: FLUX.1 schnell fp8 (4-step draft)
+  qwen_image_fp8.json:
+    install_slug: qwen-family
+    scripts:
+    - install-qwen-image.bat
+    display_name: Qwen-Image fp8
+  flux2_dev_gguf.json:
+    install_slug: flux-family
+    scripts:
+    - install-flux2.bat
+    display_name: FLUX.2 dev GGUF (Q4_K_M default)
+  qwen_2512_fp8.json:
+    install_slug: qwen-family
+    scripts:
+    - install-qwen-image.bat
+    display_name: Qwen-Image 2512 fp8 (5 aspect variants — unsloth build, ComfyUI v0.21.1 compatible)
+  qwen_2512_bf16.json:
+    install_slug: qwen-family
+    scripts:
+    - install-qwen-image.bat
+    display_name: Qwen-Image 2512 bf16 (5 aspect variants — reference precision)
+  hunyuan_image_21.json:
+    install_slug: hunyuan
+    scripts:
+    - install-hunyuan-image.bat
+    display_name: Hunyuan-Image 2.1 (legacy single-file stub — see fp8/bf16/distilled siblings)
+  hunyuan_image_21_fp8.json:
+    install_slug: hunyuan
+    scripts:
+    - install-hunyuan-image.bat
+    display_name: Hunyuan-Image 2.1 fp8 (Quality 50-step, native 2K, dual-CLIP)
+  hunyuan_image_21_bf16.json:
+    install_slug: hunyuan
+    scripts:
+    - install-hunyuan-image.bat
+    display_name: Hunyuan-Image 2.1 bf16 (Quality 50-step, reference precision)
+  hunyuan_image_21_distilled_fp8.json:
+    install_slug: hunyuan
+    scripts:
+    - install-hunyuan-image.bat
+    display_name: Hunyuan-Image 2.1 distilled fp8 (8-step meanflow, ~5x faster)
+  wan22_i2v_fp8.json:
+    install_slug: wan
+    scripts:
+    - install-wan22.bat
+    - install-sdxl.bat (gera input image)
+    display_name: WAN 2.2 i2v fp8 dual-expert (81 frames)
+  hidream_i1_full_fp8.json:
+    install_slug: hidream
+    scripts:
+    - install-hidream-image.bat
+    display_name: HiDream-I1 full fp8 (Quality 50-step, uni_pc, native 1MP)
+  hidream_i1_dev_fp8.json:
+    install_slug: hidream
+    scripts:
+    - install-hidream-image.bat
+    display_name: HiDream-I1 dev fp8 (28-step distilled, lcm)
+  hidream_i1_fast_fp8.json:
+    install_slug: hidream
+    scripts:
+    - install-hidream-image.bat
+    display_name: HiDream-I1 fast fp8 (16-step distilled, lcm, fastest)
+  z_image_turbo_bf16.json:
+    install_slug: z-image
+    scripts:
+    - install-z-image.bat
+    display_name: Z-Image Turbo bf16 (reference precision, 8-step distilled)
+  z_image_turbo_fp8.json:
+    install_slug: z-image
+    scripts:
+    - install-z-image.bat
+    display_name: Z-Image Turbo fp8 E4M3FN (Kijai scaled, 8-step distilled)
+pillar_mapping:
+  sdxl_base.json:
+    primary: 1
+    secondary: []
+  flux_dev_fp16.json:
+    primary: 2
+    secondary:
+    - 1
+  flux_dev_fp8.json:
+    primary: 2
+    secondary:
+    - 1
+  flux_schnell_fp8.json:
+    primary: 2
+    secondary:
+    - 1
+  qwen_image_fp8.json:
+    primary: 1
+    secondary: []
+  flux2_dev_gguf.json:
+    primary: 2
+    secondary: []
+  qwen_2512_fp8.json:
+    primary: 3
+    secondary: []
+  qwen_2512_bf16.json:
+    primary: 3
+    secondary: []
+  hunyuan_image_21.json:
+    primary: 3
+    secondary:
+    - 2
+  hunyuan_image_21_fp8.json:
+    primary: 3
+    secondary:
+    - 2
+  hunyuan_image_21_bf16.json:
+    primary: 3
+    secondary:
+    - 2
+  hunyuan_image_21_distilled_fp8.json:
+    primary: 3
+    secondary:
+    - 2
+  wan22_i2v_fp8.json:
+    primary: 5
+    secondary: []
+  hidream_i1_full_fp8.json:
+    primary: 5
+    secondary: []
+  hidream_i1_dev_fp8.json:
+    primary: 5
+    secondary: []
+  hidream_i1_fast_fp8.json:
+    primary: 5
+    secondary: []
+  z_image_turbo_bf16.json:
+    primary: 6
+    secondary: []
+  z_image_turbo_fp8.json:
+    primary: 6
+    secondary: []
+hardware_tiers:
+  sdxl_base.json:
+    ram: 16 GB
+    vram: 8 GB
+  flux_dev_fp16.json:
+    ram: 32 GB
+    vram: 16 GB
+  flux_dev_fp8.json:
+    ram: 32 GB
+    vram: 12 GB
+  flux_schnell_fp8.json:
+    ram: 32 GB
+    vram: 12 GB
+  qwen_image_fp8.json:
+    ram: 64 GB
+    vram: 12 GB
+  flux2_dev_gguf.json:
+    ram: 48 GB
+    vram: 12 GB
+  qwen_2512_fp8.json:
+    ram: 32 GB
+    vram: 8 GB
+  qwen_2512_bf16.json:
+    ram: 48 GB
+    vram: 12 GB
+  hunyuan_image_21.json:
+    ram: 96 GB
+    vram: 16 GB
+  hunyuan_image_21_fp8.json:
+    ram: 32 GB
+    vram: 16 GB
+  hunyuan_image_21_bf16.json:
+    ram: 64 GB
+    vram: 24 GB
+  hunyuan_image_21_distilled_fp8.json:
+    ram: 32 GB
+    vram: 16 GB
+  wan22_i2v_fp8.json:
+    ram: 96 GB
+    vram: 16 GB
+  hidream_i1_full_fp8.json:
+    ram: 48 GB
+    vram: 12 GB
+  hidream_i1_dev_fp8.json:
+    ram: 48 GB
+    vram: 12 GB
+  hidream_i1_fast_fp8.json:
+    ram: 48 GB
+    vram: 12 GB
+  z_image_turbo_bf16.json:
+    ram: 32 GB
+    vram: 12 GB
+  z_image_turbo_fp8.json:
+    ram: 32 GB
+    vram: 8 GB

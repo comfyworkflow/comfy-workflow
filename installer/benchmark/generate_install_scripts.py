@@ -133,301 +133,69 @@ class ScriptDef:
     cleanup_glob: str = ""
 
 
-# Mirrors PILLAR_MAPPING / HARDWARE_TIERS in update_workflow_links.py —
-# kept in sync manually; the two surfaces will consolidate in a follow-up
-# (débito V2 #24 candidate: shared metadata source of truth).
-SCRIPT_DEFS: dict[str, ScriptDef] = {
-    "install-sdxl.bat": ScriptDef(
-        display_name="SDXL Base 1.0",
-        pillars=(1,),
-        models=("sdxl_base_1.0",),
-        custom_nodes=(),
-        workflows=("sdxl_base.json",),
-        ram_min="16 GB",
-        vram_min="8 GB",
-        category="Image\\SDXL",
-        cleanup_glob="sdxl_*.json",
+# ============================================================================
+# SCRIPT_DEFS loader (YAML-backed)
+# ============================================================================
+
+DEFAULT_SCRIPT_DEFS_PATH: Path = Path("installer/benchmark/script_defs.yaml")
+
+
+def _dict_to_script_def(d: dict[str, Any]) -> ScriptDef:
+    sm = d["success_meta"]
+    return ScriptDef(
+        display_name=d["display_name"],
+        pillars=tuple(d.get("pillars", [])),
+        models=tuple(d.get("models", [])),
+        custom_nodes=tuple(tuple(cn) for cn in d.get("custom_nodes", [])),
+        workflows=tuple(d.get("workflows", [])),
+        ram_min=d["ram_min"],
+        vram_min=d["vram_min"],
+        category=d["category"],
+        cleanup_glob=d.get("cleanup_glob", ""),
         success_meta=SuccessBlockMeta(
-            title="SDXL install complete!",
-            installed_summary=(
-                "Model installed: SDXL Base 1.0",
-            ),
-            sidebar_summary=(
-                "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > SDXL > (5 aspect variants)",
-            ),
-            current_video_slug="install_sdxl",
-            current_video_label="Video #2 - SDXL install + benchmark",
-            next_video_slug="install_flux1",
-            next_video_label="Video #3 - FLUX",
+            title=sm["title"],
+            installed_summary=tuple(sm.get("installed_summary", [])),
+            sidebar_summary=tuple(sm.get("sidebar_summary", [])),
+            current_video_slug=sm["current_video_slug"],
+            current_video_label=sm["current_video_label"],
+            next_video_slug=sm.get("next_video_slug", "") or "",
+            next_video_label=sm.get("next_video_label", "") or "",
+            extra_after_installed=tuple(sm.get("extra_after_installed", [])),
         ),
-    ),
-    "install-flux1.bat": ScriptDef(
-        # Phase 1.5 audit (e70572c): ship per-variant Format A workflows
-        # (one per loader/dtype combo) instead of an aggregate. Each
-        # variant opens-and-runs with the correct loader pre-wired —
-        # no node swaps for the audience.
-        #
-        # Operator constraint "no Q-quants": Q8/Q4 GGUF variants dropped
-        # — GGUF dequant tax beats fp8 on every audience-tier GPU
-        # (>= 12 GB VRAM). Ship list 5 -> 3 (fp16 / fp8 / schnell).
-        # ComfyUI-GGUF custom node removed (no consumer remaining).
-        display_name="FLUX.1 (3 variants pre-wired)",
-        pillars=(2, 1),
-        models=(
-            "flux_dev_fp8",
-            "flux_dev_fp16",
-            "flux_schnell_fp8",
-            "flux_shared_encoders",
-            "flux_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=(
-            "flux_dev_fp16.json",
-            "flux_dev_fp8.json",
-            "flux_schnell_fp8.json",
-        ),
-        ram_min="32 GB",
-        vram_min="10 GB",
-        category="Image\\FLUX",
-        cleanup_glob="flux_*.json",
-        success_meta=SuccessBlockMeta(
-            title="FLUX install complete!",
-            installed_summary=(
-                "Models installed: fp16, fp8, schnell (3 variants)",
-            ),
-            sidebar_summary=(
-                "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > FLUX > (3 variants)",
-            ),
-            current_video_slug="install_flux1",
-            current_video_label="Video #3 - FLUX install + benchmark",
-            next_video_slug="install_qwen_image",
-            next_video_label="Video #4 - Qwen-Image",
-            extra_after_installed=(
-                "Default recommendation: flux_dev_fp8 (best balance for most GPUs)",
-                "Q4/Q8 GGUF variants dropped - slower than fp8 on every audience-tier GPU (>= 12 GB VRAM)",
-            ),
-        ),
-    ),
-    "install-qwen-image.bat": ScriptDef(
-        # Stage 1.C — fp8 source SWAPPED Comfy-Org → unsloth due to
-        # ComfyUI v0.21.1 dispatcher regression. Comfy-Org's official
-        # qwen_image_2512_fp8_e4m3fn ships scales the v0.19+ comfy-kitchen
-        # kernel dispatcher silently mis-dequantizes → pure noise output.
-        # Upstream open issues #11665, #11662, #11255, #12648.
-        # unsloth/Qwen-Image-2512-FP8 quantization is compatible with the
-        # current dispatcher; visual matrix 14/14 PASS validated across
-        # cg-5090 / cg-4090 / cg-3060 in _user_mirror v0.21.1.
-        # See internal_docs/fp8_noise_fix/REPORT_fp8_noise_root_cause.md.
-        display_name="Qwen-Image 2512 (10 workflows: fp8 + bf16 x 5 aspects)",
-        pillars=(3,),
-        models=(
-            "qwen_image_2512_fp8",
-            "qwen_image_2512_bf16",
-            "qwen_lightning_lora_2512_4step",
-            "qwen_shared_encoders",
-            "qwen_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=(
-            "qwen_2512_fp8.json",
-            "qwen_2512_bf16.json",
-        ),
-        ram_min="48 GB",
-        vram_min="12 GB",
-        category="Image\\Qwen",
-        cleanup_glob="qwen_*.json",
-        success_meta=SuccessBlockMeta(
-            title="Qwen-Image install complete!",
-            installed_summary=(
-                "Models installed: 2512 fp8 (unsloth, 19 GB) + 2512 bf16 (38 GB) + Lightning 4-step LoRA (1.7 GB) + full bf16 CLIP (16.6 GB) + VAE (0.3 GB) - total ~74 GB",
-            ),
-            sidebar_summary=(
-                "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > Qwen > (10 workflows: fp8 + bf16 x 5 aspects each)",
-            ),
-            current_video_slug="install_qwen_image",
-            current_video_label="Video #4 - Qwen-Image install + benchmark",
-            next_video_slug="install_hunyuan_21",
-            next_video_label="Video #5 - Hunyuan-Image 2.1",
-            extra_after_installed=(
-                "Default recommendation: qwen_2512_fp8_1x1.json (1328x1328 native, fits 16 GB VRAM)",
-                "For reference precision: qwen_2512_bf16_1x1.json (24 GB+ VRAM recommended)",
-                "For 4x faster drafts: enable the Lightning LoRA toggle inside any workflow (see Note for steps=4 cfg=1.0)",
-                "fp8 source: unsloth/Qwen-Image-2512-FP8 (Comfy-Org build broken on ComfyUI v0.21.1 dispatcher - issues #11665 / #11662)",
-            ),
-        ),
-    ),
-    "install-hunyuan-image.bat": ScriptDef(
-        # Phase 0+ Canal audit 2026-05-26: 8 cg-5090 cells PASS visual on
-        # KB ComfyUI v0.21.1 with native PR #9792 support. fp8 + bf16 +
-        # distilled fp8. Refiner downloaded but ComfyUI native workflow
-        # for 2-stage refiner is TBD per fact sheet — NOT shipped this
-        # cycle. Cross-GPU (cg-4090, cg-3060) defers to v2 audit.
-        # Anti-patterns from fact sheet APPLIED:
-        # - euler / normal scheduler (NOT karras — blurry artifact)
-        # - ModelSamplingSD3 shift 5 full / shift 4 distilled
-        # - CFG 3.5 full / 3.25 distilled
-        # - native 2K bucket (NOT 1K — artifact)
-        # - dual text encoder (qwen 2.5 VL 7B + byt5 glyph)
-        # - weight_dtype default for bf16, fp8_e4m3fn for fp8
-        # - flash-attn NOT enabled (sdpa baseline per windows policy)
-        # GGUF Q-quants REJECTED per model_precision_policy.md.
-        display_name="Hunyuan-Image 2.1 (3 variants: fp8 + bf16 + distilled fp8)",
-        pillars=(3,),
-        models=(
-            "hunyuan_image_21_fp8",
-            "hunyuan_image_21_bf16",
-            "hunyuan_image_21_distilled_fp8",
-            "hunyuan_shared_encoders",
-            "hunyuan_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=(
-            "hunyuan_image_21_fp8.json",
-            "hunyuan_image_21_bf16.json",
-            "hunyuan_image_21_distilled_fp8.json",
-        ),
-        ram_min="48 GB",
-        vram_min="16 GB",
-        category="Image\\Hunyuan",
-        cleanup_glob="hunyuan_*.json",
-        success_meta=SuccessBlockMeta(
-            title="Hunyuan-Image 2.1 install complete!",
-            installed_summary=(
-                "Models installed: 2.1 fp8 (17.4 GB) + 2.1 bf16 (34.9 GB) + 2.1 distilled fp8 (17.5 GB) + dual encoders (qwen + byt5, 17 GB) + VAE (0.8 GB) - total ~88 GB",
-            ),
-            sidebar_summary=(
-                "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > Hunyuan > (3 variants: fp8 / bf16 / distilled-8-step)",
-            ),
-            current_video_slug="install_hunyuan_21",
-            current_video_label="Video #5 - Hunyuan-Image 2.1 install + benchmark",
-            next_video_slug="install_wan22",
-            next_video_label="Video #6 - WAN 2.2",
-            extra_after_installed=(
-                "Default recommendation: hunyuan_image_21_fp8.json (Quality 50-step, ~60s on RTX 5090, 16 GB VRAM)",
-                "For fast iteration: hunyuan_image_21_distilled_fp8.json (8-step meanflow, ~10s warm)",
-                "For reference precision: hunyuan_image_21_bf16.json (24 GB+ VRAM recommended)",
-                "Native 2K only - do NOT generate at 1024x1024 (model produces artifacts). See workflow Note for 2K aspect buckets.",
-            ),
-        ),
-    ),
-    "install-hidream-image.bat": ScriptDef(
-        # Pillar #5 / install video #7. HiDream-I1 fp8, 3 distillation
-        # tiers (full / dev / fast) sharing a 4-way QuadrupleCLIPLoader.
-        # Deployed all 3 GPUs 2026-05-29 (Phase 0+ unified benchmark,
-        # fp8 all-tiers PASS — see C:\KB\models\hidream-i1.md).
-        # Anti-patterns from fact sheet APPLIED:
-        # - QuadrupleCLIPLoader slot order: clip_l, clip_g, t5xxl SCALED, LLaMA
-        # - t5xxl MUST be the _scaled variant (non-scaled vetoed)
-        # - NO "type" param on QuadrupleCLIPLoader
-        # - UNETLoader weight_dtype = default (fp8 single-file)
-        # - full tier scheduler = simple (NOT normal)
-        # - dev/fast CFG = 1.0 (distilled, no CFG guidance)
-        # - native 1 MP (1024x1024) — NOT 2K
-        # - VAE reuses flux_shared_vae (ae.safetensors)
-        # GGUF Q-quants + sageattention/bitsandbytes/triton REJECTED per policy.
-        display_name="HiDream-I1 (3 tiers: full / dev / fast fp8)",
-        pillars=(5,),
-        models=(
-            "hidream_i1_full_fp8",
-            "hidream_i1_dev_fp8",
-            "hidream_i1_fast_fp8",
-            "hidream_shared_encoders",
-            "flux_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=(
-            "hidream_i1_full_fp8.json",
-            "hidream_i1_dev_fp8.json",
-            "hidream_i1_fast_fp8.json",
-        ),
-        ram_min="48 GB",
-        vram_min="12 GB",
-        category="Image\\HiDream",
-        cleanup_glob="hidream_*.json",
-        success_meta=SuccessBlockMeta(
-            title="HiDream-I1 install complete!",
-            installed_summary=(
-                "Models installed: full fp8 (17 GB) + dev fp8 (17 GB) + fast fp8 (17 GB) + 4 encoders (clip_l + clip_g + t5xxl scaled + LLaMA 3.1 8B, ~16 GB) + FLUX VAE (0.3 GB) - total ~67.5 GB (62.89 GiB)",
-            ),
-            sidebar_summary=(
-                "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > HiDream > (3 tiers: full / dev / fast)",
-            ),
-            current_video_slug="install_hidream_i1",
-            current_video_label="Video #7 - HiDream-I1 install + benchmark",
-            extra_after_installed=(
-                "Default recommendation: hidream_i1_full_fp8.json (Quality 50-step, uni_pc/simple, CFG 5.0 - best fidelity)",
-                "For balanced speed: hidream_i1_dev_fp8.json (28-step lcm, CFG 1.0, shift 6.0)",
-                "For fastest drafts: hidream_i1_fast_fp8.json (16-step lcm, CFG 1.0)",
-                "Native 1 MP (1024x1024) - NOT 2K. See workflow Note for native aspect buckets.",
-                "Runs on RTX 3060 12 GB via RAM offload (all 3 tiers PASS, no OOM).",
-            ),
-        ),
-    ),
-    "install-z-image.bat": ScriptDef(
-        # Pillar #6 / install video #8. Z-Image Turbo (Tongyi-MAI /
-        # Alibaba, Apache 2.0). 6B single-stream DiT, 8-step distilled,
-        # CFG 1.0, native 1024x1024. Ships 2 precision tiers (bf16
-        # reference + fp8 E4M3FN Kijai per-tensor scaled). Comparative
-        # axis = DiT precision with encoder constant (single Qwen3-4B
-        # bf16, lumina2 routing). VAE reuses flux_shared_vae.
-        # Anti-patterns from canonical Comfy-Org template APPLIED:
-        # - CLIPLoader type = "lumina2" (NOT z_image / other)
-        # - sampler = res_multistep, scheduler = simple
-        # - ModelSamplingAuraFlow shift = 3 (NOT ModelSamplingSD3)
-        # - EmptySD3LatentImage (NOT EmptyLatentImage)
-        # - negative = ConditioningZeroOut of positive (single prompt)
-        # - UNETLoader weight_dtype = default
-        # - encoder = qwen_3_4b full bf16 (NOT qwen_3_4b_fp8_mixed,
-        #   so comparative isolates DiT precision)
-        # - fp8 from Kijai (per-tensor scaled anti-NaN; Comfy-Org does
-        #   NOT ship fp8 for Z-Image, only bf16 + nvfp4 - nvfp4 vetoed)
-        display_name="Z-Image Turbo (bf16 + fp8 E4M3FN)",
-        pillars=(6,),
-        models=(
-            "z_image_turbo_bf16",
-            "z_image_turbo_fp8",
-            "z_image_shared_encoder",
-            "flux_shared_vae",
-        ),
-        custom_nodes=(),
-        workflows=(
-            "z_image_turbo_bf16.json",
-            "z_image_turbo_fp8.json",
-        ),
-        ram_min="32 GB",
-        vram_min="8 GB",
-        category="Image\\ZImage",
-        cleanup_glob="z_image_*.json",
-        success_meta=SuccessBlockMeta(
-            title="Z-Image Turbo install complete!",
-            installed_summary=(
-                "Models installed: bf16 (12.3 GB) + fp8 E4M3FN (6.16 GB) + Qwen3-4B encoder (8.04 GB) + FLUX VAE (0.3 GB) - total ~26.8 GB",
-            ),
-            sidebar_summary=(
-                "Workflows in ComfyUI sidebar:",
-                "  Comfy Workflow > Image > ZImage > (bf16 + fp8 E4M3FN)",
-            ),
-            current_video_slug="install_z_image",
-            current_video_label="Video #8 - Z-Image Turbo install + benchmark",
-            extra_after_installed=(
-                "Default recommendation: z_image_turbo_fp8.json (6 GB DiT fits modest cards natively, no offload)",
-                "For reference precision: z_image_turbo_bf16.json (12 GB DiT, uses offload on 8-12 GB cards)",
-                "8-step distilled, CFG 1.0 - no negative prompt (ConditioningZeroOut zeros the positive).",
-                "Single Qwen3-4B encoder (bf16 full precision, constant across both tiers) - isolates DiT precision.",
-                "Native 1024x1024. Excellent text rendering EN + 中文 (Z-Image strength).",
-            ),
-        ),
-    ),
-    # Other install scripts (flux2 / wan22) are intentionally absent from
-    # this map - they are withheld from the public setup-windows/ tree
-    # until each model family's release video drops. Definitions stay in
-    # the internal working copy and rotate back in here on each video launch.
-}
+    )
+
+
+def _load_script_defs(
+    yaml_path: Path = DEFAULT_SCRIPT_DEFS_PATH,
+    *,
+    staged_paths: tuple[Path, ...] = (),
+) -> dict[str, ScriptDef]:
+    """Load SCRIPT_DEFS from public YAML + optional staged overlays.
+
+    Public bats live in ``yaml_path`` (installer/benchmark/script_defs.yaml).
+    Pre-video bats (Klein/etc.) live in
+    ``comfy-workflow-internal/staged/<slug>/script_defs_entry.yaml`` —
+    each file contributes one entry under ``scripts:``, merged into the
+    result if its path is passed in ``staged_paths``. Used by publish_due
+    to test-render the public-after-merge state before atomic commit.
+    """
+    data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+    out: dict[str, ScriptDef] = {}
+    for bat_name, raw in (data.get("scripts") or {}).items():
+        out[bat_name] = _dict_to_script_def(raw)
+    for sp in staged_paths:
+        if not sp.exists():
+            continue
+        sdata = yaml.safe_load(sp.read_text(encoding="utf-8")) or {}
+        for bat_name, raw in (sdata.get("scripts") or {}).items():
+            out[bat_name] = _dict_to_script_def(raw)
+    return out
+
+
+# Loaded at import time from script_defs.yaml. Pre-video entries are NOT
+# in this public dict — they live in comfy-workflow-internal/staged/<slug>/
+# and merge in via publish_due at premiere time (see publish_due.py).
+SCRIPT_DEFS: dict[str, ScriptDef] = _load_script_defs()
 
 
 # ============================================================================

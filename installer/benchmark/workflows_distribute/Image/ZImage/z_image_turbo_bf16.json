@@ -396,7 +396,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# Z-Image Turbo bf16 (reference precision, 8-step distilled)\n\n📺 Install video #8: [Install Z-Image Turbo (bf16 + fp8 E4M3FN)](https://github.com/comfyworkflow/comfy-workflow#install-z-image-pending)\n🔬 Benchmark Pillar #6: [Pillar #6](https://github.com/comfyworkflow/comfy-workflow#video-pillar-6-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-z-image.bat`\n\n⚙️ Params: 8 steps, CFG 1.0, res_multistep/simple, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 12 GB VRAM"
+        "# Z-Image Turbo bf16 (reference precision, 8-step distilled)\n\n📺 Install video #8: [Install Z-Image Turbo (bf16 + fp8 E4M3FN)](https://youtu.be/ALEDES9IkOs)\n🔬 Benchmark Pillar #6: [Pillar #6](https://github.com/comfyworkflow/comfy-workflow#video-pillar-6-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-z-image.bat`\n\n⚙️ Params: 8 steps, CFG 1.0, res_multistep/simple, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 12 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"

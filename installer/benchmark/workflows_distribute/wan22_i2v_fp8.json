@@ -617,7 +617,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# WAN 2.2 i2v fp8 dual-expert (81 frames)\n\n📺 Install video #6: [Install WAN 2.2 i2v](https://github.com/comfyworkflow/comfy-workflow#install-wan-pending)\n🔬 Benchmark Pillar #5: [Pillar #5](https://github.com/comfyworkflow/comfy-workflow#video-pillar-5-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-wan22.bat`\n- `install-sdxl.bat (gera input image)`\n\n⚙️ Params: 20 steps, CFG 3.5, euler/simple, 768×768, 81 frames\n💾 Hardware mínimo: 96 GB RAM · 16 GB VRAM"
+        "# WAN 2.2 i2v fp8 dual-expert (81 frames)\n\n📺 Install video #6: [Install WAN 2.2 i2v](https://github.com/comfyworkflow/comfy-workflow#install-wan-pending)\n🔬 Benchmark Pillar #5: [Pillar #5](https://youtu.be/tP_3YbEX8hA)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-wan22.bat`\n- `install-sdxl.bat (gera input image)`\n\n⚙️ Params: 20 steps, CFG 3.5, euler/simple, 768×768, 81 frames\n💾 Hardware mínimo: 96 GB RAM · 16 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"

@@ -209,7 +209,7 @@ echo   Native 1 MP (1024x1024) - NOT 2K. See workflow Note for native aspect buc
 echo   Runs on RTX 3060 12 GB via RAM offload (all 3 tiers PASS, no OOM).
 echo.
 echo   Tutorial video ^(Video #7 - HiDream-I1 install + benchmark^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/tP_3YbEX8hA
 echo.
 echo   Repo ^(all installs^):
 echo   https://github.com/comfyworkflow/comfy-workflow

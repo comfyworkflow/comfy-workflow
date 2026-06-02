@@ -19,16 +19,16 @@ videos:
   install_flux1: ""
   install_qwen_image: ""
   install_qwen_2512: ""
-  install_hunyuan_21: ""
+  install_hunyuan_21: "https://youtu.be/hxTeL8S4m2g"
   install_wan22: ""
-  install_hidream_i1: ""
-  install_z_image: ""
+  install_hidream_i1: "https://youtu.be/tP_3YbEX8hA"
+  install_z_image: "https://youtu.be/ALEDES9IkOs"
   pillar_1: "https://youtu.be/sC7cwc-mocw"
   pillar_2: ""
   pillar_3: ""
-  pillar_4: ""
-  pillar_5: ""
-  pillar_6: ""
+  pillar_4: "https://youtu.be/hxTeL8S4m2g"
+  pillar_5: "https://youtu.be/tP_3YbEX8hA"
+  pillar_6: "https://youtu.be/ALEDES9IkOs"
 
 # Each model entry maps a logical model name to one or more file downloads.
 # `tier` follows DA-008 matrix (basic/offload/high_vram); `files[].path` is

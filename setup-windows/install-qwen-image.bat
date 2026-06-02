@@ -215,7 +215,7 @@ echo   Tutorial video ^(Video #4 - Qwen-Image install + benchmark^):
 echo   (Coming soon - watch the repo for updates)
 echo.
 echo   Next in series ^(Video #5 - Hunyuan-Image 2.1^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/hxTeL8S4m2g
 echo.
 echo   Repo ^(all installs^):
 echo   https://github.com/comfyworkflow/comfy-workflow

@@ -206,7 +206,7 @@ echo   For reference precision: hunyuan_image_21_bf16.json (24 GB+ VRAM recommen
 echo   Native 2K only - do NOT generate at 1024x1024 (model produces artifacts). See workflow Note for 2K aspect buckets.
 echo.
 echo   Tutorial video ^(Video #5 - Hunyuan-Image 2.1 install + benchmark^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/hxTeL8S4m2g
 echo.
 echo   Next in series ^(Video #6 - WAN 2.2^):
 echo   (Coming soon - watch the repo for updates)

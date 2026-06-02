@@ -204,7 +204,7 @@ echo   Single Qwen3-4B encoder (bf16 full precision, constant across both tiers)
 echo   Native 1024x1024. Excellent text rendering EN + 中文 (Z-Image strength).
 echo.
 echo   Tutorial video ^(Video #8 - Z-Image Turbo install + benchmark^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/ALEDES9IkOs
 echo.
 echo   Repo ^(all installs^):
 echo   https://github.com/comfyworkflow/comfy-workflow

@@ -1,7 +1,7 @@
 # Z-Image Turbo fp8 E4M3FN (Kijai scaled, 8-step distilled)
 
-📺 Install video #8: [Install Z-Image Turbo (bf16 + fp8 E4M3FN)](https://github.com/comfyworkflow/comfy-workflow#install-z-image-pending)
-🔬 Benchmark Pillar #6: [Pillar #6](https://github.com/comfyworkflow/comfy-workflow#video-pillar-6-pending)
+📺 Install video #8: [Install Z-Image Turbo (bf16 + fp8 E4M3FN)](https://youtu.be/ALEDES9IkOs)
+🔬 Benchmark Pillar #6: [Pillar #6](https://youtu.be/ALEDES9IkOs)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)
 - `install-z-image.bat`

@@ -1,7 +1,7 @@
 # WAN 2.2 i2v fp8 dual-expert (81 frames)
 
 📺 Install video #6: [Install WAN 2.2 i2v](https://github.com/comfyworkflow/comfy-workflow#install-wan-pending)
-🔬 Benchmark Pillar #5: [Pillar #5](https://github.com/comfyworkflow/comfy-workflow#video-pillar-5-pending)
+🔬 Benchmark Pillar #5: [Pillar #5](https://youtu.be/tP_3YbEX8hA)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)
 - `install-wan22.bat`

@@ -212,7 +212,7 @@ echo   For 4x faster drafts: enable the Lightning LoRA toggle inside any workflo
 echo   fp8 source: unsloth/Qwen-Image-2512-FP8 (Comfy-Org build broken on ComfyUI v0.21.1 dispatcher - issues #11665 / #11662)
 echo.
 echo   Tutorial video ^(Video #4 - Qwen-Image install + benchmark^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/5Scqu_PGhgM
 echo.
 echo   Next in series ^(Video #5 - Hunyuan-Image 2.1^):
 echo   https://youtu.be/hxTeL8S4m2g

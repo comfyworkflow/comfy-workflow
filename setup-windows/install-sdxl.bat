@@ -201,7 +201,7 @@ echo   Tutorial video ^(Video #2 - SDXL install + benchmark^):
 echo   https://youtu.be/sC7cwc-mocw
 echo.
 echo   Next in series ^(Video #3 - FLUX^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/Q2affrqIS7U
 echo.
 echo   Repo ^(all installs^):
 echo   https://github.com/comfyworkflow/comfy-workflow

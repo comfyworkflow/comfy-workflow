@@ -204,10 +204,10 @@ echo   Default recommendation: flux_dev_fp8 (best balance for most GPUs)
 echo   Q4/Q8 GGUF variants dropped - slower than fp8 on every audience-tier GPU (^>= 12 GB VRAM)
 echo.
 echo   Tutorial video ^(Video #3 - FLUX install + benchmark^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/Q2affrqIS7U
 echo.
 echo   Next in series ^(Video #4 - Qwen-Image^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/5Scqu_PGhgM
 echo.
 echo   Repo ^(all installs^):
 echo   https://github.com/comfyworkflow/comfy-workflow

@@ -632,7 +632,7 @@ echo   https://youtu.be/PZmJqxP5ajs
 echo.
 echo   Next steps - pick a model to install:
 echo     install-sdxl.bat   ^(Video #2 - SDXL^)    https://youtu.be/sC7cwc-mocw
-echo     install-flux1.bat  ^(Video #3 - FLUX^)    (Coming soon - watch the repo for updates)
+echo     install-flux1.bat  ^(Video #3 - FLUX^)    https://youtu.be/Q2affrqIS7U
 echo     ^(more coming: Qwen, Hunyuan, WAN^)
 echo.
 echo   Repo ^(all installs^):

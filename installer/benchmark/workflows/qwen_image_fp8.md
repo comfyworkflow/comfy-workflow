@@ -1,6 +1,6 @@
 # Qwen-Image fp8
 
-📺 Install video #4: [Install Qwen-Image (2512 fp8 + Lightning 4-step)](https://github.com/comfyworkflow/comfy-workflow#install-qwen-family-pending)
+📺 Install video #4: [Install Qwen-Image (2512 fp8 + Lightning 4-step)](https://youtu.be/5Scqu_PGhgM)
 🔬 Benchmark Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)

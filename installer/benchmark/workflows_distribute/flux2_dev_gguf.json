@@ -501,7 +501,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# FLUX.2 dev GGUF (Q4_K_M default)\n\n📺 Install video #3: [Install FLUX family (1 & 2)](https://github.com/comfyworkflow/comfy-workflow#install-flux-family-pending)\n🔬 Benchmark Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-flux2.bat`\n\n⚙️ Params: 20 steps, guidance 4.0, euler/flux2_scheduler, 1024×1024\n💾 Hardware mínimo: 48 GB RAM · 12 GB VRAM"
+        "# FLUX.2 dev GGUF (Q4_K_M default)\n\n📺 Install video #3: [Install FLUX family (1 & 2)](https://youtu.be/Q2affrqIS7U)\n🔬 Benchmark Pillar #2: [Pillar #2](https://youtu.be/Q2affrqIS7U)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-flux2.bat`\n\n⚙️ Params: 20 steps, guidance 4.0, euler/flux2_scheduler, 1024×1024\n💾 Hardware mínimo: 48 GB RAM · 12 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"

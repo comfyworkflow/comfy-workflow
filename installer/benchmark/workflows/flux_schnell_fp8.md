@@ -1,7 +1,7 @@
 # FLUX.1 schnell fp8 (4-step draft)
 
-📺 Install video #3: [Install FLUX family (1 & 2)](https://github.com/comfyworkflow/comfy-workflow#install-flux-family-pending)
-🔬 Benchmark Pillar #2: [Pillar #2](https://github.com/comfyworkflow/comfy-workflow#video-pillar-2-pending)
+📺 Install video #3: [Install FLUX family (1 & 2)](https://youtu.be/Q2affrqIS7U)
+🔬 Benchmark Pillar #2: [Pillar #2](https://youtu.be/Q2affrqIS7U)
 🔬 Também em Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)
 
 📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)

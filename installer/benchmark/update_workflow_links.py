@@ -561,7 +561,7 @@ def _build_argparser() -> argparse.ArgumentParser:
             ),
         )
     # Benchmark Pillar URLs (5 cross-model editorial videos #1-#5).
-    for n in (1, 2, 3, 4, 5, 6):
+    for n in (1, 2, 3, 4, 5, 6, 7):
         parser.add_argument(
             f"--pillar-{n}-url",
             default=None,
@@ -649,7 +649,7 @@ def main() -> None:
         cli_val = getattr(args, cli_attr, None)
         if cli_val is not None:
             yaml_updates[_videos_yaml_key_for_install_slug(slug)] = cli_val
-    for n in (1, 2, 3, 4, 5, 6):
+    for n in (1, 2, 3, 4, 5, 6, 7):
         cli_val = getattr(args, f"pillar_{n}_url", None)
         if cli_val is not None:
             yaml_updates[f"pillar_{n}"] = cli_val
@@ -683,7 +683,7 @@ def main() -> None:
             slug, args.github_base_url.rstrip("/"),
         )
     pillar_urls: dict[int, str] = {}
-    for n in (1, 2, 3, 4, 5, 6):
+    for n in (1, 2, 3, 4, 5, 6, 7):
         url = videos_state.get(f"pillar_{n}", "")
         url = url.strip() if isinstance(url, str) else ""
         pillar_urls[n] = url or _placeholder_pillar_url(

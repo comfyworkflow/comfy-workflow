@@ -154,7 +154,7 @@ echo   For reference precision: klein_4b_base_bf16.json (20 steps, CFG 5.0)
 echo   BFL Apache-2.0 weights. Native 1024x1024 + supports non-square buckets up to 1344x768.
 echo.
 echo   Tutorial video ^(Video #9 - FLUX.2 Klein install + benchmark^):
-echo   (Coming soon - watch the repo for updates)
+echo   https://youtu.be/LUCSzDOgL8w
 echo.
 echo   Repo ^(all installs^):
 echo   https://github.com/comfyworkflow/comfy-workflow

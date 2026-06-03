@@ -510,7 +510,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# FLUX.2 Klein 4B base fp8 (20-step, CFG 5.0)\n\n📺 Install video #9: [Install FLUX.2 Klein (4B base + distilled, bf16 + fp8)](https://github.com/comfyworkflow/comfy-workflow#install-flux2-klein-pending)\n🔬 Benchmark Pillar #7: [Pillar #7](https://github.com/comfyworkflow/comfy-workflow#video-pillar-7-pending)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-flux2-klein.bat`\n\n⚙️ Params: 20 steps, euler/flux2_scheduler, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 8 GB VRAM"
+        "# FLUX.2 Klein 4B base fp8 (20-step, CFG 5.0)\n\n📺 Install video #9: [Install FLUX.2 Klein (4B base + distilled, bf16 + fp8)](https://youtu.be/LUCSzDOgL8w)\n🔬 Benchmark Pillar #7: [Pillar #7](https://youtu.be/LUCSzDOgL8w)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-flux2-klein.bat`\n\n⚙️ Params: 20 steps, euler/flux2_scheduler, 1024×1024\n💾 Hardware mínimo: 32 GB RAM · 8 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"

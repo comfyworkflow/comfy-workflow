@@ -1,10 +1,3 @@
-# Generated from update_workflow_links.py constants.
-# Edit this file (NOT the .py constants) to add/modify install/pillar/hardware
-# mappings. Loaded at runtime; deserialized to module-level constants.
-#
-# Pre-video entries (Klein/etc.) live in comfy-workflow-internal/staged/<slug>/
-# constants_delta.yaml and merge in via publish_due at premiere time.
-
 schema_version: 1
 install_video_number:
   base: 1
@@ -15,6 +8,7 @@ install_video_number:
   wan: 6
   hidream: 7
   z-image: 8
+  flux2-klein: 9
 install_video_label:
   base: ComfyUI base install (Windows portable)
   sdxl: Install SDXL ComfyUI
@@ -24,12 +18,14 @@ install_video_label:
   wan: Install WAN 2.2 i2v
   hidream: Install HiDream-I1 (full / dev / fast fp8)
   z-image: Install Z-Image Turbo (bf16 + fp8 E4M3FN)
+  flux2-klein: Install FLUX.2 Klein (4B base + distilled, bf16 + fp8)
 install_video_yaml_key_aliases:
   flux-family: install_flux1
   qwen-family: install_qwen_image
   hunyuan: install_hunyuan_21
   wan: install_wan22
   hidream: install_hidream_i1
+  flux2-klein: install_flux2_klein
 install_video_mapping:
   sdxl_base.json:
     install_slug: sdxl
@@ -122,6 +118,26 @@ install_video_mapping:
     scripts:
     - install-z-image.bat
     display_name: Z-Image Turbo fp8 E4M3FN (Kijai scaled, 8-step distilled)
+  klein_4b_base_bf16.json:
+    install_slug: flux2-klein
+    scripts:
+    - install-flux2-klein.bat
+    display_name: FLUX.2 Klein 4B base bf16 (20-step, CFG 5.0)
+  klein_4b_distilled_bf16.json:
+    install_slug: flux2-klein
+    scripts:
+    - install-flux2-klein.bat
+    display_name: FLUX.2 Klein 4B distilled bf16 (4-step, CFG 1.0)
+  klein_4b_base_fp8.json:
+    install_slug: flux2-klein
+    scripts:
+    - install-flux2-klein.bat
+    display_name: FLUX.2 Klein 4B base fp8 (20-step, CFG 5.0)
+  klein_4b_distilled_fp8.json:
+    install_slug: flux2-klein
+    scripts:
+    - install-flux2-klein.bat
+    display_name: FLUX.2 Klein 4B distilled fp8 (4-step, CFG 1.0, fastest)
 pillar_mapping:
   sdxl_base.json:
     primary: 1
@@ -184,6 +200,18 @@ pillar_mapping:
   z_image_turbo_fp8.json:
     primary: 6
     secondary: []
+  klein_4b_base_bf16.json:
+    primary: 7
+    secondary: []
+  klein_4b_distilled_bf16.json:
+    primary: 7
+    secondary: []
+  klein_4b_base_fp8.json:
+    primary: 7
+    secondary: []
+  klein_4b_distilled_fp8.json:
+    primary: 7
+    secondary: []
 hardware_tiers:
   sdxl_base.json:
     ram: 16 GB
@@ -237,5 +265,17 @@ hardware_tiers:
     ram: 32 GB
     vram: 12 GB
   z_image_turbo_fp8.json:
+    ram: 32 GB
+    vram: 8 GB
+  klein_4b_base_bf16.json:
+    ram: 32 GB
+    vram: 12 GB
+  klein_4b_distilled_bf16.json:
+    ram: 32 GB
+    vram: 12 GB
+  klein_4b_base_fp8.json:
+    ram: 32 GB
+    vram: 8 GB
+  klein_4b_distilled_fp8.json:
     ram: 32 GB
     vram: 8 GB

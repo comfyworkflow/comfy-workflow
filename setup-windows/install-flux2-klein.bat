@@ -11,7 +11,7 @@ REM ============================================================================
 setlocal EnableDelayedExpansion
 
 set "REPO_RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main"
-set "CATEGORY=Image\Klein"
+set "CATEGORY=Image\FLUX.2 Klein"
 
 REM ----- Pre-req: ComfyUI base install must exist -----
 if not exist "C:\ComfyUI_windows_portable\ComfyUI\main.py" (
@@ -79,6 +79,7 @@ set "WF_JSON=%~1"
 set "DEST_BASE=C:\ComfyUI_windows_portable\ComfyUI\user\default\workflows\Comfy Workflow"
 set "DEST_DIR=!DEST_BASE!\!CATEGORY!"
 set "CATEGORY_URL=!CATEGORY:\=/!"
+set "CATEGORY_URL=!CATEGORY_URL: =%%20!"
 if not exist "!DEST_DIR!" mkdir "!DEST_DIR!"
 echo   Shipping workflow: !WF_JSON! ^(category: !CATEGORY!^)
 curl.exe -L --fail --silent --retry 3 --retry-delay 5 -o "!DEST_DIR!\!WF_JSON!" "!REPO_RAW!/installer/benchmark/workflows_distribute/!CATEGORY_URL!/!WF_JSON!"
@@ -146,7 +147,7 @@ echo.
 echo   Models installed: base bf16 (7.75 GB) + distilled bf16 (7.75 GB) + base fp8 (4.07 GB) + distilled fp8 (4.07 GB) + Qwen3-4B encoder (8.04 GB) + FLUX2 VAE (0.3 GB) - total ~32.0 GB
 echo.
 echo   Workflows in ComfyUI sidebar:
-echo     Comfy Workflow ^> Image ^> Klein ^> (base + distilled x bf16 + fp8)
+echo     Comfy Workflow ^> Image ^> FLUX.2 Klein ^> (base + distilled x bf16 + fp8)
 echo.
 echo   Default recommendation: klein_4b_distilled_fp8.json (4 steps, CFG 1.0, ~1.2s warm on RTX 4090)
 echo   For reference precision: klein_4b_base_bf16.json (20 steps, CFG 5.0)

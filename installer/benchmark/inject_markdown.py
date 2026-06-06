@@ -1329,7 +1329,7 @@ def _compose_variant_note_markdown(
         sp_url = pillar_urls.get(
             sp, _placeholder_pillar_url(sp, DEFAULT_GITHUB_BASE_URL),
         )
-        lines.append(f"🔬 Também em Pillar #{sp}: [Pillar #{sp}]({sp_url})")
+        lines.append(f"🔬 Also in Pillar #{sp}: [Pillar #{sp}]({sp_url})")
     lines.append("")
 
     lines.append(f"📥 Install: [{setup_base}]({setup_base})")
@@ -1373,14 +1373,14 @@ def _compose_variant_note_markdown(
     # Cross-reference siblings (excluding self).
     other_siblings = [v for v in siblings if v.slug != variant.slug]
     if other_siblings:
-        lines.append("📐 Outras aspect ratios neste install:")
+        lines.append("📐 Other aspect ratios in this install:")
         for s in other_siblings:
             sibling_filename = f"{base_stem}{s.slug}.json"
             lines.append(f"- `{sibling_filename}` — {s.aspect_label}")
         lines.append("")
 
     lines.append(
-        f"💾 Hardware mínimo: {hardware['ram']} RAM · {hardware['vram']} VRAM"
+        f"💾 Minimum hardware: {hardware['ram']} RAM · {hardware['vram']} VRAM"
     )
 
     # Optional: per-workflow swap guide (e.g. FLUX 5-variant pack).

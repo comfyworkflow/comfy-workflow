@@ -411,7 +411,7 @@ def _build_readme_text(
     )
     for sp in secondary:
         sp_url = pillar_urls.get(sp, _placeholder_pillar_url(sp, github_base))
-        lines.append(f"🔬 Também em Pillar #{sp}: [Pillar #{sp}]({sp_url})")
+        lines.append(f"🔬 Also in Pillar #{sp}: [Pillar #{sp}]({sp_url})")
     lines.append("")
 
     lines.append(f"📥 Install: [{setup_base}]({setup_base})")
@@ -441,7 +441,7 @@ def _build_readme_text(
     if param_bits:
         lines.append(f"⚙️ Params: {', '.join(param_bits)}")
 
-    lines.append(f"💾 Hardware mínimo: {hardware['ram']} RAM · {hardware['vram']} VRAM")
+    lines.append(f"💾 Minimum hardware: {hardware['ram']} RAM · {hardware['vram']} VRAM")
 
     return "\n".join(lines)
 

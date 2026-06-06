@@ -9,6 +9,7 @@ install_video_number:
   hidream: 7
   z-image: 8
   flux2-klein: 9
+  sdxl-finetunes: 10
 install_video_label:
   base: ComfyUI base install (Windows portable)
   sdxl: Install SDXL ComfyUI
@@ -19,6 +20,7 @@ install_video_label:
   hidream: Install HiDream-I1 (full / dev / fast fp8)
   z-image: Install Z-Image Turbo (bf16 + fp8 E4M3FN)
   flux2-klein: Install FLUX.2 Klein (4B base + distilled, bf16 + fp8)
+  sdxl-finetunes: Install SDXL Finetunes (Juggernaut + RealVis + Pony + NoobAI)
 install_video_yaml_key_aliases:
   flux-family: install_flux1
   qwen-family: install_qwen_image
@@ -26,6 +28,7 @@ install_video_yaml_key_aliases:
   wan: install_wan22
   hidream: install_hidream_i1
   flux2-klein: install_flux2_klein
+  sdxl-finetunes: install_sdxl_finetunes
 install_video_mapping:
   sdxl_base.json:
     install_slug: sdxl
@@ -138,6 +141,26 @@ install_video_mapping:
     scripts:
     - install-flux2-klein.bat
     display_name: FLUX.2 Klein 4B distilled fp8 (4-step, CFG 1.0, fastest)
+  juggernaut_xl_ragnarok.json:
+    install_slug: sdxl-finetunes
+    scripts:
+    - install-sdxl-finetunes.bat
+    display_name: Juggernaut XL Ragnarok (photoreal, hi-res 1.5x + ADetailer)
+  realvis_xl_v5.json:
+    install_slug: sdxl-finetunes
+    scripts:
+    - install-sdxl-finetunes.bat
+    display_name: RealVisXL V5.0 (photoreal, 50 steps, hi-res 1.5x + ADetailer)
+  pony_v6_xl.json:
+    install_slug: sdxl-finetunes
+    scripts:
+    - install-sdxl-finetunes.bat
+    display_name: Pony Diffusion V6 XL (anime/stylized, score tags, hi-res 1.5x + ADetailer)
+  noobai_xl_vpred.json:
+    install_slug: sdxl-finetunes
+    scripts:
+    - install-sdxl-finetunes.bat
+    display_name: NoobAI XL V-Pred 1.0 (anime, vPred plumbing, hi-res 1.5x + ADetailer)
 pillar_mapping:
   sdxl_base.json:
     primary: 1
@@ -212,6 +235,18 @@ pillar_mapping:
   klein_4b_distilled_fp8.json:
     primary: 7
     secondary: []
+  juggernaut_xl_ragnarok.json:
+    primary: 1
+    secondary: []
+  realvis_xl_v5.json:
+    primary: 1
+    secondary: []
+  pony_v6_xl.json:
+    primary: 1
+    secondary: []
+  noobai_xl_vpred.json:
+    primary: 1
+    secondary: []
 hardware_tiers:
   sdxl_base.json:
     ram: 16 GB
@@ -279,3 +314,15 @@ hardware_tiers:
   klein_4b_distilled_fp8.json:
     ram: 32 GB
     vram: 8 GB
+  juggernaut_xl_ragnarok.json:
+    ram: 16 GB
+    vram: 12 GB
+  realvis_xl_v5.json:
+    ram: 16 GB
+    vram: 12 GB
+  pony_v6_xl.json:
+    ram: 16 GB
+    vram: 12 GB
+  noobai_xl_vpred.json:
+    ram: 16 GB
+    vram: 12 GB

@@ -271,8 +271,8 @@ if !BAT_FAIL_COUNT! EQU 0 (
     echo     Full workflow ^(hi-res 1.5x + ADetailer^): ~67 seconds per image ^(peak ~11.5 GB VRAM, fits 12 GB^)
     echo     Headroom is tight on 12 GB - close other GPU apps for headroom.
     echo.
-    echo   Tutorial video ^(SDXL Finetunes Pack install + benchmark^):
-    echo   ^(Coming soon - watch the repo for updates^)
+    echo   Tutorial video ^(Video #10 - SDXL Finetunes Pack install + benchmark^):
+    echo   https://youtu.be/vnyZK6AJn60
     echo.
     echo   Repo ^(all installs^):
     echo   https://github.com/comfyworkflow/comfy-workflow

@@ -1,6 +1,6 @@
 {
   "last_node_id": 20,
-  "last_link_id": 30,
+  "last_link_id": 15,
   "nodes": [
     {
       "id": 1,
@@ -21,17 +21,13 @@
         {
           "name": "MODEL",
           "type": "MODEL",
-          "links": [
-            1
-          ],
+          "links": [],
           "slot_index": 0
         },
         {
           "name": "CLIP",
           "type": "CLIP",
-          "links": [
-            2
-          ],
+          "links": [],
           "slot_index": 1
         },
         {
@@ -52,8 +48,8 @@
       "id": 2,
       "type": "ModelSamplingDiscrete",
       "pos": [
-        360,
-        0
+        0,
+        220
       ],
       "size": [
         320,
@@ -62,21 +58,14 @@
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "name": "MODEL",
-          "type": "MODEL",
+          "name": "*",
+          "type": "*",
           "links": [
-            5,
-            16,
-            23
+            3,
+            9
           ],
           "slot_index": 0
         }
@@ -84,17 +73,14 @@
       "properties": {
         "Node name for S&R": "ModelSamplingDiscrete"
       },
-      "widgets_values": [
-        "v_prediction",
-        true
-      ]
+      "widgets_values": []
     },
     {
       "id": 3,
       "type": "CLIPSetLastLayer",
       "pos": [
-        360,
-        220
+        0,
+        440
       ],
       "size": [
         320,
@@ -103,21 +89,14 @@
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 2
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "name": "CLIP",
-          "type": "CLIP",
+          "name": "*",
+          "type": "*",
           "links": [
-            3,
-            4,
-            24
+            1,
+            2
           ],
           "slot_index": 0
         }
@@ -125,16 +104,14 @@
       "properties": {
         "Node name for S&R": "CLIPSetLastLayer"
       },
-      "widgets_values": [
-        -2
-      ]
+      "widgets_values": []
     },
     {
       "id": 4,
       "type": "VAELoader",
       "pos": [
         0,
-        220
+        660
       ],
       "size": [
         320,
@@ -149,10 +126,8 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            10,
-            15,
-            21,
-            25
+            8,
+            14
           ],
           "slot_index": 0
         }
@@ -168,7 +143,7 @@
       "id": 5,
       "type": "CLIPTextEncode",
       "pos": [
-        720,
+        360,
         0
       ],
       "size": [
@@ -181,8 +156,8 @@
       "inputs": [
         {
           "name": "clip",
-          "type": "CLIP",
-          "link": 3
+          "type": "*",
+          "link": 1
         }
       ],
       "outputs": [
@@ -190,9 +165,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            6,
-            17,
-            26
+            4,
+            10
           ],
           "slot_index": 0
         }
@@ -208,7 +182,7 @@
       "id": 6,
       "type": "CLIPTextEncode",
       "pos": [
-        720,
+        360,
         220
       ],
       "size": [
@@ -221,8 +195,8 @@
       "inputs": [
         {
           "name": "clip",
-          "type": "CLIP",
-          "link": 4
+          "type": "*",
+          "link": 2
         }
       ],
       "outputs": [
@@ -230,9 +204,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            7,
-            18,
-            27
+            5,
+            11
           ],
           "slot_index": 0
         }
@@ -249,7 +222,7 @@
       "type": "EmptyLatentImage",
       "pos": [
         0,
-        440
+        880
       ],
       "size": [
         320,
@@ -264,7 +237,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            8
+            6
           ],
           "slot_index": 0
         }
@@ -282,7 +255,7 @@
       "id": 8,
       "type": "KSampler",
       "pos": [
-        1080,
+        720,
         0
       ],
       "size": [
@@ -295,23 +268,23 @@
       "inputs": [
         {
           "name": "model",
-          "type": "MODEL",
-          "link": 5
+          "type": "*",
+          "link": 3
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 6
+          "link": 4
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 7
+          "link": 5
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 8
+          "link": 6
         }
       ],
       "outputs": [
@@ -319,7 +292,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            9
+            7
           ],
           "slot_index": 0
         }
@@ -341,7 +314,7 @@
       "id": 9,
       "type": "VAEDecode",
       "pos": [
-        1440,
+        1080,
         0
       ],
       "size": [
@@ -355,21 +328,19 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 9
+          "link": 7
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 10
+          "link": 8
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": [
-            12
-          ],
+          "links": [],
           "slot_index": 0
         }
       ],
@@ -383,7 +354,7 @@
       "type": "UpscaleModelLoader",
       "pos": [
         0,
-        660
+        1100
       ],
       "size": [
         320,
@@ -392,23 +363,8 @@
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "model_name",
-          "type": "*",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "UPSCALE_MODEL",
-          "type": "UPSCALE_MODEL",
-          "links": [
-            11
-          ],
-          "slot_index": 0
-        }
-      ],
+      "inputs": [],
+      "outputs": [],
       "properties": {
         "Node name for S&R": "UpscaleModelLoader"
       },
@@ -418,8 +374,8 @@
       "id": 11,
       "type": "ImageUpscaleWithModel",
       "pos": [
-        1800,
-        0
+        0,
+        1320
       ],
       "size": [
         320,
@@ -428,28 +384,8 @@
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "upscale_model",
-          "type": "UPSCALE_MODEL",
-          "link": 11
-        },
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 12
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            13
-          ],
-          "slot_index": 0
-        }
-      ],
+      "inputs": [],
+      "outputs": [],
       "properties": {
         "Node name for S&R": "ImageUpscaleWithModel"
       },
@@ -459,49 +395,8 @@
       "id": 12,
       "type": "ImageScale",
       "pos": [
-        2160,
-        0
-      ],
-      "size": [
-        320,
-        196
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            14
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageScale"
-      },
-      "widgets_values": [
-        "lanczos",
-        1248,
-        1824,
-        "disabled"
-      ]
-    },
-    {
-      "id": 13,
-      "type": "VAEEncode",
-      "pos": [
-        2520,
-        0
+        0,
+        1540
       ],
       "size": [
         320,
@@ -510,24 +405,34 @@
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 14
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 15
-        }
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "ImageScale"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 13,
+      "type": "VAEEncode",
+      "pos": [
+        0,
+        1760
       ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
       "outputs": [
         {
-          "name": "LATENT",
-          "type": "LATENT",
+          "name": "*",
+          "type": "*",
           "links": [
-            19
+            12
           ],
           "slot_index": 0
         }
@@ -541,8 +446,8 @@
       "id": 14,
       "type": "KSampler",
       "pos": [
-        2880,
-        0
+        720,
+        220
       ],
       "size": [
         320,
@@ -554,23 +459,23 @@
       "inputs": [
         {
           "name": "model",
-          "type": "MODEL",
-          "link": 16
+          "type": "*",
+          "link": 9
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 17
+          "link": 10
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 18
+          "link": 11
         },
         {
           "name": "latent_image",
-          "type": "LATENT",
-          "link": 19
+          "type": "*",
+          "link": 12
         }
       ],
       "outputs": [
@@ -578,7 +483,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            20
+            13
           ],
           "slot_index": 0
         }
@@ -600,8 +505,8 @@
       "id": 15,
       "type": "VAEDecode",
       "pos": [
-        3240,
-        0
+        1080,
+        220
       ],
       "size": [
         320,
@@ -614,21 +519,19 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 20
+          "link": 13
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 21
+          "link": 14
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": [
-            22
-          ],
+          "links": [],
           "slot_index": 0
         }
       ],
@@ -642,7 +545,7 @@
       "type": "UltralyticsDetectorProvider",
       "pos": [
         0,
-        880
+        1980
       ],
       "size": [
         320,
@@ -652,35 +555,39 @@
       "order": 0,
       "mode": 0,
       "inputs": [],
-      "outputs": [
-        {
-          "name": "BBOX_DETECTOR",
-          "type": "BBOX_DETECTOR",
-          "links": [
-            28
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "SEGM_DETECTOR",
-          "type": "SEGM_DETECTOR",
-          "links": [],
-          "slot_index": 1
-        }
-      ],
+      "outputs": [],
       "properties": {
         "Node name for S&R": "UltralyticsDetectorProvider"
       },
-      "widgets_values": [
-        "bbox/face_yolov8m.pt"
-      ]
+      "widgets_values": []
     },
     {
       "id": 17,
       "type": "SAMLoader",
       "pos": [
         0,
-        1100
+        2200
+      ],
+      "size": [
+        320,
+        140
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SAMLoader"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 18,
+      "type": "FaceDetailer",
+      "pos": [
+        0,
+        2420
       ],
       "size": [
         320,
@@ -692,174 +599,25 @@
       "inputs": [],
       "outputs": [
         {
-          "name": "SAM_MODEL",
-          "type": "SAM_MODEL",
+          "name": "*",
+          "type": "*",
           "links": [
-            29
+            15
           ],
           "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SAMLoader"
-      },
-      "widgets_values": [
-        "sam_vit_b_01ec64.pth",
-        "AUTO"
-      ]
-    },
-    {
-      "id": 18,
-      "type": "FaceDetailer",
-      "pos": [
-        3600,
-        0
-      ],
-      "size": [
-        320,
-        1176
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 22
-        },
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 23
-        },
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 24
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 25
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 26
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 27
-        },
-        {
-          "name": "bbox_detector",
-          "type": "BBOX_DETECTOR",
-          "link": 28
-        },
-        {
-          "name": "sam_model_opt",
-          "type": "SAM_MODEL",
-          "link": 29
-        },
-        {
-          "name": "segm_detector_opt",
-          "type": "*",
-          "link": null
-        },
-        {
-          "name": "detailer_hook",
-          "type": "*",
-          "link": null
-        },
-        {
-          "name": "scheduler_func_opt",
-          "type": "*",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "links": [
-            30
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "cropped_refined",
-          "type": "IMAGE",
-          "links": [],
-          "slot_index": 1
-        },
-        {
-          "name": "cropped_enhanced_alpha",
-          "type": "IMAGE",
-          "links": [],
-          "slot_index": 2
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "links": [],
-          "slot_index": 3
-        },
-        {
-          "name": "detailer_pipe",
-          "type": "DETAILER_PIPE",
-          "links": [],
-          "slot_index": 4
-        },
-        {
-          "name": "cnet_images",
-          "type": "IMAGE",
-          "links": [],
-          "slot_index": 5
         }
       ],
       "properties": {
         "Node name for S&R": "FaceDetailer"
       },
-      "widgets_values": [
-        512,
-        true,
-        1024,
-        242,
-        "randomize",
-        20,
-        5.0,
-        "euler",
-        "simple",
-        0.45,
-        5,
-        true,
-        false,
-        0.5,
-        10,
-        3.0,
-        "center-1",
-        0,
-        0.93,
-        0,
-        0.7,
-        "False",
-        10,
-        "",
-        1,
-        false,
-        20,
-        false,
-        false
-      ]
+      "widgets_values": []
     },
     {
       "id": 19,
       "type": "SaveImage",
       "pos": [
-        3960,
-        0
+        360,
+        440
       ],
       "size": [
         320,
@@ -871,8 +629,8 @@
       "inputs": [
         {
           "name": "images",
-          "type": "IMAGE",
-          "link": 30
+          "type": "*",
+          "link": 15
         }
       ],
       "outputs": [],
@@ -887,7 +645,7 @@
       "id": 20,
       "type": "Note",
       "pos": [
-        4320,
+        1440,
         -360
       ],
       "size": [
@@ -902,7 +660,7 @@
       "title": "About this workflow",
       "properties": {},
       "widgets_values": [
-        "# NoobAI XL V-Pred 1.0 (anime, vPred plumbing, hi-res 1.5x + ADetailer)\n\n📺 Install video #10: [Install SDXL Finetunes (Juggernaut + RealVis + Pony + NoobAI)](https://github.com/comfyworkflow/comfy-workflow#install-sdxl-finetunes-pending)\n🔬 Benchmark Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-sdxl-finetunes.bat`\n\n⚙️ Params: 30 steps, CFG 5.0, euler/simple, 832×1216\n💾 Minimum hardware: 16 GB RAM · 12 GB VRAM"
+        "# NoobAI XL V-Pred 1.0 (anime, vPred plumbing, hi-res 1.5x + ADetailer)\n\n📺 Install video #10: [Install SDXL Finetunes (Juggernaut + RealVis + Pony + NoobAI)](https://youtu.be/vnyZK6AJn60)\n🔬 Benchmark Pillar #1: [Pillar #1](https://youtu.be/sC7cwc-mocw)\n\n📥 Install: [https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows](https://github.com/comfyworkflow/comfy-workflow/tree/main/setup-windows)\n- `install-sdxl-finetunes.bat`\n\n⚙️ Params: 30 steps, CFG 5.0, euler/simple, 832×1216\n💾 Minimum hardware: 16 GB RAM · 12 GB VRAM"
       ],
       "color": "#432",
       "bgcolor": "#653"
@@ -911,46 +669,30 @@
   "links": [
     [
       1,
-      1,
-      0,
-      2,
-      0,
-      "MODEL"
-    ],
-    [
-      2,
-      1,
-      1,
-      3,
-      0,
-      "CLIP"
-    ],
-    [
-      3,
       3,
       0,
       5,
       0,
-      "CLIP"
+      "*"
+    ],
+    [
+      2,
+      3,
+      0,
+      6,
+      0,
+      "*"
+    ],
+    [
+      3,
+      2,
+      0,
+      8,
+      0,
+      "*"
     ],
     [
       4,
-      3,
-      0,
-      6,
-      0,
-      "CLIP"
-    ],
-    [
-      5,
-      2,
-      0,
-      8,
-      0,
-      "MODEL"
-    ],
-    [
-      6,
       5,
       0,
       8,
@@ -958,7 +700,7 @@
       "CONDITIONING"
     ],
     [
-      7,
+      5,
       6,
       0,
       8,
@@ -966,7 +708,7 @@
       "CONDITIONING"
     ],
     [
-      8,
+      6,
       7,
       0,
       8,
@@ -974,71 +716,31 @@
       "LATENT"
     ],
     [
-      9,
+      7,
       8,
       0,
       9,
       0,
       "LATENT"
+    ],
+    [
+      8,
+      4,
+      0,
+      9,
+      1,
+      "VAE"
+    ],
+    [
+      9,
+      2,
+      0,
+      14,
+      0,
+      "*"
     ],
     [
       10,
-      4,
-      0,
-      9,
-      1,
-      "VAE"
-    ],
-    [
-      11,
-      10,
-      0,
-      11,
-      0,
-      "UPSCALE_MODEL"
-    ],
-    [
-      12,
-      9,
-      0,
-      11,
-      1,
-      "IMAGE"
-    ],
-    [
-      13,
-      11,
-      0,
-      12,
-      0,
-      "IMAGE"
-    ],
-    [
-      14,
-      12,
-      0,
-      13,
-      0,
-      "IMAGE"
-    ],
-    [
-      15,
-      4,
-      0,
-      13,
-      1,
-      "VAE"
-    ],
-    [
-      16,
-      2,
-      0,
-      14,
-      0,
-      "MODEL"
-    ],
-    [
-      17,
       5,
       0,
       14,
@@ -1046,7 +748,7 @@
       "CONDITIONING"
     ],
     [
-      18,
+      11,
       6,
       0,
       14,
@@ -1054,15 +756,15 @@
       "CONDITIONING"
     ],
     [
-      19,
+      12,
       13,
       0,
       14,
       3,
-      "LATENT"
+      "*"
     ],
     [
-      20,
+      13,
       14,
       0,
       15,
@@ -1070,7 +772,7 @@
       "LATENT"
     ],
     [
-      21,
+      14,
       4,
       0,
       15,
@@ -1078,76 +780,12 @@
       "VAE"
     ],
     [
-      22,
       15,
-      0,
-      18,
-      0,
-      "IMAGE"
-    ],
-    [
-      23,
-      2,
-      0,
-      18,
-      1,
-      "MODEL"
-    ],
-    [
-      24,
-      3,
-      0,
-      18,
-      2,
-      "CLIP"
-    ],
-    [
-      25,
-      4,
-      0,
-      18,
-      3,
-      "VAE"
-    ],
-    [
-      26,
-      5,
-      0,
-      18,
-      4,
-      "CONDITIONING"
-    ],
-    [
-      27,
-      6,
-      0,
-      18,
-      5,
-      "CONDITIONING"
-    ],
-    [
-      28,
-      16,
-      0,
-      18,
-      6,
-      "BBOX_DETECTOR"
-    ],
-    [
-      29,
-      17,
-      0,
-      18,
-      7,
-      "SAM_MODEL"
-    ],
-    [
-      30,
       18,
       0,
       19,
       0,
-      "IMAGE"
+      "*"
     ]
   ],
   "groups": [],

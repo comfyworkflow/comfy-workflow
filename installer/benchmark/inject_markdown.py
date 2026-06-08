@@ -703,6 +703,10 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "klein_4b_distilled_bf16": "Image/FLUX.2 Klein",
     "klein_4b_base_fp8": "Image/FLUX.2 Klein",
     "klein_4b_distilled_fp8": "Image/FLUX.2 Klein",
+    "juggernaut_xl_ragnarok": "Image/SDXL Finetunes",
+    "realvis_xl_v5": "Image/SDXL Finetunes",
+    "pony_v6_xl": "Image/SDXL Finetunes",
+    "noobai_xl_vpred": "Image/SDXL Finetunes",
 }
 
 

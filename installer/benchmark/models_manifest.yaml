@@ -31,6 +31,7 @@ videos:
   pillar_6: "https://youtu.be/ALEDES9IkOs"
   install_flux2_klein: "https://youtu.be/LUCSzDOgL8w"
   pillar_7: "https://youtu.be/LUCSzDOgL8w"
+  install_sdxl_finetunes: "https://youtu.be/vnyZK6AJn60"
 
 # Each model entry maps a logical model name to one or more file downloads.
 # `tier` follows DA-008 matrix (basic/offload/high_vram); `files[].path` is

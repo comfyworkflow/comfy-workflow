@@ -1,196 +1,1377 @@
 {
-  "//": "Minimal /object_info schema for the 26 node types used across the 8 production workflows. Hand-crafted from ComfyUI 0.18.x nodes.py + the ComfyUI-GGUF + WAN 2.2 custom node sources. Refresh by running: curl -sS http://<host>:8188/object_info > installer/benchmark/_object_info_schema.json when ComfyUI version is upgraded.",
-
-  "CheckpointLoaderSimple": {
-    "input": {"required": {"ckpt_name": [[]]}},
-    "input_order": {"required": ["ckpt_name"]},
-    "output": ["MODEL", "CLIP", "VAE"],
-    "output_name": ["MODEL", "CLIP", "VAE"]
+ "//": "Minimal /object_info schema for the 26 node types used across the 8 production workflows. Hand-crafted from ComfyUI 0.18.x nodes.py + the ComfyUI-GGUF + WAN 2.2 custom node sources. Refresh by running: curl -sS http://<host>:8188/object_info > installer/benchmark/_object_info_schema.json when ComfyUI version is upgraded.",
+ "CheckpointLoaderSimple": {
+  "input": {
+   "required": {
+    "ckpt_name": [
+     []
+    ]
+   }
   },
-  "UNETLoader": {
-    "input": {"required": {"unet_name": [[]], "weight_dtype": [["default", "fp8_e4m3fn", "fp8_e4m3fn_fast", "fp8_e5m2"]]}},
-    "input_order": {"required": ["unet_name", "weight_dtype"]},
-    "output": ["MODEL"],
-    "output_name": ["MODEL"]
+  "input_order": {
+   "required": [
+    "ckpt_name"
+   ]
   },
-  "UnetLoaderGGUF": {
-    "input": {"required": {"unet_name": [[]]}},
-    "input_order": {"required": ["unet_name"]},
-    "output": ["MODEL"],
-    "output_name": ["MODEL"]
+  "output": [
+   "MODEL",
+   "CLIP",
+   "VAE"
+  ],
+  "output_name": [
+   "MODEL",
+   "CLIP",
+   "VAE"
+  ]
+ },
+ "UNETLoader": {
+  "input": {
+   "required": {
+    "unet_name": [
+     []
+    ],
+    "weight_dtype": [
+     [
+      "default",
+      "fp8_e4m3fn",
+      "fp8_e4m3fn_fast",
+      "fp8_e5m2"
+     ]
+    ]
+   }
   },
-  "LoraLoaderModelOnly": {
-    "input": {"required": {"model": ["MODEL"], "lora_name": [[]], "strength_model": ["FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}]}},
-    "input_order": {"required": ["model", "lora_name", "strength_model"]},
-    "output": ["MODEL"],
-    "output_name": ["MODEL"]
+  "input_order": {
+   "required": [
+    "unet_name",
+    "weight_dtype"
+   ]
   },
-  "CLIPLoader": {
-    "input": {"required": {"clip_name": [[]], "type": [["stable_diffusion", "stable_cascade", "sd3", "stable_audio", "mochi", "ltxv", "pixart", "cosmos", "lumina2", "wan", "hidream", "chroma", "ace", "hunyuan_image", "qwen_image"]], "device": [["default", "cpu"]]}},
-    "input_order": {"required": ["clip_name", "type", "device"]},
-    "output": ["CLIP"],
-    "output_name": ["CLIP"]
+  "output": [
+   "MODEL"
+  ],
+  "output_name": [
+   "MODEL"
+  ]
+ },
+ "UnetLoaderGGUF": {
+  "input": {
+   "required": {
+    "unet_name": [
+     []
+    ]
+   }
   },
-  "DualCLIPLoader": {
-    "input": {"required": {"clip_name1": [[]], "clip_name2": [[]], "type": [["sdxl", "sd3", "flux", "hunyuan_video", "hidream", "hunyuan_image"]], "device": [["default", "cpu"]]}},
-    "input_order": {"required": ["clip_name1", "clip_name2", "type", "device"]},
-    "output": ["CLIP"],
-    "output_name": ["CLIP"]
+  "input_order": {
+   "required": [
+    "unet_name"
+   ]
   },
-  "QuadrupleCLIPLoader": {
-    "input": {"required": {"clip_name1": [[]], "clip_name2": [[]], "clip_name3": [[]], "clip_name4": [[]]}},
-    "input_order": {"required": ["clip_name1", "clip_name2", "clip_name3", "clip_name4"]},
-    "output": ["CLIP"],
-    "output_name": ["CLIP"]
+  "output": [
+   "MODEL"
+  ],
+  "output_name": [
+   "MODEL"
+  ]
+ },
+ "LoraLoaderModelOnly": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "lora_name": [
+     []
+    ],
+    "strength_model": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "min": -100.0,
+      "max": 100.0,
+      "step": 0.01
+     }
+    ]
+   }
   },
-  "VAELoader": {
-    "input": {"required": {"vae_name": [[]]}},
-    "input_order": {"required": ["vae_name"]},
-    "output": ["VAE"],
-    "output_name": ["VAE"]
+  "input_order": {
+   "required": [
+    "model",
+    "lora_name",
+    "strength_model"
+   ]
   },
-  "CLIPTextEncode": {
-    "input": {"required": {"text": ["STRING", {"multiline": true, "dynamicPrompts": true}], "clip": ["CLIP"]}},
-    "input_order": {"required": ["text", "clip"]},
-    "output": ["CONDITIONING"],
-    "output_name": ["CONDITIONING"]
+  "output": [
+   "MODEL"
+  ],
+  "output_name": [
+   "MODEL"
+  ]
+ },
+ "CLIPLoader": {
+  "input": {
+   "required": {
+    "clip_name": [
+     []
+    ],
+    "type": [
+     [
+      "stable_diffusion",
+      "stable_cascade",
+      "sd3",
+      "stable_audio",
+      "mochi",
+      "ltxv",
+      "pixart",
+      "cosmos",
+      "lumina2",
+      "wan",
+      "hidream",
+      "chroma",
+      "ace",
+      "hunyuan_image",
+      "qwen_image"
+     ]
+    ],
+    "device": [
+     [
+      "default",
+      "cpu"
+     ]
+    ]
+   }
   },
-  "FluxGuidance": {
-    "input": {"required": {"conditioning": ["CONDITIONING"], "guidance": ["FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1}]}},
-    "input_order": {"required": ["conditioning", "guidance"]},
-    "output": ["CONDITIONING"],
-    "output_name": ["CONDITIONING"]
+  "input_order": {
+   "required": [
+    "clip_name",
+    "type",
+    "device"
+   ]
   },
-  "ModelSamplingAuraFlow": {
-    "input": {"required": {"model": ["MODEL"], "shift": ["FLOAT", {"default": 1.73, "min": 0.0, "max": 100.0, "step": 0.01}]}},
-    "input_order": {"required": ["model", "shift"]},
-    "output": ["MODEL"],
-    "output_name": ["MODEL"]
+  "output": [
+   "CLIP"
+  ],
+  "output_name": [
+   "CLIP"
+  ]
+ },
+ "DualCLIPLoader": {
+  "input": {
+   "required": {
+    "clip_name1": [
+     []
+    ],
+    "clip_name2": [
+     []
+    ],
+    "type": [
+     [
+      "sdxl",
+      "sd3",
+      "flux",
+      "hunyuan_video",
+      "hidream",
+      "hunyuan_image"
+     ]
+    ],
+    "device": [
+     [
+      "default",
+      "cpu"
+     ]
+    ]
+   }
   },
-  "ModelSamplingSD3": {
-    "input": {"required": {"model": ["MODEL"], "shift": ["FLOAT", {"default": 3.0, "min": 0.0, "max": 100.0, "step": 0.01}]}},
-    "input_order": {"required": ["model", "shift"]},
-    "output": ["MODEL"],
-    "output_name": ["MODEL"]
+  "input_order": {
+   "required": [
+    "clip_name1",
+    "clip_name2",
+    "type",
+    "device"
+   ]
   },
-  "EmptyLatentImage": {
-    "input": {"required": {"width": ["INT", {"default": 512, "min": 16, "max": 16384, "step": 8}], "height": ["INT", {"default": 512, "min": 16, "max": 16384, "step": 8}], "batch_size": ["INT", {"default": 1, "min": 1, "max": 4096}]}},
-    "input_order": {"required": ["width", "height", "batch_size"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "output": [
+   "CLIP"
+  ],
+  "output_name": [
+   "CLIP"
+  ]
+ },
+ "QuadrupleCLIPLoader": {
+  "input": {
+   "required": {
+    "clip_name1": [
+     []
+    ],
+    "clip_name2": [
+     []
+    ],
+    "clip_name3": [
+     []
+    ],
+    "clip_name4": [
+     []
+    ]
+   }
   },
-  "EmptySD3LatentImage": {
-    "input": {"required": {"width": ["INT", {"default": 1024, "min": 16, "max": 16384, "step": 16}], "height": ["INT", {"default": 1024, "min": 16, "max": 16384, "step": 16}], "batch_size": ["INT", {"default": 1, "min": 1, "max": 4096}]}},
-    "input_order": {"required": ["width", "height", "batch_size"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "input_order": {
+   "required": [
+    "clip_name1",
+    "clip_name2",
+    "clip_name3",
+    "clip_name4"
+   ]
   },
-  "EmptyFlux2LatentImage": {
-    "input": {"required": {"width": ["INT", {"default": 1024, "min": 16, "max": 16384, "step": 16}], "height": ["INT", {"default": 1024, "min": 16, "max": 16384, "step": 16}], "batch_size": ["INT", {"default": 1, "min": 1, "max": 4096}]}},
-    "input_order": {"required": ["width", "height", "batch_size"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "output": [
+   "CLIP"
+  ],
+  "output_name": [
+   "CLIP"
+  ]
+ },
+ "VAELoader": {
+  "input": {
+   "required": {
+    "vae_name": [
+     []
+    ]
+   }
   },
-  "EmptyHunyuanImageLatent": {
-    "input": {"required": {"width": ["INT", {"default": 2048, "min": 64, "max": 16384, "step": 32}], "height": ["INT", {"default": 2048, "min": 64, "max": 16384, "step": 32}], "batch_size": ["INT", {"default": 1, "min": 1, "max": 4096}]}},
-    "input_order": {"required": ["width", "height", "batch_size"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "input_order": {
+   "required": [
+    "vae_name"
+   ]
   },
-  "KSampler": {
-    "input": {"required": {"model": ["MODEL"], "seed": ["INT", {"default": 0, "min": 0, "max": 18446744073709551615}], "steps": ["INT", {"default": 20, "min": 1, "max": 10000}], "cfg": ["FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1}], "sampler_name": [[]], "scheduler": [[]], "positive": ["CONDITIONING"], "negative": ["CONDITIONING"], "latent_image": ["LATENT"], "denoise": ["FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}]}},
-    "input_order": {"required": ["model", "seed", "steps", "cfg", "sampler_name", "scheduler", "positive", "negative", "latent_image", "denoise"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "output": [
+   "VAE"
+  ],
+  "output_name": [
+   "VAE"
+  ]
+ },
+ "CLIPTextEncode": {
+  "input": {
+   "required": {
+    "text": [
+     "STRING",
+     {
+      "multiline": true,
+      "dynamicPrompts": true
+     }
+    ],
+    "clip": [
+     "CLIP"
+    ]
+   }
   },
-  "KSamplerAdvanced": {
-    "input": {"required": {"model": ["MODEL"], "add_noise": [["enable", "disable"]], "noise_seed": ["INT", {"default": 0, "min": 0, "max": 18446744073709551615}], "steps": ["INT", {"default": 20, "min": 1, "max": 10000}], "cfg": ["FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1}], "sampler_name": [[]], "scheduler": [[]], "positive": ["CONDITIONING"], "negative": ["CONDITIONING"], "latent_image": ["LATENT"], "start_at_step": ["INT", {"default": 0, "min": 0, "max": 10000}], "end_at_step": ["INT", {"default": 10000, "min": 0, "max": 10000}], "return_with_leftover_noise": [["disable", "enable"]]}},
-    "input_order": {"required": ["model", "add_noise", "noise_seed", "steps", "cfg", "sampler_name", "scheduler", "positive", "negative", "latent_image", "start_at_step", "end_at_step", "return_with_leftover_noise"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "input_order": {
+   "required": [
+    "text",
+    "clip"
+   ]
   },
-  "KSamplerSelect": {
-    "input": {"required": {"sampler_name": [[]]}},
-    "input_order": {"required": ["sampler_name"]},
-    "output": ["SAMPLER"],
-    "output_name": ["SAMPLER"]
+  "output": [
+   "CONDITIONING"
+  ],
+  "output_name": [
+   "CONDITIONING"
+  ]
+ },
+ "FluxGuidance": {
+  "input": {
+   "required": {
+    "conditioning": [
+     "CONDITIONING"
+    ],
+    "guidance": [
+     "FLOAT",
+     {
+      "default": 3.5,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.1
+     }
+    ]
+   }
   },
-  "SamplerCustomAdvanced": {
-    "input": {"required": {"noise": ["NOISE"], "guider": ["GUIDER"], "sampler": ["SAMPLER"], "sigmas": ["SIGMAS"], "latent_image": ["LATENT"]}},
-    "input_order": {"required": ["noise", "guider", "sampler", "sigmas", "latent_image"]},
-    "output": ["LATENT", "LATENT"],
-    "output_name": ["output", "denoised_output"]
+  "input_order": {
+   "required": [
+    "conditioning",
+    "guidance"
+   ]
   },
-  "RandomNoise": {
-    "input": {"required": {"noise_seed": ["INT", {"default": 0, "min": 0, "max": 18446744073709551615}]}},
-    "input_order": {"required": ["noise_seed"]},
-    "output": ["NOISE"],
-    "output_name": ["NOISE"]
+  "output": [
+   "CONDITIONING"
+  ],
+  "output_name": [
+   "CONDITIONING"
+  ]
+ },
+ "ModelSamplingAuraFlow": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "shift": [
+     "FLOAT",
+     {
+      "default": 1.73,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01
+     }
+    ]
+   }
   },
-  "BasicGuider": {
-    "input": {"required": {"model": ["MODEL"], "conditioning": ["CONDITIONING"]}},
-    "input_order": {"required": ["model", "conditioning"]},
-    "output": ["GUIDER"],
-    "output_name": ["GUIDER"]
+  "input_order": {
+   "required": [
+    "model",
+    "shift"
+   ]
   },
-  "Flux2Scheduler": {
-    "input": {"required": {"steps": ["INT", {"default": 20, "min": 1, "max": 10000}], "width": ["INT", {"default": 1024, "min": 16, "max": 16384}], "height": ["INT", {"default": 1024, "min": 16, "max": 16384}]}},
-    "input_order": {"required": ["steps", "width", "height"]},
-    "output": ["SIGMAS"],
-    "output_name": ["SIGMAS"]
+  "output": [
+   "MODEL"
+  ],
+  "output_name": [
+   "MODEL"
+  ]
+ },
+ "ModelSamplingSD3": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "shift": [
+     "FLOAT",
+     {
+      "default": 3.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.01
+     }
+    ]
+   }
   },
-  "VAEDecode": {
-    "input": {"required": {"samples": ["LATENT"], "vae": ["VAE"]}},
-    "input_order": {"required": ["samples", "vae"]},
-    "output": ["IMAGE"],
-    "output_name": ["IMAGE"]
+  "input_order": {
+   "required": [
+    "model",
+    "shift"
+   ]
   },
-  "LoadImage": {
-    "input": {"required": {"image": [[]]}},
-    "input_order": {"required": ["image"]},
-    "output": ["IMAGE", "MASK"],
-    "output_name": ["IMAGE", "MASK"]
+  "output": [
+   "MODEL"
+  ],
+  "output_name": [
+   "MODEL"
+  ]
+ },
+ "EmptyLatentImage": {
+  "input": {
+   "required": {
+    "width": [
+     "INT",
+     {
+      "default": 512,
+      "min": 16,
+      "max": 16384,
+      "step": 8
+     }
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 512,
+      "min": 16,
+      "max": 16384,
+      "step": 8
+     }
+    ],
+    "batch_size": [
+     "INT",
+     {
+      "default": 1,
+      "min": 1,
+      "max": 4096
+     }
+    ]
+   }
   },
-  "WanImageToVideo": {
-    "input": {"required": {"positive": ["CONDITIONING"], "negative": ["CONDITIONING"], "vae": ["VAE"], "width": ["INT", {"default": 832, "min": 16, "max": 16384, "step": 16}], "height": ["INT", {"default": 480, "min": 16, "max": 16384, "step": 16}], "length": ["INT", {"default": 81, "min": 1, "max": 16384, "step": 4}], "batch_size": ["INT", {"default": 1, "min": 1, "max": 4096}]}, "optional": {"start_image": ["IMAGE"]}},
-    "input_order": {"required": ["positive", "negative", "vae", "width", "height", "length", "batch_size"], "optional": ["start_image"]},
-    "output": ["CONDITIONING", "CONDITIONING", "LATENT"],
-    "output_name": ["positive", "negative", "latent"]
+  "input_order": {
+   "required": [
+    "width",
+    "height",
+    "batch_size"
+   ]
   },
-  "SaveImage": {
-    "input": {"required": {"images": ["IMAGE"], "filename_prefix": ["STRING", {"default": "ComfyUI"}]}},
-    "input_order": {"required": ["images", "filename_prefix"]},
-    "output": [],
-    "output_name": []
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "EmptySD3LatentImage": {
+  "input": {
+   "required": {
+    "width": [
+     "INT",
+     {
+      "default": 1024,
+      "min": 16,
+      "max": 16384,
+      "step": 16
+     }
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 1024,
+      "min": 16,
+      "max": 16384,
+      "step": 16
+     }
+    ],
+    "batch_size": [
+     "INT",
+     {
+      "default": 1,
+      "min": 1,
+      "max": 4096
+     }
+    ]
+   }
   },
-  "SaveAnimatedWEBP": {
-    "input": {"required": {"images": ["IMAGE"], "filename_prefix": ["STRING", {"default": "ComfyUI"}], "fps": ["FLOAT", {"default": 6.0, "min": 0.01, "max": 1000.0, "step": 0.01}], "lossless": ["BOOLEAN", {"default": true}], "quality": ["INT", {"default": 80, "min": 0, "max": 100}], "method": [["default", "fastest", "slowest"]]}},
-    "input_order": {"required": ["images", "filename_prefix", "fps", "lossless", "quality", "method"]},
-    "output": [],
-    "output_name": []
+  "input_order": {
+   "required": [
+    "width",
+    "height",
+    "batch_size"
+   ]
   },
-  "Note": {
-    "input": {"required": {"": ["STRING", {"multiline": true}]}},
-    "input_order": {"required": [""]},
-    "output": [],
-    "output_name": []
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "EmptyFlux2LatentImage": {
+  "input": {
+   "required": {
+    "width": [
+     "INT",
+     {
+      "default": 1024,
+      "min": 16,
+      "max": 16384,
+      "step": 16
+     }
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 1024,
+      "min": 16,
+      "max": 16384,
+      "step": 16
+     }
+    ],
+    "batch_size": [
+     "INT",
+     {
+      "default": 1,
+      "min": 1,
+      "max": 4096
+     }
+    ]
+   }
   },
-  "LatentUpscaleBy": {
-    "input": {"required": {"samples": ["LATENT"], "upscale_method": [["nearest-exact", "bilinear", "area", "bicubic", "bislerp"]], "scale_by": ["FLOAT", {"default": 1.5, "min": 0.01, "max": 8.0, "step": 0.01}]}},
-    "input_order": {"required": ["samples", "upscale_method", "scale_by"]},
-    "output": ["LATENT"],
-    "output_name": ["LATENT"]
+  "input_order": {
+   "required": [
+    "width",
+    "height",
+    "batch_size"
+   ]
   },
-  "ConditioningZeroOut": {
-    "input": {"required": {"conditioning": ["CONDITIONING"]}},
-    "input_order": {"required": ["conditioning"]},
-    "output": ["CONDITIONING"],
-    "output_name": ["CONDITIONING"]
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "EmptyHunyuanImageLatent": {
+  "input": {
+   "required": {
+    "width": [
+     "INT",
+     {
+      "default": 2048,
+      "min": 64,
+      "max": 16384,
+      "step": 32
+     }
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 2048,
+      "min": 64,
+      "max": 16384,
+      "step": 32
+     }
+    ],
+    "batch_size": [
+     "INT",
+     {
+      "default": 1,
+      "min": 1,
+      "max": 4096
+     }
+    ]
+   }
   },
-  "CFGGuider": {
-    "input": {"required": {"model": ["MODEL"], "positive": ["CONDITIONING"], "negative": ["CONDITIONING"], "cfg": ["FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}]}},
-    "input_order": {"required": ["model", "positive", "negative", "cfg"]},
-    "output": ["GUIDER"],
-    "output_name": ["GUIDER"]
-  }
+  "input_order": {
+   "required": [
+    "width",
+    "height",
+    "batch_size"
+   ]
+  },
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "KSampler": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "seed": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 18446744073709551615
+     }
+    ],
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "min": 1,
+      "max": 10000
+     }
+    ],
+    "cfg": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.1
+     }
+    ],
+    "sampler_name": [
+     []
+    ],
+    "scheduler": [
+     []
+    ],
+    "positive": [
+     "CONDITIONING"
+    ],
+    "negative": [
+     "CONDITIONING"
+    ],
+    "latent_image": [
+     "LATENT"
+    ],
+    "denoise": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "seed",
+    "steps",
+    "cfg",
+    "sampler_name",
+    "scheduler",
+    "positive",
+    "negative",
+    "latent_image",
+    "denoise"
+   ]
+  },
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "KSamplerAdvanced": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "add_noise": [
+     [
+      "enable",
+      "disable"
+     ]
+    ],
+    "noise_seed": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 18446744073709551615
+     }
+    ],
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "min": 1,
+      "max": 10000
+     }
+    ],
+    "cfg": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.1
+     }
+    ],
+    "sampler_name": [
+     []
+    ],
+    "scheduler": [
+     []
+    ],
+    "positive": [
+     "CONDITIONING"
+    ],
+    "negative": [
+     "CONDITIONING"
+    ],
+    "latent_image": [
+     "LATENT"
+    ],
+    "start_at_step": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 10000
+     }
+    ],
+    "end_at_step": [
+     "INT",
+     {
+      "default": 10000,
+      "min": 0,
+      "max": 10000
+     }
+    ],
+    "return_with_leftover_noise": [
+     [
+      "disable",
+      "enable"
+     ]
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "add_noise",
+    "noise_seed",
+    "steps",
+    "cfg",
+    "sampler_name",
+    "scheduler",
+    "positive",
+    "negative",
+    "latent_image",
+    "start_at_step",
+    "end_at_step",
+    "return_with_leftover_noise"
+   ]
+  },
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "KSamplerSelect": {
+  "input": {
+   "required": {
+    "sampler_name": [
+     []
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "sampler_name"
+   ]
+  },
+  "output": [
+   "SAMPLER"
+  ],
+  "output_name": [
+   "SAMPLER"
+  ]
+ },
+ "SamplerCustomAdvanced": {
+  "input": {
+   "required": {
+    "noise": [
+     "NOISE"
+    ],
+    "guider": [
+     "GUIDER"
+    ],
+    "sampler": [
+     "SAMPLER"
+    ],
+    "sigmas": [
+     "SIGMAS"
+    ],
+    "latent_image": [
+     "LATENT"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "noise",
+    "guider",
+    "sampler",
+    "sigmas",
+    "latent_image"
+   ]
+  },
+  "output": [
+   "LATENT",
+   "LATENT"
+  ],
+  "output_name": [
+   "output",
+   "denoised_output"
+  ]
+ },
+ "RandomNoise": {
+  "input": {
+   "required": {
+    "noise_seed": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 18446744073709551615
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "noise_seed"
+   ]
+  },
+  "output": [
+   "NOISE"
+  ],
+  "output_name": [
+   "NOISE"
+  ]
+ },
+ "BasicGuider": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "conditioning": [
+     "CONDITIONING"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "conditioning"
+   ]
+  },
+  "output": [
+   "GUIDER"
+  ],
+  "output_name": [
+   "GUIDER"
+  ]
+ },
+ "Flux2Scheduler": {
+  "input": {
+   "required": {
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "min": 1,
+      "max": 10000
+     }
+    ],
+    "width": [
+     "INT",
+     {
+      "default": 1024,
+      "min": 16,
+      "max": 16384
+     }
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 1024,
+      "min": 16,
+      "max": 16384
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "steps",
+    "width",
+    "height"
+   ]
+  },
+  "output": [
+   "SIGMAS"
+  ],
+  "output_name": [
+   "SIGMAS"
+  ]
+ },
+ "VAEDecode": {
+  "input": {
+   "required": {
+    "samples": [
+     "LATENT"
+    ],
+    "vae": [
+     "VAE"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "samples",
+    "vae"
+   ]
+  },
+  "output": [
+   "IMAGE"
+  ],
+  "output_name": [
+   "IMAGE"
+  ]
+ },
+ "LoadImage": {
+  "input": {
+   "required": {
+    "image": [
+     []
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image"
+   ]
+  },
+  "output": [
+   "IMAGE",
+   "MASK"
+  ],
+  "output_name": [
+   "IMAGE",
+   "MASK"
+  ]
+ },
+ "WanImageToVideo": {
+  "input": {
+   "required": {
+    "positive": [
+     "CONDITIONING"
+    ],
+    "negative": [
+     "CONDITIONING"
+    ],
+    "vae": [
+     "VAE"
+    ],
+    "width": [
+     "INT",
+     {
+      "default": 832,
+      "min": 16,
+      "max": 16384,
+      "step": 16
+     }
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 480,
+      "min": 16,
+      "max": 16384,
+      "step": 16
+     }
+    ],
+    "length": [
+     "INT",
+     {
+      "default": 81,
+      "min": 1,
+      "max": 16384,
+      "step": 4
+     }
+    ],
+    "batch_size": [
+     "INT",
+     {
+      "default": 1,
+      "min": 1,
+      "max": 4096
+     }
+    ]
+   },
+   "optional": {
+    "start_image": [
+     "IMAGE"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "positive",
+    "negative",
+    "vae",
+    "width",
+    "height",
+    "length",
+    "batch_size"
+   ],
+   "optional": [
+    "start_image"
+   ]
+  },
+  "output": [
+   "CONDITIONING",
+   "CONDITIONING",
+   "LATENT"
+  ],
+  "output_name": [
+   "positive",
+   "negative",
+   "latent"
+  ]
+ },
+ "SaveImage": {
+  "input": {
+   "required": {
+    "images": [
+     "IMAGE"
+    ],
+    "filename_prefix": [
+     "STRING",
+     {
+      "default": "ComfyUI"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "images",
+    "filename_prefix"
+   ]
+  },
+  "output": [],
+  "output_name": []
+ },
+ "SaveAnimatedWEBP": {
+  "input": {
+   "required": {
+    "images": [
+     "IMAGE"
+    ],
+    "filename_prefix": [
+     "STRING",
+     {
+      "default": "ComfyUI"
+     }
+    ],
+    "fps": [
+     "FLOAT",
+     {
+      "default": 6.0,
+      "min": 0.01,
+      "max": 1000.0,
+      "step": 0.01
+     }
+    ],
+    "lossless": [
+     "BOOLEAN",
+     {
+      "default": true
+     }
+    ],
+    "quality": [
+     "INT",
+     {
+      "default": 80,
+      "min": 0,
+      "max": 100
+     }
+    ],
+    "method": [
+     [
+      "default",
+      "fastest",
+      "slowest"
+     ]
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "images",
+    "filename_prefix",
+    "fps",
+    "lossless",
+    "quality",
+    "method"
+   ]
+  },
+  "output": [],
+  "output_name": []
+ },
+ "Note": {
+  "input": {
+   "required": {
+    "": [
+     "STRING",
+     {
+      "multiline": true
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    ""
+   ]
+  },
+  "output": [],
+  "output_name": []
+ },
+ "LatentUpscaleBy": {
+  "input": {
+   "required": {
+    "samples": [
+     "LATENT"
+    ],
+    "upscale_method": [
+     [
+      "nearest-exact",
+      "bilinear",
+      "area",
+      "bicubic",
+      "bislerp"
+     ]
+    ],
+    "scale_by": [
+     "FLOAT",
+     {
+      "default": 1.5,
+      "min": 0.01,
+      "max": 8.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "samples",
+    "upscale_method",
+    "scale_by"
+   ]
+  },
+  "output": [
+   "LATENT"
+  ],
+  "output_name": [
+   "LATENT"
+  ]
+ },
+ "ConditioningZeroOut": {
+  "input": {
+   "required": {
+    "conditioning": [
+     "CONDITIONING"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "conditioning"
+   ]
+  },
+  "output": [
+   "CONDITIONING"
+  ],
+  "output_name": [
+   "CONDITIONING"
+  ]
+ },
+ "CFGGuider": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL"
+    ],
+    "positive": [
+     "CONDITIONING"
+    ],
+    "negative": [
+     "CONDITIONING"
+    ],
+    "cfg": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.1,
+      "round": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "positive",
+    "negative",
+    "cfg"
+   ]
+  },
+  "output": [
+   "GUIDER"
+  ],
+  "output_name": [
+   "GUIDER"
+  ]
+ },
+ "BetaSamplingScheduler": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL",
+     {}
+    ],
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "min": 1,
+      "max": 10000
+     }
+    ],
+    "alpha": [
+     "FLOAT",
+     {
+      "advanced": true,
+      "default": 0.6,
+      "min": 0.0,
+      "max": 50.0,
+      "step": 0.01,
+      "round": false
+     }
+    ],
+    "beta": [
+     "FLOAT",
+     {
+      "advanced": true,
+      "default": 0.6,
+      "min": 0.0,
+      "max": 50.0,
+      "step": 0.01,
+      "round": false
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "steps",
+    "alpha",
+    "beta"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "SIGMAS"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "SIGMAS"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "BetaSamplingScheduler",
+  "display_name": null,
+  "description": "",
+  "python_module": "comfy_extras.nodes_custom_sampler",
+  "category": "sampling/custom_sampling/schedulers",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": null,
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "SamplerCustom": {
+  "input": {
+   "required": {
+    "model": [
+     "MODEL",
+     {}
+    ],
+    "add_noise": [
+     "BOOLEAN",
+     {
+      "advanced": true,
+      "default": true
+     }
+    ],
+    "noise_seed": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 18446744073709551615,
+      "control_after_generate": true
+     }
+    ],
+    "cfg": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "min": 0.0,
+      "max": 100.0,
+      "step": 0.1,
+      "round": 0.01
+     }
+    ],
+    "positive": [
+     "CONDITIONING",
+     {}
+    ],
+    "negative": [
+     "CONDITIONING",
+     {}
+    ],
+    "sampler": [
+     "SAMPLER",
+     {}
+    ],
+    "sigmas": [
+     "SIGMAS",
+     {}
+    ],
+    "latent_image": [
+     "LATENT",
+     {}
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "add_noise",
+    "noise_seed",
+    "cfg",
+    "positive",
+    "negative",
+    "sampler",
+    "sigmas",
+    "latent_image"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "LATENT",
+   "LATENT"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_name": [
+   "output",
+   "denoised_output"
+  ],
+  "output_tooltips": [
+   null,
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "SamplerCustom",
+  "display_name": null,
+  "description": "",
+  "python_module": "comfy_extras.nodes_custom_sampler",
+  "category": "sampling/custom_sampling",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": null,
+  "essentials_category": null,
+  "has_intermediate_output": false
+ }
 }

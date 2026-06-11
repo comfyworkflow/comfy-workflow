@@ -335,3 +335,35 @@ models:
       - path: text_encoders/qwen_3_4b.safetensors
         url: https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors
         size_bytes: 8044982048
+
+  # Chroma1-HD family (CW11 / Pillar #8). fp8 = silveroxides scaled build
+  # (loads via UNETLoader weight_dtype=default). FLAN encoder REQUIRED —
+  # 6/6 legible text vs 2.5/6 vanilla t5xxl in the channel audit. VAE reuses
+  # the existing flux_shared_vae entry (ae.safetensors).
+  - name: chroma1_hd_fp8
+    tier: basic
+    files:
+      - path: diffusion_models/Chroma1-HD-fp8_scaled_defaultloader_hybrid_large_rev2.safetensors
+        url: https://huggingface.co/silveroxides/Chroma1-HD-fp8-scaled/resolve/main/Chroma1-HD-fp8_scaled_defaultloader_hybrid_large_rev2.safetensors
+        size_bytes: 9193371409
+
+  - name: chroma1_hd_bf16
+    tier: basic
+    files:
+      - path: diffusion_models/Chroma1-HD.safetensors
+        url: https://huggingface.co/lodestones/Chroma1-HD/resolve/main/Chroma1-HD.safetensors
+        size_bytes: 17800038288
+
+  - name: chroma1_flash
+    tier: basic
+    files:
+      - path: diffusion_models/Chroma1-HD-Flash.safetensors
+        url: https://huggingface.co/lodestones/Chroma1-Flash/resolve/main/Chroma1-HD-Flash.safetensors
+        size_bytes: 17800038288
+
+  - name: chroma_shared_flan_encoder
+    tier: shared
+    files:
+      - path: text_encoders/flan-t5-xxl_float8_e4m3fn_scaled_stochastic.safetensors
+        url: https://huggingface.co/silveroxides/flan-t5-xxl-encoder-only/resolve/main/flan-t5-xxl_float8_e4m3fn_scaled_stochastic.safetensors
+        size_bytes: 5684140184

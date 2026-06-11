@@ -678,6 +678,90 @@ EXTRA_NOTE_TEXT.update({
 })
 
 
+# Chroma1-HD family (CW11 / Pillar #8) — recipe, FLAN-encoder warning,
+# negative-prompt note, VRAM caveats, per-card warm timings, res_multistep tip.
+EXTRA_NOTE_TEXT.update({
+    "chroma1_hd_fp8": (
+        "🎯 **Chroma1-HD fp8 — production default.** UNETLoader loading "
+        "`Chroma1-HD-fp8_scaled_defaultloader_hybrid_large_rev2.safetensors` "
+        "(9.19 GB, silveroxides scaled-fp8 build). Keep `weight_dtype` = "
+        "`default` — the file carries its own scaled fp8 layout; forcing a "
+        "dtype re-cast degrades it. Recipe: 26 steps, CFG 3.8, `euler` + "
+        "`BetaSamplingScheduler` (alpha/beta 0.45), ModelSamplingAuraFlow "
+        "shift 1.0, 1152×1152.\n\n"
+        "💡 **Tip: for maximum quality, try sampler `res_multistep` at 40 "
+        "steps.**\n\n"
+        "🧠 **FLAN-T5-XXL encoder (required).** This workflow loads "
+        "`flan-t5-xxl_float8_e4m3fn_scaled_stochastic.safetensors` via "
+        "CLIPLoader type `chroma`. In our text-rendering audit the FLAN "
+        "build scored 6/6 legible vs 2.5/6 for the vanilla t5xxl — do not "
+        "swap it for the regular t5xxl.\n\n"
+        "🚫 **Negative prompt** ships pre-filled with the audited default: "
+        "`low quality, bad anatomy, extra digits, missing digits, extra "
+        "limbs, missing limbs` — Chroma uses real CFG, so the negative "
+        "actually steers (unlike guidance-distilled models).\n\n"
+        "💾 **VRAM:** fp8 runs on a 12 GB card with NO offload (peak "
+        "~10 GB). On 16 GB+ cards it fits with room to spare.\n\n"
+        "⏱ **Warm timings** (1152×1152, this exact recipe): RTX 5090 "
+        "~15.8s · RTX 4090 ~22.1s · RTX 3060 ~3m21s.\n\n"
+        "🔀 Other Chroma1 workflows in this install:\n"
+        "- `chroma1_hd_bf16.json` — reference 16-bit precision (17.80 GB)\n"
+        "- `chroma1_flash.json` — 8-step heun, CFG 1.0 (fastest)"
+    ),
+    "chroma1_hd_bf16": (
+        "🎯 **Chroma1-HD bf16 — reference precision.** UNETLoader loading "
+        "`Chroma1-HD.safetensors` (17.80 GB, lodestones original 16-bit "
+        "weights). Identical recipe to the fp8 workflow: 26 steps, CFG 3.8, "
+        "`euler` + `BetaSamplingScheduler` (alpha/beta 0.45), "
+        "ModelSamplingAuraFlow shift 1.0, 1152×1152 — only the weight "
+        "precision differs.\n\n"
+        "💡 **Tip: for maximum quality, try sampler `res_multistep` at 40 "
+        "steps.**\n\n"
+        "🧠 **FLAN-T5-XXL encoder (required).** Same encoder as the fp8 "
+        "workflow (`flan-t5-xxl_float8_e4m3fn_scaled_stochastic.safetensors`, "
+        "CLIPLoader type `chroma`) — 6/6 legible text vs 2.5/6 for vanilla "
+        "t5xxl in our audit. Do not swap it.\n\n"
+        "🚫 **Negative prompt** ships pre-filled with the audited default: "
+        "`low quality, bad anatomy, extra digits, missing digits, extra "
+        "limbs, missing limbs`.\n\n"
+        "💾 **VRAM:** 17.80 GB of weights do NOT fit a 12 GB card — on "
+        "12 GB ComfyUI offloads to system RAM automatically. It works "
+        "(tested with 64 GB system RAM) but is slower and wants plenty of "
+        "free RAM. On 24 GB+ cards it runs fully on-GPU.\n\n"
+        "⏱ **Warm timings** (1152×1152, this exact recipe): RTX 5090 "
+        "~25.6s · RTX 4090 ~32.1s · RTX 3060 ~3m30s.\n\n"
+        "🔀 Other Chroma1 workflows in this install:\n"
+        "- `chroma1_hd_fp8.json` — production default, fits 12 GB VRAM "
+        "(9.19 GB)\n"
+        "- `chroma1_flash.json` — 8-step heun, CFG 1.0 (fastest)"
+    ),
+    "chroma1_flash": (
+        "🎯 **Chroma1-Flash — speed variant.** UNETLoader loading "
+        "`Chroma1-HD-Flash.safetensors` (17.80 GB, lodestones flash-distilled "
+        "build). Recipe: 8 steps, CFG 1.0, `heun` + `BetaSamplingScheduler` "
+        "(alpha/beta 0.45), ModelSamplingAuraFlow shift 1.0, 1152×1152.\n\n"
+        "🚫 **Negative prompt has no effect here** — at CFG 1.0 the "
+        "unconditional pass is skipped entirely, so the negative box ships "
+        "empty on purpose. That CFG-free pass is exactly where the speed "
+        "comes from.\n\n"
+        "🧠 **FLAN-T5-XXL encoder (required).** Same encoder as the HD "
+        "workflows (`flan-t5-xxl_float8_e4m3fn_scaled_stochastic."
+        "safetensors`, CLIPLoader type `chroma`). Do not swap it for the "
+        "regular t5xxl.\n\n"
+        "💾 **VRAM:** 17.80 GB of weights do NOT fit a 12 GB card — on "
+        "12 GB ComfyUI offloads to system RAM automatically (tested with "
+        "64 GB system RAM); still dramatically faster than the HD variants "
+        "on the same card. On 24 GB+ cards it runs fully on-GPU.\n\n"
+        "⏱ **Warm timings** (1152×1152, this exact recipe): RTX 5090 "
+        "~7.8s · RTX 4090 ~9.6s · RTX 3060 ~62s.\n\n"
+        "🔀 Other Chroma1 workflows in this install:\n"
+        "- `chroma1_hd_fp8.json` — production default, fits 12 GB VRAM "
+        "(9.19 GB)\n"
+        "- `chroma1_hd_bf16.json` — reference 16-bit precision (17.80 GB)"
+    ),
+})
+
+
 # Per-workflow distribute subfolder under ``workflows_distribute/``.
 # Mirrors the audience-facing ComfyUI sidebar category exposed by the
 # install scripts. Workflows not listed land at the flat root (legacy
@@ -707,6 +791,9 @@ WORKFLOW_DIST_SUBDIR: dict[str, str] = {
     "realvis_xl_v5": "Image/SDXL Finetunes",
     "pony_v6_xl": "Image/SDXL Finetunes",
     "noobai_xl_vpred": "Image/SDXL Finetunes",
+    "chroma1_hd_fp8": "Image/Chroma1-HD",
+    "chroma1_hd_bf16": "Image/Chroma1-HD",
+    "chroma1_flash": "Image/Chroma1-HD",
 }
 
 

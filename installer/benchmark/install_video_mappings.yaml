@@ -10,6 +10,7 @@ install_video_number:
   z-image: 8
   flux2-klein: 9
   sdxl-finetunes: 10
+  chroma1-hd: 11
 install_video_label:
   base: ComfyUI base install (Windows portable)
   sdxl: Install SDXL ComfyUI
@@ -21,6 +22,7 @@ install_video_label:
   z-image: Install Z-Image Turbo (bf16 + fp8 E4M3FN)
   flux2-klein: Install FLUX.2 Klein (4B base + distilled, bf16 + fp8)
   sdxl-finetunes: Install SDXL Finetunes (Juggernaut + RealVis + Pony + NoobAI)
+  chroma1-hd: Install Chroma1-HD (HD fp8 + HD bf16 + Flash)
 install_video_yaml_key_aliases:
   flux-family: install_flux1
   qwen-family: install_qwen_image
@@ -29,6 +31,7 @@ install_video_yaml_key_aliases:
   hidream: install_hidream_i1
   flux2-klein: install_flux2_klein
   sdxl-finetunes: install_sdxl_finetunes
+  chroma1-hd: install_chroma1_hd
 install_video_mapping:
   sdxl_base.json:
     install_slug: sdxl
@@ -161,6 +164,18 @@ install_video_mapping:
     scripts:
     - install-sdxl-finetunes.bat
     display_name: NoobAI XL V-Pred 1.0 (anime, vPred plumbing, hi-res 1.5x + ADetailer)
+  chroma1_hd_fp8.json:
+    install_slug: chroma1-hd
+    scripts: [install-chroma1-hd.bat]
+    display_name: Chroma1-HD fp8 (26-step euler, CFG 3.8, production default)
+  chroma1_hd_bf16.json:
+    install_slug: chroma1-hd
+    scripts: [install-chroma1-hd.bat]
+    display_name: Chroma1-HD bf16 (26-step euler, CFG 3.8, reference precision)
+  chroma1_flash.json:
+    install_slug: chroma1-hd
+    scripts: [install-chroma1-hd.bat]
+    display_name: Chroma1-Flash (8-step heun, CFG 1.0, fastest)
 pillar_mapping:
   sdxl_base.json:
     primary: 1
@@ -247,6 +262,15 @@ pillar_mapping:
   noobai_xl_vpred.json:
     primary: 1
     secondary: []
+  chroma1_hd_fp8.json:
+    primary: 8
+    secondary: []
+  chroma1_hd_bf16.json:
+    primary: 8
+    secondary: []
+  chroma1_flash.json:
+    primary: 8
+    secondary: []
 hardware_tiers:
   sdxl_base.json:
     ram: 16 GB
@@ -325,4 +349,13 @@ hardware_tiers:
     vram: 12 GB
   noobai_xl_vpred.json:
     ram: 16 GB
+    vram: 12 GB
+  chroma1_hd_fp8.json:
+    ram: 32 GB
+    vram: 12 GB
+  chroma1_hd_bf16.json:
+    ram: 64 GB
+    vram: 12 GB
+  chroma1_flash.json:
+    ram: 64 GB
     vram: 12 GB

@@ -345,6 +345,11 @@ def _extract_params(workflow: dict[str, Any]) -> dict[str, Any]:
             params.setdefault("scheduler", inputs.get("scheduler"))
         elif class_type == "KSamplerSelect":
             params.setdefault("sampler", inputs.get("sampler_name"))
+        elif class_type == "BetaSamplingScheduler":
+            params.setdefault("steps", inputs.get("steps"))
+            params.setdefault("scheduler", "beta")
+        elif class_type == "SamplerCustom":
+            params.setdefault("cfg", inputs.get("cfg"))
         elif class_type == "Flux2Scheduler":
             params.setdefault("steps", inputs.get("steps"))
             params.setdefault("scheduler", "flux2_scheduler")
@@ -561,7 +566,7 @@ def _build_argparser() -> argparse.ArgumentParser:
             ),
         )
     # Benchmark Pillar URLs (5 cross-model editorial videos #1-#5).
-    for n in (1, 2, 3, 4, 5, 6, 7):
+    for n in (1, 2, 3, 4, 5, 6, 7, 8):
         parser.add_argument(
             f"--pillar-{n}-url",
             default=None,
@@ -649,7 +654,7 @@ def main() -> None:
         cli_val = getattr(args, cli_attr, None)
         if cli_val is not None:
             yaml_updates[_videos_yaml_key_for_install_slug(slug)] = cli_val
-    for n in (1, 2, 3, 4, 5, 6, 7):
+    for n in (1, 2, 3, 4, 5, 6, 7, 8):
         cli_val = getattr(args, f"pillar_{n}_url", None)
         if cli_val is not None:
             yaml_updates[f"pillar_{n}"] = cli_val
@@ -683,7 +688,7 @@ def main() -> None:
             slug, args.github_base_url.rstrip("/"),
         )
     pillar_urls: dict[int, str] = {}
-    for n in (1, 2, 3, 4, 5, 6, 7):
+    for n in (1, 2, 3, 4, 5, 6, 7, 8):
         url = videos_state.get(f"pillar_{n}", "")
         url = url.strip() if isinstance(url, str) else ""
         pillar_urls[n] = url or _placeholder_pillar_url(

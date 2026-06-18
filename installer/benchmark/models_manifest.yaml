@@ -37,6 +37,8 @@ videos:
 # `tier` follows DA-008 matrix (basic/offload/high_vram); `files[].path` is
 # relative to ComfyUI's `models/` directory (canonical Windows portable
 # layout: `C:\ComfyUI_windows_portable\ComfyUI\models\<path>`).
+  install_chroma1_hd: "https://youtu.be/iscnX52FTWQ"
+  pillar_8: "https://youtu.be/iscnX52FTWQ"
 models:
   - name: sdxl_base_1.0
     tier: basic

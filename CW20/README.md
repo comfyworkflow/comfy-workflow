@@ -83,7 +83,7 @@ cmfychar, silver-grey undercut bob with a subtle teal front streak, a small beau
 - 🟦 *For your character:* open `simple_captions.bat` in Notepad and change the trigger/class on the `set "CAP=..."` line.
 
 ## Step D — Train (OneTrainer) → 📁 `Downloads\CW20_SDXL_LoRA\output\`
-1. Open `Downloads\CW20_SDXL_LoRA\OneTrainer\start-ui.bat`. In the blue dropdown (top-left), load **`CW20_SDXL_config`**.
+1. Open `Downloads\OneTrainer\start-ui.bat`. In the blue dropdown (top-left), load **`CW20_SDXL_config`**.
 2. **All paths are already set** (Workspace / Output / Base Model / Concept). Just **make sure none is red** (on the **concepts** tab the Path should be `...\CW20_SDXL_LoRA\dataset` with your 15 images). 🟦 If Base Model is red, your ComfyUI isn't in the default place → re-point it with `[...]`.
 3. **Start Training** (~53 min for 15 images). It saves `cw20_juno.safetensors` in `output\`. (The red `fatal: not a git repository` text is normal — ignore it.)
 

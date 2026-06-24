@@ -46,29 +46,34 @@ if exist "%CKPT%\%JUG%" ( echo [OK] model already present. ) else (
 )
 
 echo.
-echo === [6/6] OneTrainer (venv + torch + deps, ~10-20 min) ===
-set "ZIP=%ROOT%\onetrainer.zip"
+echo === [6/6] OneTrainer (installs ONCE in Downloads\OneTrainer, reused next time) ===
+set "OT=%USERPROFILE%\Downloads\OneTrainer"
+if exist "%OT%\start-ui.bat" goto :ot_ready
+echo Installing OneTrainer ^(venv + torch + deps, ~10-20 min^)...
+set "ZIP=%USERPROFILE%\Downloads\onetrainer.zip"
 curl -L -o "%ZIP%" https://github.com/Nerogar/OneTrainer/archive/3e3b3e8f.zip || goto :dlerr
-"%SystemRoot%\System32\tar.exe" -xf "%ZIP%" -C "%ROOT%"
-for /d %%D in ("%ROOT%\OneTrainer-*") do (
-  if exist "%ROOT%\OneTrainer" rmdir /s /q "%ROOT%\OneTrainer"
-  move "%%D" "%ROOT%\OneTrainer" >nul
-)
+"%SystemRoot%\System32\tar.exe" -xf "%ZIP%" -C "%USERPROFILE%\Downloads"
+if exist "%OT%" rmdir /s /q "%OT%"
+for /d %%D in ("%USERPROFILE%\Downloads\OneTrainer-*") do move "%%D" "%OT%" >nul
 del "%ZIP%" >nul 2>&1
-if not exist "%ROOT%\OneTrainer\install.bat" ( echo ERROR: OneTrainer extraction failed. & pause & exit /b 1 )
+if not exist "%OT%\install.bat" ( echo ERROR: OneTrainer extraction failed. & pause & exit /b 1 )
 set "PIP_NO_CACHE_DIR=1"
-pushd "%ROOT%\OneTrainer"
+pushd "%OT%"
 call install.bat
 popd
+goto :ot_done
+:ot_ready
+echo [OK] OneTrainer already installed at %OT% - skipping its install.
+:ot_done
 
-REM --- generate the preset with the logged-in user's path ---
-if not exist "%ROOT%\OneTrainer\training_presets" mkdir "%ROOT%\OneTrainer\training_presets"
-powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content -Raw -LiteralPath '%ROOT%\CW20_SDXL_config.template.json') -replace '__ROOT__',$r; [System.IO.File]::WriteAllText('%ROOT%\OneTrainer\training_presets\CW20_SDXL_config.json',$t)"
+REM --- generate the CW20 preset into OneTrainer (always; data stays in CW20_SDXL_LoRA) ---
+if not exist "%OT%\training_presets" mkdir "%OT%\training_presets"
+powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content -Raw -LiteralPath '%ROOT%\CW20_SDXL_config.template.json') -replace '__ROOT__',$r; [System.IO.File]::WriteAllText('%OT%\training_presets\CW20_SDXL_config.json',$t)"
 
 echo.
 echo **** ALL DONE. ****
 echo - Workflows in ComfyUI: Workflows menu -^> CW20.
-echo - Training: %ROOT%\OneTrainer\start-ui.bat  (load the CW20_SDXL_config preset).
+echo - Training: %OT%\start-ui.bat  (load the CW20_SDXL_config preset).
 echo - Your data + guide (README): %ROOT%
 pause
 endlocal

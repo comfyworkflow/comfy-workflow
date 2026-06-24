@@ -1,0 +1,84 @@
+{
+    "__version": 10,
+    "training_method": "LORA",
+    "model_type": "STABLE_DIFFUSION_XL_10_BASE",
+    "base_model_name": "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\checkpoints\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
+
+    "output_model_destination": "__ROOT__\\output\\cw20_juno.safetensors",
+    "output_model_format": "SAFETENSORS",
+    "output_dtype": "FLOAT_32",
+
+    "train_dtype": "BFLOAT_16",
+    "fallback_train_dtype": "FLOAT_16",
+
+    "unet": {
+        "train": true,
+        "weight_dtype": "FLOAT_16"
+    },
+    "text_encoder": {
+        "train": true,
+        "weight_dtype": "FLOAT_16",
+        "stop_training_after": 30,
+        "stop_training_after_unit": "EPOCH"
+    },
+    "text_encoder_2": {
+        "train": true,
+        "weight_dtype": "FLOAT_16",
+        "stop_training_after": 30,
+        "stop_training_after_unit": "EPOCH"
+    },
+
+    "lora_rank": 16,
+    "lora_alpha": 16.0,
+
+    "optimizer": {
+        "optimizer": "ADAFACTOR"
+    },
+
+    "learning_rate": 1e-4,
+    "learning_rate_scheduler": "CONSTANT",
+
+    "epochs": 150,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 1,
+
+    "gradient_checkpointing": "ON",
+    "ema": "OFF",
+
+    "aspect_ratio_bucketing": true,
+    "resolution": "1024",
+    "latent_caching": true,
+    "clear_cache_before_training": true,
+
+    "save_every": 25,
+    "save_every_unit": "EPOCH",
+    "save_filename_prefix": "cw20_juno_e",
+
+    "backup_after": 30,
+    "backup_after_unit": "MINUTE",
+    "rolling_backup": true,
+    "rolling_backup_count": 3,
+
+    "workspace_dir": "__ROOT__\\workspace",
+    "samples": [],
+    "sample_after": 999,
+    "sample_after_unit": "EPOCH",
+
+    "concepts": [
+        {
+            "__version": 2,
+            "name": "character",
+            "path": "__ROOT__\\dataset",
+            "enabled": true,
+            "include_subdirectories": false,
+            "balancing": 1.0,
+            "image": {
+                "enable_crop_jitter": false
+            },
+            "text": {
+                "prompt_source": "sample",
+                "prompt_path": ""
+            }
+        }
+    ]
+}

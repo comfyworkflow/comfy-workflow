@@ -8,7 +8,7 @@ REM  (workflows, config, captions, model) and installs OneTrainer.
 REM  >>> Set the RAW line below to the repo's raw base (no trailing /) <<<
 REM      e.g.: https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main/CW20
 REM ============================================================
-set "RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main/CW20"
+set "RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/cw20-install-kit/CW20"
 
 set "COMFY=C:\ComfyUI_windows_portable\ComfyUI"
 set "CKPT=%COMFY%\models\checkpoints"

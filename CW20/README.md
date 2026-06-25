@@ -79,8 +79,9 @@ cmfychar, silver-grey undercut bob with a subtle teal front streak, a small beau
 👤 Look at the ~64 in `raw_gen\` at full size. Keep the **15 best** (same character; a mix of close-up / bust / full-body; clean hands and eyes; no watermarks) and **copy them into `Downloads\CW20_SDXL_LoRA\dataset\`** (the .png files only).
 
 ## Step C — Caption (🤖 1 click)
-👤 The installer already put **`simple_captions.bat`** inside `dataset\`. 🤖 Double-click it → it asks for your **trigger word** and your **subject class**, then writes a matching `.txt` for every image.
-- 🟦 *For your character:* type your own trigger (a made-up word, e.g. `myhero`) and class (`1boy`, `robot`, `a sword`...) when it asks. Press Enter on both to use the demo defaults (`cmfychar` / `1girl, solo`).
+👤 The installer already put **`simple_captions.bat`** inside `dataset\`. 🤖 Double-click it → it asks for your **trigger word** and your **subject class**, shows you the caption and asks you to **confirm**, then writes a matching `.txt` for every image. (If you've already hand-edited captions, it asks before overwriting them.)
+- 🟦 *For your character:* type your own trigger (a made-up word, e.g. `myhero`) and class (`1boy`, `robot`, `a sword`...) when it asks. Press Enter on each to use the demo defaults (`cmfychar` / `1girl, solo`).
+- This is the **simple** method — the same caption on every image, which is the beginner default and what this tutorial uses. For more flexibility (changing outfits and scenes freely), caption what *varies* per image by hand, or use OneTrainer's built-in WD14 tagger.
 
 ## Step D — Train (OneTrainer) → 📁 `Downloads\CW20_SDXL_LoRA\output\`
 1. Open `Downloads\OneTrainer\start-ui.bat`. In the blue dropdown (top-left), load **`CW20_SDXL_config`**.

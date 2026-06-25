@@ -26,8 +26,8 @@ for %%D in (raw_gen dataset workspace output) do mkdir "%ROOT%\%%D" 2>nul
 echo [OK] %ROOT%
 
 echo.
-echo === [3/6] Downloading the workflows into ComfyUI (they appear under the Workflows menu) ===
-set "WF=%COMFY%\user\default\workflows\CW20"
+echo === [3/6] Downloading the workflows into ComfyUI (Workflows menu -^> Comfy Workflow -^> CW20) ===
+set "WF=%COMFY%\user\default\workflows\Comfy Workflow\CW20"
 mkdir "%WF%" 2>nul
 curl -L -o "%WF%\1 - Generate images.json" "%RAW%/workflow_1_generate.json" || goto :dlerr
 curl -L -o "%WF%\2 - Use LoRA.json"        "%RAW%/workflow_2_use_lora.json" || goto :dlerr
@@ -72,7 +72,7 @@ powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content 
 
 echo.
 echo **** ALL DONE. ****
-echo - Workflows in ComfyUI: Workflows menu -^> CW20.
+echo - Workflows in ComfyUI: Workflows menu -^> Comfy Workflow -^> CW20.
 echo - Training: %OT%\start-ui.bat  (load the CW20_SDXL_config preset).
 echo - Your data + guide (README): %ROOT%
 pause

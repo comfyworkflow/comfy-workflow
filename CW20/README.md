@@ -16,7 +16,7 @@ Your work folder (created by the installer): **`Downloads\CW20_SDXL_LoRA\`** (`r
 ---
 
 ## Step A — Generate the images → 📁 `Downloads\CW20_SDXL_LoRA\raw_gen\`
-1. Open ComfyUI → **Workflows menu → CW20 → "1 - Generate images"**.
+1. Open ComfyUI → **Workflows menu → Comfy Workflow → CW20 → "1 - Generate images"**.
 2. Paste each of the **16 prompts** below into the **Positive** box and click **Queue** (4 per queue, seed on randomize) = **~64 images**.
    - 🟦 *For your character:* change only the **identity block** (`silver-grey undercut bob ... light freckles`).
 3. Copy the ~64 images from ComfyUI's output into **`Downloads\CW20_SDXL_LoRA\raw_gen\`**.
@@ -79,17 +79,18 @@ cmfychar, silver-grey undercut bob with a subtle teal front streak, a small beau
 👤 Look at the ~64 in `raw_gen\` at full size. Keep the **15 best** (same character; a mix of close-up / bust / full-body; clean hands and eyes; no watermarks) and **copy them into `Downloads\CW20_SDXL_LoRA\dataset\`** (the .png files only).
 
 ## Step C — Caption (🤖 1 click)
-👤 The installer already put **`simple_captions.bat`** inside `dataset\`. 🤖 Double-click it → it writes a `.txt` with `cmfychar, 1girl, solo` for each image.
-- 🟦 *For your character:* open `simple_captions.bat` in Notepad and change the trigger/class on the `set "CAP=..."` line.
+👤 The installer already put **`simple_captions.bat`** inside `dataset\`. 🤖 Double-click it → it asks for your **trigger word** and your **subject class**, then writes a matching `.txt` for every image.
+- 🟦 *For your character:* type your own trigger (a made-up word, e.g. `myhero`) and class (`1boy`, `robot`, `a sword`...) when it asks. Press Enter on both to use the demo defaults (`cmfychar` / `1girl, solo`).
 
 ## Step D — Train (OneTrainer) → 📁 `Downloads\CW20_SDXL_LoRA\output\`
 1. Open `Downloads\OneTrainer\start-ui.bat`. In the blue dropdown (top-left), load **`CW20_SDXL_config`**.
-2. **All paths are already set** (Workspace / Output / Base Model / Concept). Just **make sure none is red** (on the **concepts** tab the Path should be `...\CW20_SDXL_LoRA\dataset` with your 15 images). 🟦 If Base Model is red, your ComfyUI isn't in the default place → re-point it with `[...]`.
-3. **Start Training** (~53 min for 15 images). It saves `cw20_juno.safetensors` in `output\`. (The red `fatal: not a git repository` text is normal — ignore it.)
+2. The preset fills the settings: on the **model** tab, **Workspace / Output / Base Model** are already set — just confirm none is red. 🟦 If Base Model is red, your ComfyUI isn't in the default place → re-point it with `[...]`.
+3. **Point it at your images** — this is the ONE thing you add by hand (the preset does NOT carry it): go to the **concepts** tab → **Add Concept** → click the tile that appears → set **Path** = `...\CW20_SDXL_LoRA\dataset`, **Prompt Source** = `From text file per sample`, and make sure it's **enabled**. ⚠️ Confirm the Path actually shows in the field before closing (an empty Path errors).
+4. **Start Training**. ✅ Sanity check: the **step** bar should move for real (~15 steps per epoch) and the run takes **minutes**. If the 150 epochs fly by in seconds showing `0it`, OneTrainer found no images → your concept Path is wrong/empty or the captions are missing (redo step 3 / Step C). It saves `cw20_juno.safetensors` in `output\`. (The red `fatal: not a git repository` text is normal — ignore it.)
 
 ## Step E — Use the LoRA (ComfyUI) → the result
 1. Copy `Downloads\CW20_SDXL_LoRA\output\cw20_juno.safetensors` into `C:\ComfyUI_windows_portable\ComfyUI\models\loras\`.
-2. Open **Workflows menu → CW20 → "2 - Use LoRA"** → check the Load LoRA node = `cw20_juno.safetensors`, strength 1.0.
+2. Open **Workflows menu → Comfy Workflow → CW20 → "2 - Use LoRA"** → check the Load LoRA node = `cw20_juno.safetensors`, strength 1.0.
 3. Test (if it looks overcooked, drop strength to 0.8):
 ```
 cmfychar, 1girl, solo, grey hair, silver bob, steel plate armor, snowy mountain, upper body, bokeh

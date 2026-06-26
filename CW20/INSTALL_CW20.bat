@@ -35,6 +35,7 @@ curl -L -o "%WF%\2 - Use LoRA.json"        "%RAW%/workflow_2_use_lora.json" || g
 echo.
 echo === [4/6] Downloading helpers (config + captions + guide) ===
 curl -L -o "%ROOT%\CW20_SDXL_config.template.json" "%RAW%/CW20_SDXL_config.template.json" || goto :dlerr
+curl -L -o "%ROOT%\CW20_concepts.template.json"    "%RAW%/CW20_concepts.template.json"     || goto :dlerr
 curl -L -o "%ROOT%\dataset\simple_captions.bat"    "%RAW%/simple_captions.bat"            || goto :dlerr
 curl -L -o "%ROOT%\README.md"                      "%RAW%/README.md"                      || goto :dlerr
 
@@ -69,6 +70,13 @@ echo [OK] OneTrainer already installed at %OT% - skipping its install.
 REM --- generate the CW20 preset into OneTrainer (always; data stays in CW20_SDXL_LoRA) ---
 if not exist "%OT%\training_presets" mkdir "%OT%\training_presets"
 powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content -Raw -LiteralPath '%ROOT%\CW20_SDXL_config.template.json') -replace '__ROOT__',$r; [System.IO.File]::WriteAllText('%OT%\training_presets\CW20_SDXL_config.json',$t)"
+
+REM --- link the dataset for the user: write training_concepts\concepts.json (no manual Add Concept) ---
+REM Same __ROOT__ substitution + backslash escaping as the config above. ConvertFrom-Json validates
+REM the result parses BEFORE writing (path escaping in .bat is tricky); if it fails the file isn't written.
+if not exist "%OT%\training_concepts" mkdir "%OT%\training_concepts"
+powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content -Raw -LiteralPath '%ROOT%\CW20_concepts.template.json') -replace '__ROOT__',$r; $null=$t|ConvertFrom-Json; [System.IO.File]::WriteAllText('%OT%\training_concepts\concepts.json',$t)"
+if not exist "%OT%\training_concepts\concepts.json" echo WARNING: could not auto-link the dataset. In OneTrainer: concepts tab -^> Add Concept -^> Path = "%ROOT%\dataset".
 
 echo.
 echo **** ALL DONE. ****

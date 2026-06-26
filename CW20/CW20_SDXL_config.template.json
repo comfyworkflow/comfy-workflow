@@ -64,21 +64,6 @@
     "sample_after": 999,
     "sample_after_unit": "EPOCH",
 
-    "concepts": [
-        {
-            "__version": 2,
-            "name": "character",
-            "path": "__ROOT__\\dataset",
-            "enabled": true,
-            "include_subdirectories": false,
-            "balancing": 1.0,
-            "image": {
-                "enable_crop_jitter": false
-            },
-            "text": {
-                "prompt_source": "sample",
-                "prompt_path": ""
-            }
-        }
-    ]
+    "concept_file_name": "training_concepts/concepts.json",
+    "concepts": null
 }

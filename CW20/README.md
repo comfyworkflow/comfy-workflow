@@ -86,7 +86,7 @@ cmfychar, silver-grey undercut bob with a subtle teal front streak, a small beau
 ## Step D — Train (OneTrainer) → 📁 `Downloads\CW20_SDXL_LoRA\output\`
 1. Open `Downloads\OneTrainer\start-ui.bat`. In the blue dropdown (top-left), load **`CW20_SDXL_config`**.
 2. The preset fills the settings: on the **model** tab, **Workspace / Output / Base Model** are already set — just confirm none is red. 🟦 If Base Model is red, your ComfyUI isn't in the default place → re-point it with `[...]`.
-3. **Point it at your images** — this is the ONE thing you add by hand (the preset does NOT carry it): go to the **concepts** tab → **Add Concept** → click the tile that appears → set **Path** = `...\CW20_SDXL_LoRA\dataset`, **Prompt Source** = `From text file per sample`, and make sure it's **enabled**. ⚠️ Confirm the Path actually shows in the field before closing (an empty Path errors).
+3. **Your images are already linked.** The installer pointed the training at your `dataset` folder for you, so the **concepts** tab already shows your character — nothing to add by hand. Just glance that it's there and **enabled**. *(Safety net: if it's ever empty, add it — concepts tab → Add Concept → Path = your `dataset` → Prompt Source = `From text file per sample` → enabled.)*
 4. **Start Training**. ✅ Sanity check: the **step** bar should move for real (~15 steps per epoch) and the run takes **minutes**. If the 150 epochs fly by in seconds showing `0it`, OneTrainer found no images → your concept Path is wrong/empty or the captions are missing (redo step 3 / Step C). It saves `cw20_juno.safetensors` in `output\`. (The red `fatal: not a git repository` text is normal — ignore it.)
 
 ## Step E — Use the LoRA (ComfyUI) → the result

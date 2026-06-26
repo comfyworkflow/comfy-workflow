@@ -16,7 +16,7 @@ Your work folder (created by the installer): **`Downloads\CW20_SDXL_LoRA\`** (`r
 ---
 
 ## Step A — Generate the images → 📁 `Downloads\CW20_SDXL_LoRA\raw_gen\`
-1. Open ComfyUI → **Workflows menu → Comfy Workflow → CW20 → "1 - Generate images"**.
+1. Open ComfyUI → **Workflows menu → Comfy Workflow → LoRA → SDXL → "1 - Generate images"**.
 2. Paste each of the **16 prompts** below into the **Positive** box and click **Queue** (4 per queue, seed on randomize) = **~64 images**.
    - 🟦 *For your character:* change only the **identity block** (`silver-grey undercut bob ... light freckles`).
 3. Copy the ~64 images from ComfyUI's output into **`Downloads\CW20_SDXL_LoRA\raw_gen\`**.
@@ -91,7 +91,7 @@ cmfychar, silver-grey undercut bob with a subtle teal front streak, a small beau
 
 ## Step E — Use the LoRA (ComfyUI) → the result
 1. Copy `Downloads\CW20_SDXL_LoRA\output\cw20_juno.safetensors` into `C:\ComfyUI_windows_portable\ComfyUI\models\loras\`.
-2. Open **Workflows menu → Comfy Workflow → CW20 → "2 - Use LoRA"** → check the Load LoRA node = `cw20_juno.safetensors`, strength 1.0.
+2. Open **Workflows menu → Comfy Workflow → LoRA → SDXL → "2 - Use LoRA"** → check the Load LoRA node = `cw20_juno.safetensors`, strength 1.0.
 3. Test (if it looks overcooked, drop strength to 0.8):
 ```
 cmfychar, 1girl, solo, grey hair, silver bob, steel plate armor, snowy mountain, upper body, bokeh

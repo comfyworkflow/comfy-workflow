@@ -26,8 +26,8 @@ for %%D in (raw_gen dataset workspace output) do mkdir "%ROOT%\%%D" 2>nul
 echo [OK] %ROOT%
 
 echo.
-echo === [3/6] Downloading the workflows into ComfyUI (Workflows menu -^> Comfy Workflow -^> CW20) ===
-set "WF=%COMFY%\user\default\workflows\Comfy Workflow\CW20"
+echo === [3/6] Downloading the workflows into ComfyUI (Workflows menu -^> Comfy Workflow -^> LoRA -^> SDXL) ===
+set "WF=%COMFY%\user\default\workflows\Comfy Workflow\LoRA\SDXL"
 mkdir "%WF%" 2>nul
 curl -L -o "%WF%\1 - Generate images.json" "%RAW%/workflow_1_generate.json" || goto :dlerr
 curl -L -o "%WF%\2 - Use LoRA.json"        "%RAW%/workflow_2_use_lora.json" || goto :dlerr
@@ -80,7 +80,7 @@ if not exist "%OT%\training_concepts\concepts.json" echo WARNING: could not auto
 
 echo.
 echo **** ALL DONE. ****
-echo - Workflows in ComfyUI: Workflows menu -^> Comfy Workflow -^> CW20.
+echo - Workflows in ComfyUI: Workflows menu -^> Comfy Workflow -^> LoRA -^> SDXL.
 echo - Training: %OT%\start-ui.bat  (load the CW20_SDXL_config preset).
 echo - Your data + guide (README): %ROOT%
 pause

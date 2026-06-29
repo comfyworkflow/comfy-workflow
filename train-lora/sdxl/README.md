@@ -1,6 +1,6 @@
 # CW20 — Train a Character LoRA (SDXL, OneTrainer) — step by step
 
-> You already ran **INSTALL_CW20.bat**, so the model, the work folders, OneTrainer and the training preset
+> You already ran **INSTALL.bat**, so the model, the work folders, OneTrainer and the training preset
 > are ready. This guide covers the part you do by hand — it's the actual tutorial.
 >
 > Legend: 🤖 = automatic · 👤 = you do it · 🟦 = adapt to your own character.

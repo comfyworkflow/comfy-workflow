@@ -4,7 +4,7 @@
     "model_type": "STABLE_DIFFUSION_XL_10_BASE",
     "base_model_name": "C:\\ComfyUI_windows_portable\\ComfyUI\\models\\checkpoints\\Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors",
 
-    "output_model_destination": "__ROOT__\\output\\cw20_juno.safetensors",
+    "output_model_destination": "__ROOT__\\output\\juno.safetensors",
     "output_model_format": "SAFETENSORS",
     "output_dtype": "FLOAT_32",
 
@@ -52,7 +52,7 @@
 
     "save_every": 25,
     "save_every_unit": "EPOCH",
-    "save_filename_prefix": "cw20_juno_e",
+    "save_filename_prefix": "juno_e",
 
     "backup_after": 30,
     "backup_after_unit": "MINUTE",

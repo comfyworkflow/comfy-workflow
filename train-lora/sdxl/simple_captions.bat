@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title CW20 - simple captions
+title Simple captions
 
 REM ============================================================
 REM  Writes the SIMPLE caption (trigger + class, same on all)

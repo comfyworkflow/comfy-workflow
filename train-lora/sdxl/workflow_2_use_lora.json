@@ -36,7 +36,7 @@
         {"name": "CLIP", "type": "CLIP", "links": [4, 5], "slot_index": 1}
       ],
       "properties": {"Node name for S&R": "LoraLoader"},
-      "widgets_values": ["cw20_juno.safetensors", 1.0, 1.0]
+      "widgets_values": ["juno.safetensors", 1.0, 1.0]
     },
     {
       "id": 6,

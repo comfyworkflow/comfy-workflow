@@ -1,18 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
-title CW20 - Installer (downloads everything, 1 click)
+title Train LoRA SDXL - Installer (downloads everything, 1 click)
 
 REM ============================================================
 REM  The ONLY file you download. It fetches everything else
 REM  (workflows, config, captions, model) and installs OneTrainer.
 REM  >>> Set the RAW line below to the repo's raw base (no trailing /) <<<
-REM      e.g.: https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main/CW20
+REM      e.g.: https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main/train-lora/sdxl
 REM ============================================================
 set "RAW=https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/cw20-install-kit/train-lora/sdxl"
 
 set "COMFY=C:\ComfyUI_windows_portable\ComfyUI"
 set "CKPT=%COMFY%\models\checkpoints"
-set "ROOT=%USERPROFILE%\Downloads\CW20_SDXL_LoRA"
+set "ROOT=%USERPROFILE%\Downloads\train-lora-sdxl"
 
 echo.
 echo === [1/6] Checking Python + ComfyUI ===
@@ -67,9 +67,9 @@ goto :ot_done
 echo [OK] OneTrainer already installed at %OT% - skipping its install.
 :ot_done
 
-REM --- generate the CW20 preset into OneTrainer (always; data stays in CW20_SDXL_LoRA) ---
+REM --- generate the preset into OneTrainer (always; data stays in train-lora-sdxl) ---
 if not exist "%OT%\training_presets" mkdir "%OT%\training_presets"
-powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content -Raw -LiteralPath '%ROOT%\config.template.json') -replace '__ROOT__',$r; [System.IO.File]::WriteAllText('%OT%\training_presets\CW20_SDXL_config.json',$t)"
+powershell -NoProfile -Command "$r='%ROOT%' -replace '\\','\\'; $t=(Get-Content -Raw -LiteralPath '%ROOT%\config.template.json') -replace '__ROOT__',$r; [System.IO.File]::WriteAllText('%OT%\training_presets\train-lora-sdxl.json',$t)"
 
 REM --- link the dataset for the user: write training_concepts\concepts.json (no manual Add Concept) ---
 REM Same __ROOT__ substitution + backslash escaping as the config above. ConvertFrom-Json validates
@@ -81,7 +81,7 @@ if not exist "%OT%\training_concepts\concepts.json" echo WARNING: could not auto
 echo.
 echo **** ALL DONE. ****
 echo - Workflows in ComfyUI: Workflows menu -^> Comfy Workflow -^> LoRA -^> SDXL.
-echo - Training: %OT%\start-ui.bat  (load the CW20_SDXL_config preset).
+echo - Training: %OT%\start-ui.bat  (load the train-lora-sdxl preset).
 echo - Your data + guide (README): %ROOT%
 pause
 endlocal

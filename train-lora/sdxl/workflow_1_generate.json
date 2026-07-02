@@ -1,7 +1,21 @@
 {
-  "last_node_id": 9,
+  "last_node_id": 10,
   "last_link_id": 9,
   "nodes": [
+    {
+      "id": 10,
+      "type": "Note",
+      "pos": [40, -280],
+      "size": [560, 260],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "About this workflow",
+      "properties": {},
+      "widgets_values": ["# Train a Character LoRA (SDXL) — 1 of 2: generate the dataset\n\n📺 Tutorial video: https://youtu.be/cn2juoismhM\n📥 Kit + step-by-step README: https://github.com/comfyworkflow/comfy-workflow/tree/main/train-lora/sdxl\n\nGenerates your character dataset images (Juggernaut XL v9, batch 4, 832×1216). Swap the identity block in the Positive prompt for YOUR character and keep the rest — the full prompt list is in the README (Step A)."]
+    },
     {
       "id": 4,
       "type": "CheckpointLoaderSimple",

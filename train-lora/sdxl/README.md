@@ -1,5 +1,7 @@
 # Train a Character LoRA (SDXL, OneTrainer) — step by step
 
+📺 **Tutorial video (this kit, end to end):** https://youtu.be/cn2juoismhM
+
 > You already ran **train-lora-sdxl.bat**, so the model, the work folders, OneTrainer and the training preset
 > are ready. This guide covers the part you do by hand — it's the actual tutorial.
 >

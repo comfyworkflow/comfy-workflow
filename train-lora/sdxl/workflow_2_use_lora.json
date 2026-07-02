@@ -1,7 +1,21 @@
 {
-  "last_node_id": 10,
+  "last_node_id": 11,
   "last_link_id": 11,
   "nodes": [
+    {
+      "id": 11,
+      "type": "Note",
+      "pos": [20, -280],
+      "size": [560, 260],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "About this workflow",
+      "properties": {},
+      "widgets_values": ["# Train a Character LoRA (SDXL) — 2 of 2: use the LoRA\n\n📺 Tutorial video: https://youtu.be/cn2juoismhM\n📥 Kit + step-by-step README: https://github.com/comfyworkflow/comfy-workflow/tree/main/train-lora/sdxl\n\nLoads your trained LoRA (juno.safetensors, strength 1.0 — drop to 0.8 if it looks overcooked) and generates with your trigger word (cmfychar). Trained your own character? Pick your .safetensors in the Load LoRA node and use your trigger word."]
+    },
     {
       "id": 4,
       "type": "CheckpointLoaderSimple",

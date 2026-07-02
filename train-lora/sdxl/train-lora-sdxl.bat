@@ -5,6 +5,7 @@ title Train LoRA SDXL - Installer (downloads everything, 1 click)
 REM ============================================================
 REM  The ONLY file you download. It fetches everything else
 REM  (workflows, config, captions, model) and installs OneTrainer.
+REM  Tutorial video (step by step): https://youtu.be/cn2juoismhM
 REM  >>> Set the RAW line below to the repo's raw base (no trailing /) <<<
 REM      e.g.: https://raw.githubusercontent.com/comfyworkflow/comfy-workflow/main/train-lora/sdxl
 REM ============================================================
@@ -83,6 +84,7 @@ echo **** ALL DONE. ****
 echo - Workflows in ComfyUI: Workflows menu -^> Comfy Workflow -^> LoRA -^> SDXL.
 echo - Training: %OT%\start-ui.bat  (load the train-lora-sdxl preset).
 echo - Your data + guide (README): %ROOT%
+echo - Tutorial video (step by step): https://youtu.be/cn2juoismhM
 pause
 endlocal
 exit /b 0

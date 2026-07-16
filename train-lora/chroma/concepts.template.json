@@ -1,0 +1,17 @@
+[
+    {
+        "__version": 2,
+        "name": "character",
+        "path": "__ROOT__\\dataset",
+        "enabled": true,
+        "include_subdirectories": false,
+        "balancing": 1.0,
+        "image": {
+            "enable_crop_jitter": false
+        },
+        "text": {
+            "prompt_source": "sample",
+            "prompt_path": ""
+        }
+    }
+]

@@ -1,0 +1,76 @@
+{
+    "__version": 10,
+    "training_method": "LORA",
+    "model_type": "CHROMA_1",
+    "base_model_name": "lodestones/Chroma1-HD",
+
+    "output_model_destination": "__ROOT__\\output\\juno_chroma.safetensors",
+    "output_model_format": "SAFETENSORS",
+    "output_dtype": "BFLOAT_16",
+
+    "train_dtype": "BFLOAT_16",
+    "weight_dtype": "BFLOAT_16",
+
+    "transformer": {
+        "train": true,
+        "weight_dtype": "BFLOAT_16"
+    },
+    "text_encoder": {
+        "train": false,
+        "weight_dtype": "BFLOAT_16"
+    },
+    "vae": {
+        "weight_dtype": "FLOAT_32"
+    },
+
+    "timestep_distribution": "INVERTED_PARABOLA",
+    "noising_weight": 7.7,
+
+    "layer_filter": "attn,ff.net",
+    "layer_filter_preset": "attn-mlp",
+    "quantization": {
+        "layer_filter": "transformer_block",
+        "layer_filter_preset": "blocks"
+    },
+
+    "lora_rank": 16,
+    "lora_alpha": 16.0,
+
+    "optimizer": {
+        "optimizer": "ADAMW"
+    },
+
+    "learning_rate": 2e-4,
+    "learning_rate_scheduler": "CONSTANT",
+
+    "epochs": 100,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 1,
+
+    "gradient_checkpointing": "CPU_OFFLOADED",
+    "layer_offload_fraction": 0.6,
+    "dataloader_threads": 1,
+    "ema": "OFF",
+
+    "aspect_ratio_bucketing": true,
+    "resolution": "1024",
+    "latent_caching": true,
+    "clear_cache_before_training": true,
+
+    "save_every": 25,
+    "save_every_unit": "EPOCH",
+    "save_filename_prefix": "juno_chroma_e",
+
+    "backup_after": 30,
+    "backup_after_unit": "MINUTE",
+    "rolling_backup": true,
+    "rolling_backup_count": 3,
+
+    "workspace_dir": "__ROOT__\\workspace",
+    "samples": [],
+    "sample_after": 999,
+    "sample_after_unit": "EPOCH",
+
+    "concept_file_name": "training_concepts/train-lora-chroma-concepts.json",
+    "concepts": null
+}

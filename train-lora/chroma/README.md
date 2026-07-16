@@ -11,10 +11,11 @@ Same pipeline as the SDXL episode — generate → curate → caption → train 
 twists: captions are **full sentences** (Chroma reads them with a T5 encoder, not tags), and the
 recipe uses RAM offload so it fits a **12 GB** card.
 
-1. **Hardware.** 12 GB VRAM is enough (the preset offloads to system RAM). ⚠️ The bf16 recipe
-   peaks around **53 GB of system RAM** — 64 GB recommended. Only 32 GB? Open the preset in
-   OneTrainer and switch the **transformer weight dtype to FLOAT_8** (small quality trade-off,
-   still no GGUF needed).
+1. **Hardware.** 12 GB VRAM is enough (the preset offloads to system RAM). ⚠️ 12 GB card:
+   training peaks at **11.96 / 12 GB** — close everything else (browser included) before you
+   hit Start. ⚠️ The bf16 recipe peaks around **53 GB of system RAM** — 64 GB recommended.
+   Only 32 GB? Open the preset in OneTrainer and switch the **transformer weight dtype to
+   FLOAT_8** (small quality trade-off, still no GGUF needed).
 2. **Disk.** The installer downloaded ~24 GB of models for ComfyUI. Your **first training run**
    downloads the training copy of the base model (~18 GB) into the Hugging Face cache — leave
    ~45 GB free in total.
